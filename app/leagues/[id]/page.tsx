@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   getSupabaseClient,
   isSupabaseConfigured,
+  PROFILE_UPDATED_EVENT,
 } from "../../../lib/supabase/client";
 
 type League = {
@@ -47,6 +48,25 @@ type Member = {
 type Profile = {
   id: string;
   username: string;
+  coins: number | null;
+};
+
+type BetPick = "home" | "draw" | "away";
+
+type Bet = {
+  user_id: string;
+  match_id: string;
+  pick: BetPick;
+  stake: number;
+  payout: number | null;
+  settled: boolean;
+  profile: Profile | null;
+};
+
+type BetPool = {
+  pick: BetPick;
+  total: number;
+  bettors: number;
 };
 
 type LeagueDetails = {
@@ -55,6 +75,9 @@ type LeagueDetails = {
   members: Member[];
   matches: Match[];
   predictions: Prediction[];
+  bets: Bet[];
+  pools: Record<string, Record<BetPick, number>>;
+  currentBalance: number | null;
 };
 
 const backLinkClassName =
@@ -84,10 +107,44 @@ function getActionError(error: unknown, fallback: string) {
   return fallback;
 }
 
+function getBetErrorMessage(error: unknown) {
+  const code = getErrorCode(error);
+  const message =
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+      ? error.message.toLowerCase()
+      : "";
+
+  if (code === "23505" || message.includes("23505")) {
+    return "Ви вже зробили ставку на цей матч";
+  }
+  if (code === "insufficient_funds" || message.includes("insufficient_funds")) {
+    return "Недостатньо монет";
+  }
+  if (code === "betting_closed" || message.includes("betting_closed")) {
+    return "Ставки на цей матч закриті";
+  }
+  if (code === "not_member" || message.includes("not_member")) {
+    return "Ви не учасник ліги";
+  }
+  if (code === "invalid_bet" || message.includes("invalid_bet")) {
+    return "Некоректна ставка";
+  }
+  return "Не вдалося зробити ставку. Спробуйте ще раз";
+}
+
 function parseScore(value: FormDataEntryValue | null) {
   if (typeof value !== "string" || value.trim() === "") return null;
   const score = Number(value);
   return Number.isSafeInteger(score) && score >= 0 ? score : null;
+}
+
+function getBetPickLabel(pick: BetPick, match: Match) {
+  if (pick === "home") return match.team_home;
+  if (pick === "away") return match.team_away;
+  return "Нічия";
 }
 
 function formatMatchTime(value: string) {
@@ -134,6 +191,10 @@ export default function LeagueDetailsPage() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [betError, setBetError] = useState<{
+    matchId: string;
+    message: string;
+  } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
 
@@ -256,17 +317,57 @@ export default function LeagueDetailsPage() {
           Prediction,
           "profile"
         >[];
+        const { data: betRows, error: betsError } = matchIds.length
+          ? await client
+              .from("bets")
+              .select("user_id, match_id, pick, stake, payout, settled")
+              .in("match_id", matchIds)
+          : { data: [], error: null };
+
+        if (betsError) throw betsError;
+
+        const bets = (betRows ?? []) as Omit<Bet, "profile">[];
+        const pools: Record<string, Record<BetPick, number>> = {};
+        const plannedMatches = matches.filter(
+          (match) =>
+            match.status === "planned" &&
+            new Date(match.match_time).getTime() > Date.now(),
+        );
+        const poolResults = await Promise.all(
+          plannedMatches.map(async (match) => {
+            const { data, error } = await client.rpc("match_bet_pools", {
+              p_match: match.id,
+            });
+            if (error) throw error;
+            return { matchId: match.id, rows: (data ?? []) as BetPool[] };
+          }),
+        );
+        for (const { matchId, rows } of poolResults) {
+          pools[matchId] = { home: 0, draw: 0, away: 0 };
+          for (const row of rows) {
+            if (
+              row.pick === "home" ||
+              row.pick === "draw" ||
+              row.pick === "away"
+            ) {
+              pools[matchId][row.pick] = Number(row.total) || 0;
+            }
+          }
+        }
+
         const profileIds = [
           ...new Set([
             league.owner_id,
             ...members.map((member) => member.user_id),
             ...predictions.map((prediction) => prediction.user_id),
+            ...bets.map((bet) => bet.user_id),
+            ...(currentUserId ? [currentUserId] : []),
           ]),
         ];
 
         const { data: profileRows, error: profilesError } = await client
           .from("profiles")
-          .select("id, username")
+          .select("id, username, coins")
           .in("id", profileIds);
 
         if (profilesError) throw profilesError;
@@ -318,6 +419,16 @@ export default function LeagueDetailsPage() {
               ...prediction,
               profile: profilesById.get(prediction.user_id) ?? null,
             })),
+            bets: bets.map((bet) => ({
+              ...bet,
+              payout: bet.payout === null ? null : Number(bet.payout),
+              stake: Number(bet.stake),
+              profile: profilesById.get(bet.user_id) ?? null,
+            })),
+            pools,
+            currentBalance: currentUserId
+              ? (profilesById.get(currentUserId)?.coins ?? null)
+              : null,
           });
           setNow(Date.now());
           setLoadError(null);
@@ -340,7 +451,7 @@ export default function LeagueDetailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, refreshKey]);
+  }, [id, refreshKey, currentUserId]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 15_000);
@@ -407,6 +518,57 @@ export default function LeagueDetailsPage() {
       setActionError(
         getActionError(error, "Не вдалося зберегти прогноз. Спробуйте ще раз."),
       );
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handlePlaceBet(
+    event: FormEvent<HTMLFormElement>,
+    match: Match,
+  ) {
+    event.preventDefault();
+    setBetError(null);
+
+    const formData = new FormData(event.currentTarget);
+    const pick = formData.get("bet-pick");
+    const stakeValue = Number(formData.get("bet-stake"));
+    if (
+      (pick !== "home" && pick !== "draw" && pick !== "away") ||
+      !Number.isSafeInteger(stakeValue) ||
+      stakeValue < 1 ||
+      details?.currentBalance === null ||
+      details?.currentBalance === undefined ||
+      stakeValue > details.currentBalance
+    ) {
+      setBetError({ matchId: match.id, message: "Некоректна ставка" });
+      return;
+    }
+
+    const client = getSupabaseClient();
+    if (!client || !currentUserId) {
+      setBetError({
+        matchId: match.id,
+        message: "Не вдалося зробити ставку. Спробуйте ще раз",
+      });
+      return;
+    }
+
+    const actionId = `bet-${match.id}`;
+    setBusyAction(actionId);
+    try {
+      const { error } = await client.rpc("place_bet", {
+        p_match: match.id,
+        p_pick: pick,
+        p_stake: stakeValue,
+      });
+      if (error) throw error;
+
+      setActionMessage("Ставку зроблено.");
+      window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
+      reload();
+    } catch (error) {
+      setBetError({ matchId: match.id, message: getBetErrorMessage(error) });
     } finally {
       setBusyAction(null);
     }
@@ -954,6 +1116,26 @@ export default function LeagueDetailsPage() {
                         prediction.match_id === match.id &&
                         prediction.user_id === currentUserId,
                     );
+                    const ownBet = details.bets.find(
+                      (bet) =>
+                        bet.match_id === match.id &&
+                        bet.user_id === currentUserId,
+                    );
+                    const visibleBets = details.bets
+                      .filter((bet) => bet.match_id === match.id)
+                      .sort((first, second) =>
+                        (first.profile?.username ?? "").localeCompare(
+                          second.profile?.username ?? "",
+                          "uk",
+                        ),
+                      );
+                    const matchPools = details.pools[match.id] ?? {
+                      home: 0,
+                      draw: 0,
+                      away: 0,
+                    };
+                    const totalPool =
+                      matchPools.home + matchPools.draw + matchPools.away;
                     const visiblePredictions = details.predictions
                       .filter(
                         (prediction) =>
@@ -1280,6 +1462,9 @@ export default function LeagueDetailsPage() {
                             <p className="mb-3 text-sm font-semibold">
                               Виправити результат
                             </p>
+                            <p className="mb-3 text-sm text-[#626b64]">
+                              Виплати вже здійснено, виправлення не змінює монети
+                            </p>
                             <div className="flex flex-wrap items-end gap-3">
                               <div className="w-24">
                                 <label
@@ -1331,6 +1516,166 @@ export default function LeagueDetailsPage() {
                               </button>
                             </div>
                           </form>
+                        )}
+
+                        {!isFinished && !started && (
+                          <section className="mt-5 border-t border-[#e0e3dd] pt-4">
+                            <h4 className="mb-3 text-sm font-semibold">
+                              Ставка на результат
+                            </h4>
+                            {ownBet ? (
+                              <p className="text-sm text-[#626b64]">
+                                Вашу ставку вже зроблено:{" "}
+                                <span className="font-medium text-[#202722]">
+                                  {getBetPickLabel(ownBet.pick, match)} —{" "}
+                                  {ownBet.stake} монет
+                                </span>
+                              </p>
+                            ) : (
+                              <form
+                                onSubmit={(event) =>
+                                  void handlePlaceBet(event, match)
+                                }
+                              >
+                                <fieldset
+                                  disabled={
+                                    busyAction === `bet-${match.id}` ||
+                                    !currentUserId ||
+                                    details.currentBalance === null
+                                  }
+                                >
+                                  <legend className="sr-only">
+                                    Оберіть результат матчу
+                                  </legend>
+                                  <div className="grid gap-3 sm:grid-cols-3">
+                                    {(
+                                      [
+                                        ["home", "Господарі"],
+                                        ["draw", "Нічия"],
+                                        ["away", "Гості"],
+                                      ] as const
+                                    ).map(([pick, label], index) => {
+                                      const pickPool = matchPools[pick];
+                                      const multiplier =
+                                        pickPool > 0 && totalPool > 0
+                                          ? `${(totalPool / pickPool).toLocaleString(
+                                              "uk-UA",
+                                              { maximumFractionDigits: 2 },
+                                            )}×`
+                                          : "—";
+
+                                      return (
+                                        <label
+                                          key={pick}
+                                          className="border border-[#d9ddd6] bg-[#fbfcfa] p-3 text-sm"
+                                        >
+                                          <span className="flex items-center gap-2 font-medium">
+                                            <input
+                                              type="radio"
+                                              name="bet-pick"
+                                              value={pick}
+                                              required
+                                              defaultChecked={index === 0}
+                                              className="accent-emerald-800"
+                                            />
+                                            {label}
+                                          </span>
+                                          <span className="mt-2 block text-xs text-[#626b64]">
+                                            Ставки: {pickPool} монет
+                                          </span>
+                                          <span className="mt-1 block text-xs text-[#626b64]">
+                                            Приблизний множник: {multiplier}
+                                          </span>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                  <div className="mt-3 flex flex-wrap items-end gap-3">
+                                    <div className="w-36">
+                                      <label
+                                        htmlFor={`bet-stake-${match.id}`}
+                                        className="mb-1 block text-xs text-[#626b64]"
+                                      >
+                                        Сума (баланс:{" "}
+                                        {details.currentBalance ?? "—"})
+                                      </label>
+                                      <input
+                                        id={`bet-stake-${match.id}`}
+                                        name="bet-stake"
+                                        type="number"
+                                        min="1"
+                                        max={details.currentBalance ?? undefined}
+                                        step="1"
+                                        required
+                                        className={fieldClassName}
+                                      />
+                                    </div>
+                                    <button
+                                      type="submit"
+                                      disabled={
+                                        busyAction === `bet-${match.id}` ||
+                                        !currentUserId ||
+                                        details.currentBalance === null
+                                      }
+                                      className={buttonClassName}
+                                    >
+                                      {busyAction === `bet-${match.id}`
+                                        ? "Ставимо…"
+                                        : "Поставити"}
+                                    </button>
+                                  </div>
+                                </fieldset>
+                                {!currentUserId && (
+                                  <p className="mt-3 text-sm text-[#626b64]">
+                                    Увійдіть у свій акаунт, щоб зробити ставку.
+                                  </p>
+                                )}
+                                {betError?.matchId === match.id && (
+                                  <p
+                                    role="alert"
+                                    className="mt-3 text-sm text-rose-700"
+                                  >
+                                    {betError.message}
+                                  </p>
+                                )}
+                              </form>
+                            )}
+                          </section>
+                        )}
+
+                        {started && (
+                          <section className="mt-5 border-t border-[#e0e3dd] pt-4">
+                            <h4 className="mb-3 text-sm font-semibold">
+                              Ставки учасників
+                            </h4>
+                            {visibleBets.length === 0 ? (
+                              <p className="text-sm text-[#626b64]">
+                                Ставок поки немає.
+                              </p>
+                            ) : (
+                              <ul className="divide-y divide-[#eef0ec]">
+                                {visibleBets.map((bet) => (
+                                  <li
+                                    key={`${bet.user_id}-${bet.match_id}`}
+                                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2 text-sm"
+                                  >
+                                    <span className="text-[#626b64]">
+                                      {bet.profile?.username ?? "Учасник"}
+                                    </span>
+                                    <span className="font-medium tabular-nums">
+                                      {getBetPickLabel(bet.pick, match)} ·{" "}
+                                      {bet.stake} монет
+                                      {isFinished && (
+                                        <span className="ml-3 text-[#626b64]">
+                                          Виплата: {bet.payout ?? "—"} монет
+                                        </span>
+                                      )}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </section>
                         )}
 
                         {(isFinished || started) && (
