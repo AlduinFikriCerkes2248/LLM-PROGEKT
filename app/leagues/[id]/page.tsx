@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   getSupabaseClient,
@@ -97,8 +97,29 @@ function formatMatchTime(value: string) {
   }).format(new Date(value));
 }
 
+function toDateTimeLocalValue(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 16);
+}
+
+function sortMatches(matches: Match[]) {
+  return [...matches].sort((first, second) => {
+    if (first.status !== second.status) {
+      return first.status === "planned" ? -1 : 1;
+    }
+
+    const timeDifference =
+      new Date(first.match_time).getTime() -
+      new Date(second.match_time).getTime();
+    return first.status === "planned" ? timeDifference : -timeDifference;
+  });
+}
+
 export default function LeagueDetailsPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [details, setDetails] = useState<LeagueDetails | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isAuthResolved, setIsAuthResolved] = useState(
@@ -114,6 +135,7 @@ export default function LeagueDetailsPage() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
 
   const reload = useCallback(() => {
     setRefreshKey((current) => current + 1);
@@ -291,7 +313,7 @@ export default function LeagueDetailsPage() {
                     "uk",
                   ),
               ),
-            matches,
+            matches: sortMatches(matches),
             predictions: predictions.map((prediction) => ({
               ...prediction,
               profile: profilesById.get(prediction.user_id) ?? null,
@@ -436,6 +458,185 @@ export default function LeagueDetailsPage() {
     }
   }
 
+  async function handleUpdateMatch(
+    event: FormEvent<HTMLFormElement>,
+    match: Match,
+  ) {
+    event.preventDefault();
+    setActionError(null);
+    setActionMessage(null);
+
+    const formData = new FormData(event.currentTarget);
+    const teamHome = String(formData.get("team-home") ?? "").trim();
+    const teamAway = String(formData.get("team-away") ?? "").trim();
+    const localMatchTime = String(formData.get("match-time") ?? "");
+    const matchDate = new Date(localMatchTime);
+
+    if (!teamHome || !teamAway || !localMatchTime || Number.isNaN(matchDate.getTime())) {
+      setActionError("Вкажіть обидві команди та коректні дату й час матчу.");
+      return;
+    }
+
+    const client = getSupabaseClient();
+    if (!client || !details) {
+      setActionError("Не вдалося підключитися до Supabase.");
+      return;
+    }
+
+    setBusyAction(`update-match-${match.id}`);
+    try {
+      const { data, error } = await client
+        .from("matches")
+        .update({
+          team_home: teamHome,
+          team_away: teamAway,
+          match_time: new Date(localMatchTime).toISOString(),
+        })
+        .eq("id", match.id)
+        .eq("league_id", details.league.id)
+        .eq("status", "planned")
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        setActionError("Дію заборонено");
+        return;
+      }
+
+      setEditingMatchId(null);
+      setActionMessage("Матч оновлено.");
+      reload();
+    } catch (error) {
+      setActionError(
+        getActionError(error, "Не вдалося оновити матч. Спробуйте ще раз."),
+      );
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleDeleteMatch(match: Match) {
+    if (!window.confirm("Видалити матч? Прогнози на нього теж зникнуть.")) return;
+
+    setActionError(null);
+    setActionMessage(null);
+    const client = getSupabaseClient();
+    if (!client || !details) {
+      setActionError("Не вдалося підключитися до Supabase.");
+      return;
+    }
+
+    setBusyAction(`delete-match-${match.id}`);
+    try {
+      const { data, error } = await client
+        .from("matches")
+        .delete()
+        .eq("id", match.id)
+        .eq("league_id", details.league.id)
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        setActionError("Дію заборонено");
+        return;
+      }
+
+      setEditingMatchId(null);
+      setActionMessage("Матч видалено.");
+      reload();
+    } catch (error) {
+      setActionError(
+        getActionError(error, "Не вдалося видалити матч. Спробуйте ще раз."),
+      );
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleLeaveLeague() {
+    if (!details || !currentUserId) return;
+    if (!window.confirm("Вийти з ліги?")) return;
+
+    setActionError(null);
+    setActionMessage(null);
+    const client = getSupabaseClient();
+    if (!client) {
+      setActionError("Не вдалося підключитися до Supabase.");
+      return;
+    }
+
+    setBusyAction("leave-league");
+    try {
+      const { data, error } = await client
+        .from("league_members")
+        .delete()
+        .eq("user_id", currentUserId)
+        .eq("league_id", details.league.id)
+        .select("user_id")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        setActionError("Дію заборонено");
+        return;
+      }
+
+      router.push("/leagues");
+    } catch (error) {
+      setActionError(
+        getActionError(error, "Не вдалося вийти з ліги. Спробуйте ще раз."),
+      );
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleDeleteLeague() {
+    if (!details || !currentUserId) return;
+    const title = details.league.title;
+    if (
+      !window.confirm(
+        `Видалити лігу «${title}»? Усі матчі та прогнози буде видалено.`,
+      )
+    ) {
+      return;
+    }
+    if (window.prompt(`Для підтвердження введіть назву ліги: ${title}`) !== title) {
+      return;
+    }
+
+    setActionError(null);
+    setActionMessage(null);
+    const client = getSupabaseClient();
+    if (!client) {
+      setActionError("Не вдалося підключитися до Supabase.");
+      return;
+    }
+
+    setBusyAction("delete-league");
+    try {
+      const { data, error } = await client
+        .from("leagues")
+        .delete()
+        .eq("id", details.league.id)
+        .eq("owner_id", currentUserId)
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        setActionError("Дію заборонено");
+        return;
+      }
+
+      router.push("/leagues");
+    } catch (error) {
+      setActionError(
+        getActionError(error, "Не вдалося видалити лігу. Спробуйте ще раз."),
+      );
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function handleSaveResult(
     event: FormEvent<HTMLFormElement>,
     match: Match,
@@ -493,6 +694,14 @@ export default function LeagueDetailsPage() {
       details &&
       currentUserId &&
       details.league.owner_id === currentUserId,
+  );
+  const isMember = Boolean(
+    !isOwner &&
+      currentUserId &&
+      details?.members.some(
+        (member) =>
+          member.user_id === currentUserId && member.role === "member",
+      ),
   );
 
   return (
@@ -791,6 +1000,125 @@ export default function LeagueDetailsPage() {
                           </div>
                         </div>
 
+                        {isOwner && match.status === "planned" && (
+                          <div className="mt-4 flex flex-wrap gap-3 border-t border-[#e0e3dd] pt-4">
+                            <button
+                              type="button"
+                              disabled={busyAction !== null}
+                              onClick={() => {
+                                setEditingMatchId(
+                                  editingMatchId === match.id ? null : match.id,
+                                );
+                                setActionError(null);
+                              }}
+                              className={buttonClassName}
+                            >
+                              {editingMatchId === match.id
+                                ? "Скасувати редагування"
+                                : "Редагувати"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busyAction !== null}
+                              onClick={() => void handleDeleteMatch(match)}
+                              className="h-11 shrink-0 border border-rose-700 px-5 text-sm font-semibold text-rose-800 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {busyAction === `delete-match-${match.id}`
+                                ? "Видалення…"
+                                : "Видалити"}
+                            </button>
+                          </div>
+                        )}
+
+                        {isOwner && isFinished && (
+                          <div className="mt-4 flex justify-end border-t border-[#e0e3dd] pt-4">
+                            <button
+                              type="button"
+                              disabled={busyAction !== null}
+                              onClick={() => void handleDeleteMatch(match)}
+                              className="h-11 shrink-0 border border-rose-700 px-5 text-sm font-semibold text-rose-800 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {busyAction === `delete-match-${match.id}`
+                                ? "Видалення…"
+                                : "Видалити"}
+                            </button>
+                          </div>
+                        )}
+
+                        {isOwner && editingMatchId === match.id && (
+                          <form
+                            className="mt-4 grid gap-4 border-t border-[#e0e3dd] pt-4 sm:grid-cols-2"
+                            onSubmit={(event) =>
+                              void handleUpdateMatch(event, match)
+                            }
+                          >
+                            <div>
+                              <label
+                                htmlFor={`edit-team-home-${match.id}`}
+                                className="mb-1.5 block text-sm font-medium"
+                              >
+                                Господарі
+                              </label>
+                              <input
+                                id={`edit-team-home-${match.id}`}
+                                name="team-home"
+                                type="text"
+                                required
+                                maxLength={100}
+                                defaultValue={match.team_home}
+                                disabled={busyAction === `update-match-${match.id}`}
+                                className={fieldClassName}
+                              />
+                            </div>
+                            <div>
+                              <label
+                                htmlFor={`edit-team-away-${match.id}`}
+                                className="mb-1.5 block text-sm font-medium"
+                              >
+                                Гості
+                              </label>
+                              <input
+                                id={`edit-team-away-${match.id}`}
+                                name="team-away"
+                                type="text"
+                                required
+                                maxLength={100}
+                                defaultValue={match.team_away}
+                                disabled={busyAction === `update-match-${match.id}`}
+                                className={fieldClassName}
+                              />
+                            </div>
+                            <div>
+                              <label
+                                htmlFor={`edit-match-time-${match.id}`}
+                                className="mb-1.5 block text-sm font-medium"
+                              >
+                                Дата й час
+                              </label>
+                              <input
+                                id={`edit-match-time-${match.id}`}
+                                name="match-time"
+                                type="datetime-local"
+                                required
+                                defaultValue={toDateTimeLocalValue(match.match_time)}
+                                disabled={busyAction === `update-match-${match.id}`}
+                                className={fieldClassName}
+                              />
+                            </div>
+                            <div className="flex items-end gap-3">
+                              <button
+                                type="submit"
+                                disabled={busyAction !== null}
+                                className={buttonClassName}
+                              >
+                                {busyAction === `update-match-${match.id}`
+                                  ? "Збереження…"
+                                  : "Зберегти зміни"}
+                              </button>
+                            </div>
+                          </form>
+                        )}
+
                         {!isAuthResolved && (
                           <p
                             role="status"
@@ -1044,6 +1372,42 @@ export default function LeagueDetailsPage() {
                 </ul>
               )}
             </section>
+
+            {(isOwner || isMember) && (
+              <section className="mt-12 border-t border-[#d9ddd6] pt-8">
+                {isOwner ? (
+                  <div className="border border-rose-200 bg-white p-5 shadow-sm sm:p-6">
+                    <h2 className="text-lg font-semibold text-rose-900">
+                      Небезпечна дія
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-[#626b64]">
+                      Видалення ліги також видалить усі її матчі та прогнози.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={busyAction !== null}
+                      onClick={() => void handleDeleteLeague()}
+                      className="mt-4 h-11 border border-rose-700 px-5 text-sm font-semibold text-rose-800 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {busyAction === "delete-league"
+                        ? "Видалення ліги…"
+                        : "Видалити лігу"}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={busyAction !== null}
+                    onClick={() => void handleLeaveLeague()}
+                    className="h-11 border border-rose-700 px-5 text-sm font-semibold text-rose-800 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {busyAction === "leave-league"
+                      ? "Вихід із ліги…"
+                      : "Вийти з ліги"}
+                  </button>
+                )}
+              </section>
+            )}
           </>
         ) : null}
       </div>
