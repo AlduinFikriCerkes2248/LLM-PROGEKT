@@ -7,6 +7,7 @@ import type { Session } from "@supabase/supabase-js";
 import {
   getSupabaseClient,
   isSupabaseConfigured,
+  PROFILE_UPDATED_EVENT,
 } from "../lib/supabase/client";
 
 type SignedInUser = {
@@ -19,6 +20,7 @@ export default function AuthStatusIndicator() {
   const router = useRouter();
   const [user, setUser] = useState<SignedInUser | null>(null);
   const [username, setUsername] = useState<string | null>(null);
+  const [coins, setCoins] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -31,17 +33,48 @@ export default function AuthStatusIndicator() {
     let active = true;
     let profileRequest = 0;
     let authEventVersion = 0;
+    let currentUserId: string | null = null;
+
+    async function loadProfile(userId: string, requestId: number) {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("username, coins")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (!active || requestId !== profileRequest) return;
+
+        if (error) {
+          console.error("Не вдалося завантажити профіль користувача:", error);
+          setErrorMessage("Не вдалося завантажити профіль; показано email.");
+        }
+
+        setUsername(data?.username || null);
+        setCoins(typeof data?.coins === "number" ? data.coins : null);
+      } catch (error) {
+        if (!active || requestId !== profileRequest) return;
+        console.error("Не вдалося завантажити профіль користувача:", error);
+        setErrorMessage("Не вдалося завантажити профіль; показано email.");
+        setUsername(null);
+        setCoins(null);
+      } finally {
+        if (active && requestId === profileRequest) setIsLoading(false);
+      }
+    }
 
     async function updateUser(session: Session | null) {
       if (!active) return;
       const requestId = ++profileRequest;
       const signedInUser = session?.user;
+      currentUserId = signedInUser?.id ?? null;
       const nextUser = signedInUser
         ? { id: signedInUser.id, email: signedInUser.email ?? null }
         : null;
 
       setUser(nextUser);
       setUsername(null);
+      setCoins(null);
       setErrorMessage(null);
 
       if (!signedInUser) {
@@ -49,22 +82,16 @@ export default function AuthStatusIndicator() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("id", signedInUser.id)
-        .maybeSingle();
-
-      if (!active || requestId !== profileRequest) return;
-
-      if (error) {
-        console.error("Не вдалося завантажити профіль користувача:", error);
-        setErrorMessage("Не вдалося завантажити профіль; показано email.");
-      }
-
-      setUsername(data?.username || null);
-      setIsLoading(false);
+      await loadProfile(signedInUser.id, requestId);
     }
+
+    function refreshProfile() {
+      if (!currentUserId) return;
+      const requestId = ++profileRequest;
+      void loadProfile(currentUserId, requestId);
+    }
+
+    window.addEventListener(PROFILE_UPDATED_EVENT, refreshProfile);
 
     const {
       data: { subscription },
@@ -100,6 +127,7 @@ export default function AuthStatusIndicator() {
     return () => {
       active = false;
       subscription.unsubscribe();
+      window.removeEventListener(PROFILE_UPDATED_EVENT, refreshProfile);
     };
   }, []);
 
@@ -134,9 +162,12 @@ export default function AuthStatusIndicator() {
         {isLoading ? (
           <span role="status">...</span>
         ) : user ? (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
             <span className="max-w-40 truncate font-medium" title={username ?? user.email ?? undefined}>
               {username || user.email || "Користувач"}
+            </span>
+            <span className="whitespace-nowrap text-amber-700" aria-label="Баланс монет">
+              🪙 {coins === null ? "—" : coins}
             </span>
             <button
               type="button"
