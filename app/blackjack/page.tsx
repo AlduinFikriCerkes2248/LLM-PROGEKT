@@ -31,6 +31,24 @@ type LeaderboardEntry = {
   net: number;
 };
 
+// Конфігурація рівнів агента та лімітів максимальної ставки
+const LEVELS = [
+  { level: 1, title: "Стажер під прикриттям", minXp: 0, maxXp: 150, maxBet: 500 },
+  { level: 2, title: "Оперативник бару", minXp: 150, maxXp: 450, maxBet: 1000 },
+  { level: 3, title: "Спецагент 007", minXp: 450, maxXp: 1000, maxBet: 1800 },
+  { level: 4, title: "Ветеран розвідки", minXp: 1000, maxXp: 2200, maxBet: 2600 },
+  { level: 5, title: "Майстер-Шпигун", minXp: 2200, maxXp: 5000, maxBet: 3500 },
+];
+
+function getLevelInfo(totalXp: number) {
+  for (let i = LEVELS.length - 1; i >= 0; i--) {
+    if (totalXp >= LEVELS[i].minXp) {
+      return LEVELS[i];
+    }
+  }
+  return LEVELS[0];
+}
+
 const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
 const suits = ["♠", "♥", "♦", "♣"];
 
@@ -112,7 +130,7 @@ function getErrorMessage(error: unknown) {
     : "";
 }
 
-function getUserErrorMessage(error: unknown) {
+function getUserErrorMessage(error: unknown, maxBetAllowed = 3500) {
   const code = getErrorCode(error);
   const message = getErrorMessage(error);
   const isError = (name: string) => code === name || message.includes(name);
@@ -121,7 +139,7 @@ function getUserErrorMessage(error: unknown) {
     return "Партія вже активна. Карти на столі.";
   }
   if (isError("insufficient_funds")) return "Недостатньо монет для ставки.";
-  if (isError("invalid_bet")) return "Ставка від 1 до 500 монет.";
+  if (isError("invalid_bet")) return `Ставка має бути від 1 до ${maxBetAllowed} монет (за твоїм рівнем).`;
   if (isError("no_active_game")) return "Активної партії немає.";
   if (isError("cannot_double")) return "Подвоїти можна лише на перших двох картах.";
   if (isError("not_authenticated")) return "Необхідно увійти до системи.";
@@ -164,37 +182,26 @@ function renderHiddenCard(key: string) {
   );
 }
 
-// SVG Аватар людини-агента у строгому костюмі та темних окулярах
 function AgentAvatar() {
   return (
     <svg viewBox="0 0 120 120" className="h-20 w-20 shrink-0 drop-shadow-md">
-      {/* Тіло / Костюм */}
       <path d="M20 120 C20 88 35 75 60 75 C85 75 100 88 100 120 Z" fill="#111827" />
-      {/* Біла сорочка */}
       <polygon points="50,75 70,75 64,105 56,105" fill="#f8fafc" />
-      {/* Чорна краватка */}
       <polygon points="58,78 62,78 64,108 60,114 56,108" fill="#0f172a" stroke="#000" strokeWidth="1" />
-      {/* Шия */}
       <rect x="52" y="60" width="16" height="18" fill="#d4a373" />
-      {/* Обличчя */}
       <ellipse cx="60" cy="48" rx="22" ry="26" fill="#e0a96d" />
-      {/* Зачіска (гладке коротке чорне волосся) */}
       <path d="M38 45 C38 24 50 20 60 20 C70 20 82 24 82 45 C82 30 76 25 60 25 C44 25 38 32 38 45 Z" fill="#0f172a" />
-      {/* Темні сонцезахисні окуляри агента */}
       <rect x="42" y="42" width="16" height="10" rx="2" fill="#09090b" stroke="#27272a" strokeWidth="1.5" />
       <rect x="62" y="42" width="16" height="10" rx="2" fill="#09090b" stroke="#27272a" strokeWidth="1.5" />
       <line x1="58" y1="46" x2="62" y2="46" stroke="#27272a" strokeWidth="2" />
-      {/* Відблиск на склі окулярів */}
       <line x1="45" y1="44" x2="52" y2="49" stroke="#71717a" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
       <line x1="65" y1="44" x2="72" y2="49" stroke="#71717a" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
-      {/* Ніс і суворі губи */}
       <path d="M59 56 L61 56" stroke="#b07d4b" strokeWidth="2" strokeLinecap="round" />
       <path d="M54 64 L66 64" stroke="#8c582f" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
 
-// Інтерактивна склянка коли
 function ColaGlass({
   level,
   onDrink,
@@ -209,32 +216,25 @@ function ColaGlass({
       title="Натисніть, щоб зробити ковток коли!"
     >
       <div className="relative h-28 w-16 overflow-hidden rounded-b-xl border-x-2 border-b-4 border-slate-400/40 bg-slate-900/40 backdrop-blur-sm">
-        {/* Соломинка */}
         <div className="absolute -top-3 left-7 h-16 w-2 rotate-12 bg-rose-600 border border-rose-700 shadow-sm" />
-        
-        {/* Кубики льоду */}
         {level > 10 && (
           <div className="absolute top-8 left-3 h-5 w-5 rotate-12 rounded border border-white/30 bg-white/20 backdrop-blur-sm z-10" />
         )}
         {level > 35 && (
           <div className="absolute top-14 right-2 h-5 w-5 -rotate-12 rounded border border-white/30 bg-white/20 backdrop-blur-sm z-10" />
         )}
-
-        {/* Сама рідина коли */}
         <div
           className="absolute bottom-0 w-full bg-gradient-to-t from-[#1a0804] via-[#2d0e07] to-[#42170d] transition-all duration-500 ease-out flex items-start justify-center"
           style={{ height: `${level}%` }}
         >
-          {/* Піна / бульбашки зверху */}
           {level > 0 && (
             <div className="h-1.5 w-full bg-amber-700/60 animate-pulse border-t border-amber-500/40" />
           )}
         </div>
       </div>
-
       <div className="mt-2 text-center">
         <span className="font-mono text-xs font-bold text-slate-300 group-hover:text-amber-400 transition-colors">
-          {level > 0 ? `${level}% коли` : "Порожньо (клікни)"}
+          {level > 0 ? `${level}% коли` : "Порожньо"}
         </span>
         <p className="text-[10px] text-slate-500">ковток</p>
       </div>
@@ -248,8 +248,9 @@ export default function BlackjackPage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [isBusy, setIsBusy] = useState(false);
-  const [betInput, setBetInput] = useState("20");
+  const [betInput, setBetInput] = useState("50");
   const [colaLevel, setColaLevel] = useState(100);
+  const [xp, setXp] = useState(0);
   const [agentSpeech, setAgentSpeech] = useState(
     "Вітаю. Сідай за стіл. Склянка холодної коли поруч. Зроби ставку, коли будеш готовий."
   );
@@ -259,6 +260,63 @@ export default function BlackjackPage() {
   const [leaderboardError, setLeaderboardError] = useState<string | null>(
     isSupabaseConfigured ? null : "Таблиця лідерів тимчасово недоступна."
   );
+
+  const currentLevelInfo = getLevelInfo(xp);
+
+  // Завантаження збереженого досвіду
+  useEffect(() => {
+    try {
+      const savedXp = localStorage.getItem("matchday:bj_xp");
+      if (savedXp) {
+        setXp(Math.max(0, parseInt(savedXp, 10) || 0));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  function saveXp(newXp: number) {
+    const clamped = Math.max(0, newXp);
+    setXp(clamped);
+    try {
+      localStorage.setItem("matchday:bj_xp", clamped.toString());
+    } catch {
+      // ignore
+    }
+  }
+
+  // Оновлення XP після партії
+  function handleGameOutcomeXp(outcome: GameResult, betAmount: number) {
+    let delta = 0;
+    const oldLevel = currentLevelInfo.level;
+
+    if (outcome === "blackjack") {
+      // За блекджек повна ставка у досвід
+      delta = Math.min(300, Math.max(30, betAmount));
+      saveXp(xp + delta);
+    } else if (outcome === "win") {
+      // За виграш половина ставки в досвід
+      delta = Math.min(200, Math.max(15, Math.floor(betAmount / 2)));
+      saveXp(xp + delta);
+    } else if (outcome === "push") {
+      delta = 5;
+      saveXp(xp + delta);
+    } else if (outcome === "lose") {
+      // При програші втрачається половина поточного досвіду на поточному рівні
+      const currentLevelBase = currentLevelInfo.minXp;
+      const progressInLevel = Math.max(0, xp - currentLevelBase);
+      const lostXp = Math.floor(progressInLevel / 2);
+      saveXp(xp - lostXp);
+      delta = -lostXp;
+    }
+
+    const nextLevelInfo = getLevelInfo(Math.max(0, xp + delta));
+    if (nextLevelInfo.level > oldLevel) {
+      setAgentSpeech(
+        `«Підвищення рангу! Тепер ти ${nextLevelInfo.title} (Рівень ${nextLevelInfo.level}). Твій новий ліміт ставки: ${nextLevelInfo.maxBet} монет!»`
+      );
+    }
+  }
 
   useEffect(() => {
     const client = getSupabaseClient();
@@ -275,12 +333,12 @@ export default function BlackjackPage() {
         if (active && parsedGame) {
           setGame(parsedGame);
           if (parsedGame.status === "active") {
-            setAgentSpeech("Твоя партія ще не завершена. Карти чекають.");
+            setAgentSpeech("Твоя партія ще не завершена. Карти чекають на столі.");
           }
         }
       } catch (error) {
         console.error("Не вдалося завантажити стан блекджеку:", error);
-        if (active) setErrorMessage(getUserErrorMessage(error));
+        if (active) setErrorMessage(getUserErrorMessage(error, currentLevelInfo.maxBet));
       } finally {
         if (active) setIsLoading(false);
       }
@@ -369,8 +427,10 @@ export default function BlackjackPage() {
   async function handleDeal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const bet = Number(betInput);
-    if (!Number.isInteger(bet) || bet < 1 || bet > 500) {
-      setErrorMessage("Ставка має бути від 1 до 500 монет.");
+    const maxAllowed = currentLevelInfo.maxBet;
+
+    if (!Number.isInteger(bet) || bet < 1 || bet > maxAllowed) {
+      setErrorMessage(`Твій рівень дозволяє ставку від 1 до ${maxAllowed} монет.`);
       return;
     }
     if (balance === null || bet > balance) {
@@ -393,12 +453,13 @@ export default function BlackjackPage() {
       window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
 
       if (nextGame.status === "finished") {
+        handleGameOutcomeXp(nextGame.result, bet);
         if (nextGame.result === "blackjack") {
-          setAgentSpeech("Блекджек. Бездоганна комбінація, банк твій.");
+          setAgentSpeech("Блекджек! Бездоганна комбінація, подвійний досвід твій.");
         } else if (nextGame.result === "win") {
-          setAgentSpeech("Твоя перемога. Забирай виграш.");
+          setAgentSpeech("Твоя перемога. Досвід зараховано.");
         } else if (nextGame.result === "lose") {
-          setAgentSpeech("Цього разу перевага на моєму боці.");
+          setAgentSpeech("Цього разу дилер сильніший. Частина досвіду згоріла.");
         } else {
           setAgentSpeech("Нічия. Ставка повертається.");
         }
@@ -417,10 +478,10 @@ export default function BlackjackPage() {
             setErrorMessage(null);
           }
         } catch {
-          setErrorMessage(getUserErrorMessage(error));
+          setErrorMessage(getUserErrorMessage(error, maxAllowed));
         }
       } else {
-        setErrorMessage(getUserErrorMessage(error));
+        setErrorMessage(getUserErrorMessage(error, maxAllowed));
       }
     } finally {
       setIsBusy(false);
@@ -434,7 +495,7 @@ export default function BlackjackPage() {
     setErrorMessage(null);
 
     if (action === "bj_hit") setAgentSpeech("Береш ще карту. Подивимось...");
-    if (action === "bj_double") setAgentSpeech("Подвоєння ставки. Серйозний ризик.");
+    if (action === "bj_double") setAgentSpeech("Подвоєння ставки. Серйозний ризик!");
 
     try {
       const { data, error } = await client.rpc(action);
@@ -445,12 +506,14 @@ export default function BlackjackPage() {
 
       if (nextGame.status === "finished") {
         window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
+        handleGameOutcomeXp(nextGame.result, nextGame.bet);
+
         if (nextGame.result === "blackjack") {
           setAgentSpeech("Блекджек. Бездоганна комбінація.");
         } else if (nextGame.result === "win") {
-          setAgentSpeech("Твій виграш. Розрахунок проведено.");
+          setAgentSpeech("Твій виграш. Досвід додано!");
         } else if (nextGame.result === "lose") {
-          setAgentSpeech("Партія програна. Дилер забирає банк.");
+          setAgentSpeech("Партія програна. Половина досвіду рівня згоріла.");
         } else {
           setAgentSpeech("Нічия. Фішки повернено.");
         }
@@ -458,7 +521,7 @@ export default function BlackjackPage() {
         void refreshBalance();
       }
     } catch (error) {
-      setErrorMessage(getUserErrorMessage(error));
+      setErrorMessage(getUserErrorMessage(error, currentLevelInfo.maxBet));
     } finally {
       setIsBusy(false);
     }
@@ -472,19 +535,55 @@ export default function BlackjackPage() {
 
   const isActiveGame = game?.status === "active";
 
+  // Розрахунок відсотка прогресу до наступного рівня
+  const levelRange = currentLevelInfo.maxXp - currentLevelInfo.minXp;
+  const currentLevelProgress = Math.min(levelRange, Math.max(0, xp - currentLevelInfo.minXp));
+  const progressPercent = Math.min(100, Math.floor((currentLevelProgress / levelRange) * 100));
+
   return (
     <main className="min-h-screen flex-1 bg-[#090b0e] px-4 py-8 text-slate-100 sm:px-8 sm:py-12">
       <div className="mx-auto max-w-4xl">
         {/* Navigation */}
-        <div className="mb-6 flex items-center justify-between border-b border-slate-800 pb-4">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
           <Link
             href="/leagues"
             className="text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-100 transition"
           >
             ← Повернутися до ліг
           </Link>
-          <div className="font-mono text-xs text-amber-400 font-semibold">
-            Баланс: {balance === null ? "—" : `${balance.toLocaleString()} монет`}
+          <div className="flex items-center gap-4">
+            {/* Level Badge */}
+            <div className="flex items-center gap-2 rounded-lg border border-amber-600/40 bg-amber-950/20 px-3 py-1">
+              <span className="text-amber-400 font-bold text-xs">РІВЕНЬ {currentLevelInfo.level}</span>
+              <span className="text-slate-400 text-[11px]">· {currentLevelInfo.title}</span>
+            </div>
+            {/* Balance */}
+            <div className="font-mono text-xs text-amber-400 font-semibold">
+              Баланс: {balance === null ? "—" : `${balance.toLocaleString()} монет`}
+            </div>
+          </div>
+        </div>
+
+        {/* Level XP Progress Bar */}
+        <div className="mb-6 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+          <div className="flex justify-between text-xs font-mono mb-1.5">
+            <span className="text-slate-400">
+              Досвід агента: <span className="text-emerald-400 font-bold">{xp} XP</span>
+            </span>
+            <span className="text-slate-400">
+              Макс. ставка: <span className="text-amber-400 font-bold">{currentLevelInfo.maxBet} монет</span>
+            </span>
+          </div>
+          <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-500"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+            <span>Рівень {currentLevelInfo.level}</span>
+            <span>{currentLevelProgress} / {levelRange} XP до наступного рівня</span>
+            <span>Рівень {Math.min(5, currentLevelInfo.level + 1)}</span>
           </div>
         </div>
 
@@ -516,7 +615,6 @@ export default function BlackjackPage() {
 
           {/* Справжнє сукно ігрового столу */}
           <div className="relative rounded-2xl border border-emerald-950/80 bg-gradient-to-b from-[#0a2318] via-[#081b13] to-[#06140e] p-6 shadow-inner sm:p-8">
-            {/* Декоративна розмітка столу казино */}
             <div className="pointer-events-none absolute inset-x-8 top-1/2 -translate-y-1/2 border-t border-dashed border-emerald-700/20" />
 
             {isLoading ? (
@@ -573,10 +671,10 @@ export default function BlackjackPage() {
                 {game?.status === "finished" && (
                   <div className="rounded-xl border border-slate-700 bg-slate-900/90 p-4 text-center">
                     <p className="font-mono text-sm font-bold text-slate-100">
-                      {game.result === "blackjack" && "БЛЕКДЖЕК! ПЕРЕМОГА"}
+                      {game.result === "blackjack" && "БЛЕКДЖЕК! ПОДВІЙНИЙ ДОСВІД"}
                       {game.result === "win" && `ВИГРАШ: +${game.payout - game.bet} МОНЕТ`}
                       {game.result === "push" && "НІЧИЯ: СТАВКУ ПОВЕРНЕНО"}
-                      {game.result === "lose" && "ПРОГРАШ ПАРТІЇ"}
+                      {game.result === "lose" && "ПРОГРАШ: ПОЛОВИНА ДОСВІДУ РІВНЯ ЗГОРІЛА"}
                     </p>
                   </div>
                 )}
@@ -618,14 +716,19 @@ export default function BlackjackPage() {
             ) : (
               <form onSubmit={handleDeal} className="flex flex-col gap-3 sm:flex-row sm:items-end">
                 <div className="flex-1">
-                  <label htmlFor="bet-input" className="mb-1 block font-mono text-xs text-slate-400">
-                    Ставка на стіл (1–500):
-                  </label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label htmlFor="bet-input" className="font-mono text-xs text-slate-400">
+                      Ставка на стіл (1–{currentLevelInfo.maxBet}):
+                    </label>
+                    <span className="font-mono text-[10px] text-amber-400">
+                      Ліміт рангу: {currentLevelInfo.maxBet}
+                    </span>
+                  </div>
                   <input
                     id="bet-input"
                     type="number"
                     min="1"
-                    max="500"
+                    max={currentLevelInfo.maxBet}
                     value={betInput}
                     onChange={(e) => setBetInput(e.target.value)}
                     disabled={isBusy}
