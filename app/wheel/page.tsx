@@ -8,7 +8,7 @@ import {
 } from "../../lib/supabase/client";
 
 const prizes = [10, 20, 50, 100, 500] as const;
-const wheelColors = ["#166534", "#b45309", "#0369a1", "#be123c", "#6d28d9"];
+const wheelColors = ["#047857", "#b45309", "#0284c7", "#be123c", "#7c3aed"];
 const spinDuration = 5200;
 
 type Prize = (typeof prizes)[number];
@@ -48,6 +48,15 @@ function isNotAuthenticatedError(error: unknown) {
   );
 }
 
+const ASCII_WHEEL = `
+██╗    ██╗██╗  ██╗███████╗███████╗██╗     
+██║    ██║██║  ██║██╔════╝██╔════╝██║     
+██║ █╗ ██║███████║█████╗  █████╗  ██║     
+██║███╗██║██╔══██║██╔══╝  ██╔══╝  ██║     
+╚███╔███╔╝██║  ██║███████╗███████╗███████╗
+ ╚══╝╚══╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝
+`.trim();
+
 export default function WheelPage() {
   const [canSpin, setCanSpin] = useState<boolean | null>(null);
   const [isChecking, setIsChecking] = useState(true);
@@ -77,12 +86,12 @@ export default function WheelPage() {
         if (!active) return;
         setCanSpin(data);
         if (!data) {
-          setMessage("Ви вже крутили колесо сьогодні. Приходьте завтра");
+          setMessage("Ви вже крутили колесо сьогодні. Приходьте завтра!");
         }
       } catch (error) {
         if (!active) return;
         if (isNotAuthenticatedError(error)) {
-          setMessage("Увійдіть, щоб крутити колесо");
+          setMessage("Увійдіть, щоб крутити колесо.");
         } else {
           console.error("Не вдалося перевірити можливість обертання:", error);
           setMessage("Не вдалося перевірити колесо. Спробуйте ще раз.");
@@ -99,9 +108,15 @@ export default function WheelPage() {
   }, []);
 
   async function handleSpin() {
-    const client = getSupabaseClient();
-    if (!client || canSpin !== true || isSpinning) return;
+    if (isSpinning || canSpin !== true) return;
 
+    const client = getSupabaseClient();
+    if (!client) {
+      setMessage("Підключення до бази недоступне.");
+      return;
+    }
+
+    setIsSpinning(true);
     setMessage(null);
     setWinningPrize(null);
 
@@ -109,143 +124,179 @@ export default function WheelPage() {
       const { data, error } = await client.rpc("spin_wheel");
       if (error) throw error;
       if (!isPrize(data)) {
-        throw new Error("spin_wheel повернув неочікувану кількість монет.");
+        throw new Error("spin_wheel повернув невідомий приз.");
       }
 
-      const winningIndex = prizes.indexOf(data);
-      const targetOffset = (360 - winningIndex * 72) % 360;
-      const currentRotation = rotation % 360;
-      const clockwiseOffset = (targetOffset - currentRotation + 360) % 360;
+      const prizeIndex = prizes.indexOf(data);
+      const sectorAngle = 360 / prizes.length;
+      const targetSectorMiddle = prizeIndex * sectorAngle + sectorAngle / 2;
+      const offset = (270 - targetSectorMiddle + 360) % 360;
+      const fullRotations = 360 * 5;
+      const currentFullBase = Math.floor(rotation / 360) * 360;
+      const nextRotation = currentFullBase + fullRotations + offset;
 
       setPendingPrize(data);
+      setRotation(nextRotation);
       setCanSpin(false);
-      setRotation(rotation + 6 * 360 + clockwiseOffset);
-      setIsSpinning(true);
     } catch (error) {
-      console.error("Не вдалося крутити колесо:", error);
+      setIsSpinning(false);
+      setPendingPrize(null);
+
       if (getRpcErrorCode(error) === "23505") {
         setCanSpin(false);
-        setMessage("Ви вже крутили колесо сьогодні. Приходьте завтра");
+        setMessage("Ви вже крутили колесо сьогодні. Приходьте завтра!");
       } else if (isNotAuthenticatedError(error)) {
-        setMessage("Увійдіть, щоб крутити колесо");
+        setMessage("Увійдіть, щоб крутити колесо.");
       } else {
-        setMessage("Не вдалося крутити колесо. Спробуйте ще раз");
+        console.error("Не вдалося крутити колесо:", error);
+        setMessage("Не вдалося крутити колесо. Спробуйте ще раз.");
       }
     }
   }
 
-  function handleWheelTransitionEnd(event: TransitionEvent<SVGSVGElement>) {
-    if (event.propertyName !== "transform" || !isSpinning || pendingPrize === null) {
-      return;
-    }
+  function handleTransitionEnd(event: TransitionEvent<SVGSVGElement>) {
+    if (event.propertyName !== "transform") return;
     setIsSpinning(false);
-    setWinningPrize(pendingPrize);
-    setPendingPrize(null);
-    window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
+    if (pendingPrize !== null) {
+      setWinningPrize(pendingPrize);
+      setMessage(`🎉 Ви виграли ${pendingPrize} монет!`);
+      setPendingPrize(null);
+      window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
+    }
   }
 
+  const sectorAngle = 360 / prizes.length;
+
   return (
-    <main className="min-h-screen flex-1 bg-[#f4f5f1] px-5 py-10 text-[#202722] sm:px-8 sm:py-14">
-      <div className="mx-auto max-w-3xl">
+    <main className="min-h-screen flex-1 bg-[#0a0a0a] px-4 py-8 font-mono text-gray-100 sm:px-8 sm:py-12">
+      <div className="mx-auto max-w-4xl">
         <Link
           href="/leagues"
-          className="mb-8 inline-flex text-sm font-semibold text-emerald-800 underline decoration-emerald-800/40 underline-offset-4 hover:text-emerald-950"
+          className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-400 transition hover:text-cyan-300"
         >
           ← До ліг
         </Link>
 
+        {/* ASCII Header */}
         <header className="mb-8 text-center">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">
-            Matchday · Щоденна нагорода
-          </p>
-          <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
-            Колесо фортуни
+          <pre className="mx-auto hidden overflow-x-auto text-[0.45rem] font-bold leading-tight text-yellow-400 sm:block sm:text-[0.55rem] md:text-xs" aria-hidden="true">
+            {ASCII_WHEEL}
+          </pre>
+          <h1 className="text-3xl font-bold text-yellow-400 sm:hidden">
+            КОЛЕСО ФОРТУНИ
           </h1>
-          <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#626b64]">
-            Крути колесо раз на день і вигравай монети для своїх прогнозів.
+          <p className="mt-3 text-sm text-cyan-300">
+            ⚡ Щоденний бонус монет · 1 спроба на добу ⚡
           </p>
         </header>
 
-        <section className="flex flex-col items-center border border-[#e0e3dd] bg-white px-5 py-8 shadow-sm sm:px-8 sm:py-10">
-          <div className="relative w-full max-w-[340px]">
-            <div
-              aria-hidden="true"
-              className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1 border-x-[15px] border-t-[27px] border-x-transparent border-t-[#202722]"
-            />
+        {/* Wheel Section */}
+        <section className="rounded-xl border border-cyan-900/50 bg-gradient-to-b from-[#0f1a15] to-[#0a120e] p-6 text-center shadow-[0_0_30px_rgba(234,179,8,0.06)] sm:p-10">
+          <div className="relative mx-auto mb-8 flex h-[340px] w-[340px] items-center justify-center">
+            {/* Top Indicator Arrow */}
+            <div className="absolute -top-3 left-1/2 z-20 -translate-x-1/2 drop-shadow-[0_0_10px_#eab308]">
+              <div className="h-0 w-0 border-x-8 border-x-transparent border-t-[18px] border-t-yellow-400" />
+            </div>
+
+            {/* Glowing Ring */}
+            <div className="absolute inset-0 rounded-full border-4 border-yellow-500/30 shadow-[0_0_40px_rgba(234,179,8,0.15)] pointer-events-none" />
+
+            {/* SVG Wheel */}
             <svg
-              aria-label="Колесо з призами 10, 20, 50, 100 та 500 монет"
-              className="block h-auto w-full"
-              role="img"
               viewBox="0 0 320 320"
+              className="h-full w-full"
               style={{
                 transform: `rotate(${rotation}deg)`,
                 transition: isSpinning
-                  ? `transform ${spinDuration}ms cubic-bezier(0.12, 0.75, 0.12, 1)`
+                  ? `transform ${spinDuration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`
                   : "none",
               }}
-              onTransitionEnd={handleWheelTransitionEnd}
+              onTransitionEnd={handleTransitionEnd}
             >
-              <circle cx="160" cy="160" r="157" fill="#202722" />
               {prizes.map((prize, index) => {
-                const startAngle = -126 + index * 72;
-                const endAngle = startAngle + 72;
-                const start = getSectorPoint(startAngle, 148);
-                const end = getSectorPoint(endAngle, 148);
-                const label = getSectorPoint(-90 + index * 72, 91);
+                const startAngle = index * sectorAngle;
+                const endAngle = startAngle + sectorAngle;
+                const p1 = getSectorPoint(startAngle, 150);
+                const p2 = getSectorPoint(endAngle, 150);
+                const midAngle = startAngle + sectorAngle / 2;
+                const textPos = getSectorPoint(midAngle, 100);
 
                 return (
                   <g key={prize}>
                     <path
-                      d={`M 160 160 L ${start.x} ${start.y} A 148 148 0 0 1 ${end.x} ${end.y} Z`}
-                      fill={wheelColors[index]}
-                      stroke="white"
-                      strokeWidth="2"
+                      d={`M 160 160 L ${p1.x} ${p1.y} A 150 150 0 0 1 ${p2.x} ${p2.y} Z`}
+                      fill={wheelColors[index % wheelColors.length]}
+                      stroke="#0a0a0a"
+                      strokeWidth="3"
                     />
                     <text
-                      x={label.x}
-                      y={label.y}
-                      fill="white"
-                      fontSize="19"
-                      fontWeight="700"
+                      x={textPos.x}
+                      y={textPos.y}
+                      fill="#ffffff"
+                      fontSize="20"
+                      fontWeight="bold"
+                      fontFamily="monospace"
                       textAnchor="middle"
-                      dominantBaseline="middle"
+                      dominantBaseline="central"
+                      transform={`rotate(${midAngle + 90}, ${textPos.x}, ${textPos.y})`}
                     >
                       {prize}
                     </text>
                   </g>
                 );
               })}
-              <circle cx="160" cy="160" r="23" fill="#fff" />
-              <circle cx="160" cy="160" r="9" fill="#202722" />
+              {/* Center Pin */}
+              <circle cx="160" cy="160" r="26" fill="#0a0a0a" stroke="#eab308" strokeWidth="4" />
+              <text
+                x="160"
+                y="160"
+                fill="#eab308"
+                fontSize="14"
+                fontWeight="bold"
+                textAnchor="middle"
+                dominantBaseline="central"
+              >
+                ★
+              </text>
             </svg>
           </div>
 
-          <button
-            type="button"
-            onClick={handleSpin}
-            disabled={isChecking || canSpin !== true || isSpinning}
-            className="mt-8 min-h-12 bg-[#202722] px-8 py-3 text-sm font-semibold text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-[#a5ada6]"
-          >
-            {isChecking
-              ? "Перевірка…"
-              : isSpinning
-                ? "Крутиться…"
-                : "Крутити"}
-          </button>
-
-          {winningPrize !== null ? (
-            <p role="status" className="mt-5 text-center text-lg font-semibold text-emerald-800">
-              Ви виграли {winningPrize} монет!
-            </p>
-          ) : message ? (
-            <p
-              role={message.startsWith("Не вдалося") ? "alert" : "status"}
-              className="mt-5 max-w-md text-center text-sm text-[#626b64]"
+          {/* Action button */}
+          <div className="flex flex-col items-center gap-4">
+            <button
+              type="button"
+              onClick={handleSpin}
+              disabled={isChecking || isSpinning || canSpin !== true}
+              className="h-12 min-w-48 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-8 text-base font-bold text-black shadow-lg shadow-yellow-500/20 transition hover:from-yellow-400 hover:to-amber-500 hover:shadow-yellow-500/40 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {message}
-            </p>
-          ) : null}
+              {isChecking
+                ? "Перевірка..."
+                : isSpinning
+                  ? "Обертання..."
+                  : canSpin
+                    ? "⚡ КРУТИТИ КОЛЕСО"
+                    : "Сьогодні вже крутили"}
+            </button>
+
+            {message && (
+              <p
+                role="alert"
+                className={`rounded-lg border px-4 py-2 font-mono text-sm ${
+                  winningPrize !== null
+                    ? "border-emerald-800 bg-emerald-950/40 text-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.2)]"
+                    : "border-gray-800 bg-gray-900/50 text-gray-400"
+                }`}
+              >
+                {message}
+              </p>
+            )}
+          </div>
         </section>
+
+        {/* Footer */}
+        <p className="mt-8 text-center text-xs text-gray-600">
+          Matchday · Щоденне колесо · Монети віртуальні
+        </p>
       </div>
     </main>
   );

@@ -158,39 +158,40 @@ export default function AuthStatusIndicator() {
   return (
     <>
       <div aria-hidden="true" className="h-14" />
-      <aside className="fixed right-3 top-3 z-50 max-w-[calc(100vw-1.5rem)] border border-[#e0e3dd] bg-white px-3 py-2 text-sm text-[#202722] shadow-sm sm:right-5 sm:top-4">
+      <aside className="fixed right-3 top-3 z-50 max-w-[calc(100vw-1.5rem)] rounded-lg border border-cyan-900/60 bg-[#0d1411]/90 px-3.5 py-2 font-mono text-xs text-gray-200 shadow-[0_0_20px_rgba(0,255,200,0.06)] backdrop-blur-md sm:right-5 sm:top-4">
         {isLoading ? (
-          <span role="status">...</span>
+          <span role="status" className="animate-pulse text-cyan-400">⚡ синхронізація...</span>
         ) : user ? (
           <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
-            <span className="max-w-40 truncate font-medium" title={username ?? user.email ?? undefined}>
+            <span className="flex items-center gap-1.5 max-w-40 truncate font-bold text-cyan-300" title={username ?? user.email ?? undefined}>
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
               {username || user.email || "Користувач"}
             </span>
-            <span className="whitespace-nowrap text-amber-700" aria-label="Баланс монет">
-              🪙 {coins === null ? "—" : coins}
+            <span className="whitespace-nowrap font-bold text-yellow-400" aria-label="Баланс монет">
+              🪙 {coins === null ? "—" : coins.toLocaleString()}
             </span>
             <button
               type="button"
               onClick={handleSignOut}
               disabled={isSigningOut}
-              className="font-semibold text-emerald-800 underline decoration-emerald-800/40 underline-offset-4 hover:text-emerald-950 disabled:cursor-wait disabled:opacity-60"
+              className="rounded border border-red-900/50 bg-red-950/30 px-2 py-0.5 font-bold text-red-400 transition hover:border-red-700 hover:bg-red-900/40 hover:text-red-300 disabled:cursor-wait disabled:opacity-60"
             >
-              {isSigningOut ? "Вихід…" : "Вийти"}
+              {isSigningOut ? "..." : "ВИХІД"}
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <span>Не увійшли</span>
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400">[ОФЛАЙН]</span>
             <Link
               href="/login"
-              className="font-semibold text-emerald-800 underline decoration-emerald-800/40 underline-offset-4 hover:text-emerald-950"
+              className="rounded border border-cyan-800 bg-cyan-950/40 px-2.5 py-0.5 font-bold text-cyan-300 transition hover:bg-cyan-900/60"
             >
-              Увійти
+              УВІЙТИ
             </Link>
           </div>
         )}
         {errorMessage && (
-          <p role="alert" className="mt-1 max-w-64 text-xs text-rose-700">
+          <p role="alert" className="mt-1 max-w-64 text-[11px] text-red-400">
             {errorMessage}
           </p>
         )}

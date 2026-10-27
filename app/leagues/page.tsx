@@ -12,12 +12,14 @@ type League = {
   title: string;
 };
 
-const leagueAccents = [
-  "border-l-emerald-600",
-  "border-l-orange-500",
-  "border-l-sky-600",
-  "border-l-rose-500",
-];
+const ASCII_MATCHDAY = `
+███╗   ███╗ █████╗ ████████╗ ██████╗██╗  ██╗██████╗  █████╗ ██╗   ██╗
+████╗ ████║██╔══██╗╚══██╔══╝██╔════╝██║  ██║██╔══██╗██╔══██╗╚██╗ ██╔╝
+██╔████╔██║███████║   ██║   ██║     ███████║██║  ██║███████║ ╚████╔╝ 
+██║╚██╔╝██║██╔══██║   ██║   ██║     ██╔══██║██║  ██║██╔══██║  ╚██╔╝  
+██║ ╚═╝ ██║██║  ██║   ██║   ╚██████╗██║  ██║██████╔╝██║  ██║   ██║   
+╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝   ╚═╝   
+`.trim();
 
 function getErrorCode(error: unknown) {
   if (
@@ -28,7 +30,6 @@ function getErrorCode(error: unknown) {
   ) {
     return error.code;
   }
-
   return null;
 }
 
@@ -98,12 +99,11 @@ export default function LeaguesPage() {
         if (error) throw error;
 
         setLeagues(data as League[]);
-      } catch {
-        if (!cancelled) {
-          setLoadError(
-            "Не вдалося завантажити ліги. Перевірте таблицю та політики доступу Supabase.",
-          );
-        }
+        setLoadError(null);
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Не вдалося завантажити ліги:", error);
+        setLoadError("Не вдалося завантажити список ліг. Спробуйте оновити сторінку.");
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -111,101 +111,57 @@ export default function LeaguesPage() {
 
     void loadLeagues();
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCurrentUserId(session?.user.id ?? null);
-    });
-
     return () => {
       cancelled = true;
-      data.subscription.unsubscribe();
     };
   }, []);
 
   async function handleCreateLeague(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setFormError(null);
-    setCreatedInviteCode(null);
-
     const title = leagueTitle.trim();
-    if (!title) {
-      setFormError("Вкажіть назву ліги.");
-      return;
-    }
+    if (!title) return;
 
     const client = getSupabaseClient();
-    if (!client) {
-      setFormError("Спочатку налаштуйте підключення до Supabase.");
-      return;
-    }
+    if (!client || isCreating) return;
 
     setIsCreating(true);
+    setFormError(null);
+    setCreatedInviteCode(null);
 
     try {
       const { data: authData, error: authError } = await client.auth.getUser();
       if (authError) throw authError;
       if (!authData.user) {
-        setCurrentUserId(null);
-        setFormError("Увійдіть у свій акаунт, щоб створити лігу.");
+        setFormError("Увійдіть, щоб створити лігу.");
+        setIsCreating(false);
         return;
       }
 
-      const inviteCode = crypto
-        .randomUUID()
-        .replaceAll("-", "")
-        .slice(0, 12)
-        .toUpperCase();
-
-      const { data, error } = await client
+      const { data: leagueData, error: leagueError } = await client
         .from("leagues")
-        .insert({
-          title,
-          invite_code: inviteCode,
-          owner_id: authData.user.id,
-        })
-        .select("id, title")
+        .insert({ title, created_by: authData.user.id })
+        .select("id, title, invite_code")
         .single();
 
-      if (error) throw error;
+      if (leagueError) throw leagueError;
 
-      const createdLeague = data as League;
-      setLeagues((currentLeagues) =>
-        [...currentLeagues, createdLeague].sort((first, second) =>
-          first.title.localeCompare(second.title, "uk"),
-        ),
-      );
+      const newLeague = leagueData as League & { invite_code: string };
+      setCreatedInviteCode(newLeague.invite_code);
+      setLeagues((prev) => [...prev, { id: newLeague.id, title: newLeague.title }]);
       setLeagueTitle("");
 
       const { error: memberError } = await client.from("league_members").insert({
+        league_id: newLeague.id,
         user_id: authData.user.id,
-        league_id: createdLeague.id,
-        role: "owner",
       });
 
       if (memberError) {
+        console.error("Помилка додавання творця до учасників:", memberError);
         setFormError(getMemberInsertError(memberError, "create"));
-        return;
       }
-
-      setCreatedInviteCode(inviteCode);
     } catch (error) {
-      const code = getErrorCode(error);
-      if (code === "23503") {
-        setFormError(
-          "Ваш профіль не знайдено. Переконайтеся, що в profiles заповнено обов’язкове поле username.",
-        );
-      } else if (code === "23505") {
-        setFormError(
-          "Не вдалося створити лігу через дубльований запис. Спробуйте ще раз.",
-        );
-      } else if (code === "42501") {
-        setFormError(
-          "Supabase заборонив створити лігу або додати творця. Перевірте політики RLS.",
-        );
-      } else {
-        setFormError(
-          "Не вдалося створити лігу. Перевірте права доступу та унікальність інвайт-коду в Supabase.",
-        );
-      }
+      console.error("Не вдалося створити лігу:", error);
+      setFormError("Не вдалося створити лігу. Спробуйте ще раз.");
     } finally {
       setIsCreating(false);
     }
@@ -213,321 +169,224 @@ export default function LeaguesPage() {
 
   async function handleJoinLeague(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setJoinError(null);
-    setJoinStatus(null);
-
-    const inviteCode = inviteCodeInput.replace(/\s+/g, "").toUpperCase();
-    if (!inviteCode) {
-      setJoinError("Введіть інвайт-код.");
-      return;
-    }
+    const code = inviteCodeInput.trim().toUpperCase();
+    if (!code) return;
 
     const client = getSupabaseClient();
-    if (!client) {
-      setJoinError("Спочатку налаштуйте підключення до Supabase.");
-      return;
-    }
+    if (!client || isJoining) return;
 
     setIsJoining(true);
+    setJoinError(null);
+    setJoinStatus(null);
 
     try {
       const { data: authData, error: authError } = await client.auth.getUser();
       if (authError) throw authError;
       if (!authData.user) {
-        setCurrentUserId(null);
-        setJoinError("Увійдіть у свій акаунт, щоб приєднатися до ліги.");
+        setJoinError("Увійдіть, щоб приєднатися до ліги.");
+        setIsJoining(false);
         return;
       }
 
-      const { data: league, error: leagueError } = await client
+      const { data: leagueData, error: leagueError } = await client
         .from("leagues")
         .select("id, title")
-        .eq("invite_code", inviteCode)
+        .eq("invite_code", code)
         .maybeSingle();
 
       if (leagueError) throw leagueError;
-      if (!league) {
-        setJoinError("Лігу з таким кодом не знайдено");
+      if (!leagueData) {
+        setJoinError("Лігу з таким кодом не знайдено.");
+        setIsJoining(false);
         return;
       }
 
-      const { data: existingMember, error: memberLookupError } = await client
-        .from("league_members")
-        .select("league_id")
-        .eq("league_id", league.id)
-        .eq("user_id", authData.user.id)
-        .maybeSingle();
-
-      if (memberLookupError) throw memberLookupError;
-      if (existingMember) {
-        setJoinError("Ви вже в цій лізі");
-        return;
-      }
-
-      const { error: insertError } = await client.from("league_members").insert({
+      const { error: memberError } = await client.from("league_members").insert({
+        league_id: leagueData.id,
         user_id: authData.user.id,
-        league_id: league.id,
-        role: "member",
       });
 
-      if (insertError) {
-        setJoinError(getMemberInsertError(insertError, "join"));
+      if (memberError) {
+        setJoinError(getMemberInsertError(memberError, "join"));
+        setIsJoining(false);
         return;
       }
 
-      const joinedLeague: League = { id: league.id, title: league.title };
-      setLeagues((currentLeagues) =>
-        [
-          ...currentLeagues.filter((item) => item.id !== joinedLeague.id),
-          joinedLeague,
-        ].sort((first, second) =>
-          first.title.localeCompare(second.title, "uk"),
-        ),
-      );
+      setJoinStatus(`Успішно приєднано до ліги "${leagueData.title}"!`);
       setInviteCodeInput("");
-      setJoinStatus(`Ви приєдналися до ліги «${league.title}».`);
-    } catch (error) {
-      const code = getErrorCode(error);
-      if (code === "23503") {
-        setJoinError(
-          "Ваш профіль не знайдено. Переконайтеся, що в profiles заповнено обов’язкове поле username.",
-        );
-      } else if (code === "23505") {
-        setJoinError("Ви вже в цій лізі.");
-      } else {
-        setJoinError(
-          "Не вдалося приєднатися до ліги. Перевірте доступ до таблиць Supabase та політики RLS.",
-        );
+
+      if (!leagues.some((l) => l.id === leagueData.id)) {
+        setLeagues((prev) => [...prev, leagueData as League]);
       }
+    } catch (error) {
+      console.error("Не вдалося приєднатися до ліги:", error);
+      setJoinError("Не вдалося приєднатися до ліги. Спробуйте ще раз.");
     } finally {
       setIsJoining(false);
     }
   }
 
   return (
-    <main className="min-h-screen flex-1 bg-[#f4f5f1] px-5 py-10 text-[#202722] sm:px-8 sm:py-14">
+    <main className="min-h-screen flex-1 bg-[#0a0a0a] px-4 py-8 font-mono text-gray-100 sm:px-8 sm:py-12">
       <div className="mx-auto max-w-5xl">
-        <header className="mb-10 border-b border-[#d9ddd6] pb-8 sm:mb-12 sm:flex sm:items-end sm:justify-between sm:gap-8">
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">
-              Matchday · Ліги
-            </p>
-            <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
-              Твої ліги
-            </h1>
-            <p className="mt-3 max-w-xl text-base leading-7 text-[#626b64]">
-              Обирай лігу, стеж за матчами та змагайся у точності прогнозів.
-            </p>
+        {/* Navigation Bar / Quick Links */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-cyan-900/40 pb-4">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
+            <span className="text-xs uppercase tracking-widest text-cyan-400">СИСТЕМА ЛІГ ПРОГНОЗІВ v2.0</span>
           </div>
-          <div className="mt-6 flex flex-wrap items-center gap-3 sm:mt-0 sm:pb-1">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/wheel"
-              className="inline-flex h-10 items-center border border-emerald-800 px-4 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50"
+              className="rounded-lg border border-yellow-600/60 bg-yellow-950/20 px-3 py-1.5 text-xs font-bold text-yellow-400 transition hover:bg-yellow-900/40 hover:shadow-[0_0_15px_rgba(234,179,8,0.2)]"
             >
-              Колесо фортуни
+              🎡 КОЛЕСО ФОРТУНИ
             </Link>
             <Link
               href="/blackjack"
-              className="inline-flex h-10 items-center border border-emerald-800 px-4 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50"
+              className="rounded-lg border border-cyan-600/60 bg-cyan-950/20 px-3 py-1.5 text-xs font-bold text-cyan-300 transition hover:bg-cyan-900/40 hover:shadow-[0_0_15px_rgba(34,211,238,0.2)]"
             >
-              Блекджек
+              🃏 БЛЕКДЖЕК
             </Link>
-            <span className="flex h-10 min-w-10 items-center justify-center rounded-sm bg-[#202722] px-3 text-sm font-semibold text-white">
-              {leagues.length.toString().padStart(2, "0")}
-            </span>
-            <span className="text-sm text-[#626b64]">ліг у списку</span>
           </div>
+        </div>
+
+        {/* ASCII Header */}
+        <header className="mb-10 text-center">
+          <pre className="mx-auto hidden overflow-x-auto text-[0.45rem] font-bold leading-tight text-cyan-400 sm:block sm:text-[0.55rem] md:text-xs" aria-hidden="true">
+            {ASCII_MATCHDAY}
+          </pre>
+          <h1 className="text-3xl font-bold text-cyan-400 sm:hidden">
+            MATCHDAY · ЛІГИ
+          </h1>
+          <p className="mt-3 text-sm text-yellow-400">
+            ⚡ Змагайся у прогнозах, крути колесо та став монети ⚡
+          </p>
         </header>
 
-        <section
-          aria-labelledby="create-league-heading"
-          className="mb-10 border border-[#e0e3dd] bg-white p-5 shadow-sm sm:p-6"
-        >
-          <div className="mb-5">
-            <h2 id="create-league-heading" className="text-lg font-semibold">
-              Створити лігу
+        {/* Action Forms Grid */}
+        <div className="mb-10 grid gap-6 sm:grid-cols-2">
+          {/* Create League */}
+          <section className="rounded-xl border border-cyan-900/50 bg-gradient-to-b from-[#0f1a15] to-[#0a120e] p-5 shadow-[0_0_20px_rgba(0,255,200,0.03)] sm:p-6">
+            <h2 className="mb-2 flex items-center gap-2 text-base font-bold text-cyan-300">
+              <span>➕</span> СТВОРИТИ ЛІГУ
             </h2>
-            <p className="mt-1 text-sm text-[#626b64]">
-              Інвайт-код буде згенеровано автоматично.
+            <p className="mb-4 text-xs text-gray-400">
+              Створи свою лігу для друзів та отримуй код запрошення.
             </p>
-          </div>
-
-          <form
-            className="flex flex-col gap-3 sm:flex-row sm:items-end"
-            onSubmit={handleCreateLeague}
-          >
-            <div className="flex-1">
-              <label
-                htmlFor="league-title"
-                className="mb-1.5 block text-sm font-medium"
-              >
-                Назва ліги
-              </label>
+            <form onSubmit={handleCreateLeague} className="space-y-3">
               <input
-                id="league-title"
-                name="title"
                 type="text"
-                required
-                maxLength={80}
+                placeholder="Назва турніру або ліги..."
                 value={leagueTitle}
-                onChange={(event) => setLeagueTitle(event.target.value)}
-                placeholder="Наприклад, Друзі на трибунах"
-                className="h-11 w-full border border-[#c8cec7] bg-[#fbfcfa] px-3 text-sm outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={!currentUserId || isCreating || !isSupabaseConfigured}
-              className="h-11 shrink-0 bg-[#202722] px-5 text-sm font-semibold text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-[#a5ada6]"
-            >
-              {isCreating ? "Створення…" : "Створити лігу"}
-            </button>
-          </form>
-
-          {!currentUserId && isSupabaseConfigured && !isLoading && (
-            <p className="mt-3 text-sm text-[#626b64]">
-              Увійдіть у свій акаунт, щоб створити лігу.
-            </p>
-          )}
-          {formError && (
-            <p role="alert" className="mt-3 text-sm text-rose-700">
-              {formError}
-            </p>
-          )}
-          {createdInviteCode && (
-            <p
-              role="status"
-              className="mt-4 border-l-4 border-emerald-600 bg-emerald-50 px-4 py-3 text-sm text-emerald-950"
-            >
-              Лігу створено. Інвайт-код: <strong>{createdInviteCode}</strong>
-            </p>
-          )}
-        </section>
-
-        <section
-          aria-labelledby="join-league-heading"
-          className="mb-10 border border-[#e0e3dd] bg-white p-5 shadow-sm sm:p-6"
-        >
-          <div className="mb-5">
-            <h2 id="join-league-heading" className="text-lg font-semibold">
-              Приєднатися до ліги
-            </h2>
-            <p className="mt-1 text-sm text-[#626b64]">
-              Введіть інвайт-код, щоб долучитися до друзів.
-            </p>
-          </div>
-
-          <form
-            className="flex flex-col gap-3 sm:flex-row sm:items-end"
-            onSubmit={handleJoinLeague}
-          >
-            <div className="flex-1">
-              <label
-                htmlFor="league-invite-code"
-                className="mb-1.5 block text-sm font-medium"
-              >
-                Інвайт-код
-              </label>
-              <input
-                id="league-invite-code"
-                name="invite-code"
-                type="text"
+                onChange={(e) => setLeagueTitle(e.target.value)}
                 required
-                value={inviteCodeInput}
-                onChange={(event) => setInviteCodeInput(event.target.value)}
-                placeholder="Наприклад, A1B2C3D4E5F6"
-                autoCapitalize="characters"
-                className="h-11 w-full border border-[#c8cec7] bg-[#fbfcfa] px-3 text-sm uppercase outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                disabled={isCreating}
+                className="h-10 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 text-sm text-cyan-200 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 disabled:opacity-50"
               />
-            </div>
-            <button
-              type="submit"
-              disabled={!currentUserId || isJoining || !isSupabaseConfigured}
-              className="h-11 shrink-0 bg-[#202722] px-5 text-sm font-semibold text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-[#a5ada6]"
-            >
-              {isJoining ? "Приєднання…" : "Приєднатися"}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={isCreating || !leagueTitle.trim()}
+                className="h-10 w-full rounded-lg bg-gradient-to-r from-cyan-600 to-emerald-600 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-cyan-600/20 transition hover:from-cyan-500 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isCreating ? "Створення..." : "Створити лігу"}
+              </button>
+            </form>
+            {createdInviteCode && (
+              <div className="mt-3 rounded border border-emerald-800 bg-emerald-950/40 p-2 text-center text-xs text-emerald-300">
+                Код запрошення: <span className="font-bold text-yellow-400 select-all">{createdInviteCode}</span>
+              </div>
+            )}
+            {formError && (
+              <p className="mt-2 text-xs text-red-400">{formError}</p>
+            )}
+          </section>
 
-          {!currentUserId && isSupabaseConfigured && !isLoading && (
-            <p className="mt-3 text-sm text-[#626b64]">
-              Увійдіть у свій акаунт, щоб приєднатися до ліги.
-            </p>
-          )}
-          {joinError && (
-            <p role="alert" className="mt-3 text-sm text-rose-700">
-              {joinError}
-            </p>
-          )}
-          {joinStatus && (
-            <p role="status" className="mt-3 text-sm text-emerald-800">
-              {joinStatus}
-            </p>
-          )}
-        </section>
-
-        <section aria-labelledby="league-list-heading">
-          <div className="mb-5 flex items-center justify-between">
-            <h2 id="league-list-heading" className="text-lg font-semibold">
-              Доступні ліги
+          {/* Join League */}
+          <section className="rounded-xl border border-cyan-900/50 bg-gradient-to-b from-[#0f1a15] to-[#0a120e] p-5 shadow-[0_0_20px_rgba(0,255,200,0.03)] sm:p-6">
+            <h2 className="mb-2 flex items-center gap-2 text-base font-bold text-cyan-300">
+              <span>🔑</span> ПРИЄДНАТИСЯ ЗА КОДОМ
             </h2>
-            <span className="text-xs font-medium uppercase tracking-wide text-[#7a827b]">
-              Supabase
-            </span>
+            <p className="mb-4 text-xs text-gray-400">
+              Введи код ліги, яким з тобою поділився організатор.
+            </p>
+            <form onSubmit={handleJoinLeague} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Введи код ліги (напр. 007480...)"
+                value={inviteCodeInput}
+                onChange={(e) => setInviteCodeInput(e.target.value)}
+                required
+                disabled={isJoining}
+                className="h-10 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 text-sm uppercase text-cyan-200 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={isJoining || !inviteCodeInput.trim()}
+                className="h-10 w-full rounded-lg border border-cyan-700 bg-cyan-950/40 px-4 text-xs font-bold uppercase tracking-wider text-cyan-300 shadow-lg transition hover:bg-cyan-900/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isJoining ? "Приєднання..." : "Приєднатися"}
+              </button>
+            </form>
+            {joinStatus && (
+              <p className="mt-3 text-center text-xs text-emerald-400">{joinStatus}</p>
+            )}
+            {joinError && (
+              <p className="mt-2 text-xs text-red-400">{joinError}</p>
+            )}
+          </section>
+        </div>
+
+        {/* Leagues List */}
+        <section className="rounded-xl border border-cyan-900/40 bg-gradient-to-b from-[#0f1a15] to-[#0a120e] p-5 shadow-[0_0_25px_rgba(0,255,200,0.04)] sm:p-8">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-cyan-900/40 pb-4">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-cyan-300">
+              <span>🏆</span> ДОСТУПНІ ЛІГИ ({leagues.length})
+            </h2>
+            <span className="text-xs text-gray-500">[ Оберіть лігу для прогнозів ]</span>
           </div>
 
-          {loadError ? (
-            <div
-              role="alert"
-              className="border-l-4 border-orange-500 bg-white px-5 py-5 text-sm leading-6 text-[#626b64] shadow-sm"
-            >
-              <p className="font-semibold text-[#202722]">
-                Список поки недоступний
-              </p>
-              <p className="mt-1">{loadError}</p>
-            </div>
-          ) : isLoading ? (
-            <p className="py-8 text-sm text-[#626b64]" role="status">
-              Завантаження ліг…
+          {isLoading ? (
+            <p className="py-8 text-center text-gray-500 animate-pulse">
+              ⚡ Завантаження ліг...
             </p>
+          ) : loadError ? (
+            <p className="text-center text-sm text-red-400">{loadError}</p>
           ) : leagues.length === 0 ? (
-            <div className="border border-dashed border-[#c8cec7] bg-white/60 px-6 py-12 text-center">
-              <p className="text-lg font-semibold">Ліг поки немає</p>
-              <p className="mt-2 text-sm text-[#626b64]">
-                Коли ліги з’являться у базі, вони відобразяться тут.
-              </p>
+            <div className="py-12 text-center">
+              <p className="text-gray-400">Поки немає жодної ліги.</p>
+              <p className="mt-1 text-xs text-gray-600">Створіть першу лігу вище!</p>
             </div>
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {leagues.map((league, index) => (
-                <li
+            <div className="grid gap-3 sm:grid-cols-2">
+              {leagues.map((league) => (
+                <Link
                   key={league.id}
-                  className={`border border-[#e0e3dd] border-l-4 ${leagueAccents[index % leagueAccents.length]} bg-white shadow-sm transition hover:border-emerald-700 hover:shadow-md`}
+                  href={`/leagues/${league.id}`}
+                  className="group flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900/70 p-4 transition hover:border-cyan-500/70 hover:bg-cyan-950/20 hover:shadow-[0_0_15px_rgba(34,211,238,0.1)]"
                 >
-                  <Link
-                    href={`/leagues/${league.id}`}
-                    className="flex min-h-24 items-center justify-between px-5 py-4 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-700"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-lg font-semibold">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">⚽</span>
+                    <div>
+                      <h3 className="font-bold text-gray-200 group-hover:text-cyan-300">
                         {league.title}
-                      </p>
-                      <p className="mt-1 text-xs text-[#7a827b]">
-                        Турнірна ліга
-                      </p>
+                      </h3>
+                      <p className="text-xs text-gray-500">Матчі · Ставки · Таблиця</p>
                     </div>
-                    <span
-                      aria-hidden="true"
-                      className="ml-4 text-xl text-[#9aa29b]"
-                    >
-                      ↗
-                    </span>
-                  </Link>
-                </li>
+                  </div>
+                  <span className="text-cyan-400 transition-transform group-hover:translate-x-1">
+                    →
+                  </span>
+                </Link>
               ))}
-            </ul>
+            </div>
           )}
         </section>
+
+        {/* Footer */}
+        <p className="mt-8 text-center text-xs text-gray-600">
+          Matchday · Football Prediction League System · 2026
+        </p>
       </div>
     </main>
   );
