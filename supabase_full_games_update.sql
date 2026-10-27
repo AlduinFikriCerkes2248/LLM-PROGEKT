@@ -252,14 +252,20 @@ create table if not exists public.pvp_duels (
   opponent_roll integer[]
 );
 
--- RLS для pvp_duels
-alter table public.pvp_duels enable row level security;
+-- Додавання колонок якщо таблиця вже існувала раніше
+alter table public.pvp_duels add column if not exists challenger_roll integer[];
+alter table public.pvp_duels add column if not exists opponent_roll integer[];
+alter table public.pvp_duels add column if not exists challenger_score integer;
+alter table public.pvp_duels add column if not exists opponent_score integer;
+alter table public.pvp_duels add column if not exists winner_id uuid references public.profiles(id);
 
+alter table public.pvp_duels enable row level security;
 drop policy if exists "Authenticated users can view duels" on public.pvp_duels;
 create policy "Authenticated users can view duels"
-on public.pvp_duels for select
+on public.pvp_duels for all
 to authenticated
-using (true);
+using (true)
+with check (true);
 
 -- 7. Функція: Надіслати виклик на гру (send_duel_invite)
 create or replace function public.send_duel_invite(

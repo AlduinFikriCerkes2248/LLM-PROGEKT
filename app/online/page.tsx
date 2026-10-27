@@ -84,8 +84,10 @@ export default function OnlinePage() {
 
   const [onlinePlayers, setOnlinePlayers] = useState<Player[]>([]);
   const [incomingInvites, setIncomingInvites] = useState<DuelInvite[]>([]);
+  const [outgoingInvites, setOutgoingInvites] = useState<DuelInvite[]>([]);
   const [activeDuel, setActiveDuel] = useState<DuelResult | null>(null);
   const [isChallenging, setIsChallenging] = useState<Player | null>(null);
+  const [acceptingDuelId, setAcceptingDuelId] = useState<string | null>(null);
 
   // Форма виклику на гру
   const [duelGame, setDuelGame] = useState<DuelGame>("dice");
@@ -147,14 +149,15 @@ export default function OnlinePage() {
     void init();
   }, []);
 
-  // Опитування вхідних викликів на дуель кожні 3.5 секунди
+  // Опитування вхідних та вихідних дуелей кожні 2.5 секунди
   useEffect(() => {
     const client = getSupabaseClient();
     if (!client || !currentUser) return;
 
     const interval = setInterval(async () => {
       try {
-        const { data } = await client
+        // 1. Вхідні виклики (де я опонент)
+        const { data: incoming } = await client
           .from("pvp_duels")
           .select(`
             id,
@@ -172,7 +175,7 @@ export default function OnlinePage() {
           .order("created_at", { ascending: false })
           .limit(3);
 
-        if (data) {
+        if (incoming) {
           type DuelRow = {
             id: string;
             challenger_id: string;
@@ -184,7 +187,7 @@ export default function OnlinePage() {
             created_at: string;
             challenger?: { username?: string | null } | null;
           };
-          const formatted: DuelInvite[] = (data as unknown as DuelRow[]).map((d) => ({
+          const formatted: DuelInvite[] = (incoming as unknown as DuelRow[]).map((d) => ({
             id: d.id,
             challenger_id: d.challenger_id,
             challenger_name: d.challenger?.username || "Невідомий гравець",
@@ -198,13 +201,82 @@ export default function OnlinePage() {
           }));
           setIncomingInvites(formatted);
         }
+
+        // 2. Мої відправлені виклики (де я ініціатор)
+        const { data: sent } = await client
+          .from("pvp_duels")
+          .select(`
+            id,
+            challenger_id,
+            opponent_id,
+            game_type,
+            stake,
+            currency,
+            status,
+            winner_id,
+            challenger_score,
+            opponent_score,
+            challenger_roll,
+            opponent_roll,
+            opponent:opponent_id(username)
+          `)
+          .eq("challenger_id", currentUser.id)
+          .in("status", ["pending", "completed"])
+          .order("created_at", { ascending: false })
+          .limit(2);
+
+        if (sent && sent.length > 0) {
+          const pending = sent.filter((s: any) => s.status === "pending");
+          setOutgoingInvites(
+            pending.map((p: any) => ({
+              id: p.id,
+              challenger_id: currentUser.id,
+              challenger_name: currentUser.username,
+              opponent_id: p.opponent_id,
+              opponent_name: p.opponent?.username || "Опонент",
+              game_type: p.game_type,
+              stake: p.stake,
+              currency: p.currency,
+              status: p.status,
+              created_at: "",
+            }))
+          );
+
+          // Якщо опонент щойно прийняв нашу дуель і вона перейшла в completed!
+          const completedRecent = sent.find(
+            (s: any) => s.status === "completed" && !activeDuel
+          );
+          if (completedRecent) {
+            setActiveDuel({
+              challenger_name: currentUser.username,
+              opponent_name: completedRecent.opponent?.username || "Опонент",
+              game_type: completedRecent.game_type,
+              stake: completedRecent.stake,
+              currency: completedRecent.currency,
+              challenger_score: completedRecent.challenger_score,
+              opponent_score: completedRecent.opponent_score,
+              challenger_roll: completedRecent.challenger_roll,
+              opponent_roll: completedRecent.opponent_roll,
+              winner_id: completedRecent.winner_id,
+              winner_name:
+                completedRecent.winner_id === currentUser.id
+                  ? currentUser.username
+                  : completedRecent.opponent?.username || "Опонент",
+              pot: completedRecent.stake * 2,
+            });
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
+          }
+        } else {
+          setOutgoingInvites([]);
+        }
       } catch {
         // ignore polling errors
       }
-    }, 3500);
+    }, 2500);
 
     return () => clearInterval(interval);
-  }, [currentUser]);
+  }, [currentUser, activeDuel]);
 
   // Надіслати виклик на гру (приглос)
   async function handleSendChallenge() {
@@ -234,7 +306,7 @@ export default function OnlinePage() {
         simulateBotDuel(isChallenging, duelGame, stake, duelCurrency);
         setIsSubmitting(false);
         setIsChallenging(null);
-      }, 1200);
+      }, 1000);
       return;
     }
 
@@ -256,12 +328,15 @@ export default function OnlinePage() {
 
       if (error) throw error;
 
-      setMessage(`Приглос надіслано гравцю ${isChallenging.username}! Очікуйте відповіді.`);
+      setMessage(`Приглос надіслано гравцю ${isChallenging.username}! Очікуйте, коли він натисне «Прийняти».`);
       setIsChallenging(null);
       window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error(err);
-      setErrorMsg("Не вдалося надіслати виклик. Переконайтеся, що функція send_duel_invite додана в базу.");
+      setErrorMsg(
+        err?.message ||
+          "Не вдалося надіслати виклик. Переконайтеся, що функція send_duel_invite додана в базу."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -286,8 +361,7 @@ export default function OnlinePage() {
       pScore = p1 + p2;
       bScore = b1 + b2;
     } else {
-      // Блекджек
-      pScore = 17 + Math.floor(Math.random() * 5); // 17-21
+      pScore = 17 + Math.floor(Math.random() * 5);
       bScore = 17 + Math.floor(Math.random() * 5);
       pRoll = [pScore];
       bRoll = [bScore];
@@ -299,7 +373,6 @@ export default function OnlinePage() {
     if (pScore > bScore) {
       winnerId = currentUser.id;
       winnerName = currentUser.username;
-      // Додаємо виграш
       if (curr === "coins") {
         setCurrentUser({ ...currentUser, coins: currentUser.coins + stake });
       } else {
@@ -308,7 +381,6 @@ export default function OnlinePage() {
     } else if (bScore > pScore) {
       winnerId = bot.id;
       winnerName = bot.username;
-      // Знімаємо програш
       if (curr === "coins") {
         setCurrentUser({ ...currentUser, coins: Math.max(0, currentUser.coins - stake) });
       } else {
@@ -330,6 +402,7 @@ export default function OnlinePage() {
       winner_name: winnerName,
       pot: stake * 2,
     });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   // Прийняти або відхилити вхідний виклик
@@ -337,13 +410,19 @@ export default function OnlinePage() {
     const client = getSupabaseClient();
     if (!client) return;
 
+    setAcceptingDuelId(invite.id);
+    setErrorMsg(null);
+    setMessage(null);
+
     try {
       const { data, error } = await client.rpc("respond_duel_invite", {
         p_duel_id: invite.id,
         p_action: action,
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       // Прибираємо зі списку
       setIncomingInvites((prev) => prev.filter((i) => i.id !== invite.id));
@@ -368,11 +447,19 @@ export default function OnlinePage() {
               : null,
           pot: data.pot,
         });
+        window.scrollTo({ top: 0, behavior: "smooth" });
         window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
+      } else if (action === "decline") {
+        setMessage("Виклик відхилено.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Помилка обробки виклику:", err);
-      setErrorMsg("Не вдалося відповісти на виклик.");
+      setErrorMsg(
+        err?.message ||
+          "Не вдалося прийняти виклик. Перевірте, чи достатньо монет на балансі."
+      );
+    } finally {
+      setAcceptingDuelId(null);
     }
   }
 
@@ -433,62 +520,14 @@ export default function OnlinePage() {
 
         {/* Messages */}
         {message && (
-          <div className="mb-6 rounded-xl border border-emerald-600 bg-emerald-950/40 p-4 text-center text-sm font-bold text-emerald-300">
+          <div className="mb-6 rounded-xl border border-emerald-600 bg-emerald-950/40 p-4 text-center text-sm font-bold text-emerald-300 animate-in fade-in">
             {message}
           </div>
         )}
         {errorMsg && (
-          <div className="mb-6 rounded-xl border border-rose-600 bg-rose-950/40 p-4 text-center text-sm font-bold text-rose-300">
-            {errorMsg}
+          <div className="mb-6 rounded-xl border border-rose-600 bg-rose-950/40 p-4 text-center text-sm font-bold text-rose-300 animate-in fade-in">
+            ⚠️ {errorMsg}
           </div>
-        )}
-
-        {/* ВХІДНІ ВИКЛИКИ НА ДУЕЛЬ (INVITATIONS) */}
-        {incomingInvites.length > 0 && (
-          <section className="mb-10 space-y-3">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-amber-400 flex items-center gap-2">
-              <span className="animate-ping inline-block h-2 w-2 rounded-full bg-amber-400" />
-              🔔 ВХІДНІ ВИКЛИКИ НА ГРУ ({incomingInvites.length})
-            </h2>
-            {incomingInvites.map((inv) => (
-              <div
-                key={inv.id}
-                className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border-2 border-amber-500 bg-gradient-to-r from-amber-950/50 via-slate-900 to-black p-5 shadow-[0_0_30px_rgba(245,158,11,0.2)] animate-pulse"
-              >
-                <div>
-                  <span className="text-xs font-black uppercase text-amber-300">
-                    {inv.game_type === "blackjack" ? "🃏 БЛЕКДЖЕК ДУЕЛЬ" : "🎲 ДУЕЛЬ В КОСТІ"}
-                  </span>
-                  <div className="text-base font-bold text-white mt-1">
-                    Гравець <span className="text-amber-400 font-black">{inv.challenger_name}</span> кинув вам виклик!
-                  </div>
-                  <div className="text-xs text-slate-300 mt-1">
-                    Ставка:{" "}
-                    <span className="font-black text-white">
-                      {inv.stake} {inv.currency === "coins" ? "🪙 Монет" : "🔘 Хохлянців"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => handleRespondInvite(inv, "accept")}
-                    className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 py-2.5 font-sans text-xs font-black uppercase tracking-wider text-white shadow-lg hover:from-emerald-500 hover:to-teal-400 transition"
-                  >
-                    ⚔️ ПРИЙНЯТИ
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRespondInvite(inv, "decline")}
-                    className="rounded-xl bg-slate-800 px-4 py-2.5 font-sans text-xs font-bold uppercase text-slate-300 hover:bg-rose-950 hover:text-rose-300 transition"
-                  >
-                    ВІДХИЛИТИ
-                  </button>
-                </div>
-              </div>
-            ))}
-          </section>
         )}
 
         {/* АРЕНА ДУЕЛІ (РЕЗУЛЬТАТ МАТЧУ) */}
@@ -553,6 +592,84 @@ export default function OnlinePage() {
             >
               Закрити дуель
             </button>
+          </section>
+        )}
+
+        {/* ВХІДНІ ВИКЛИКИ НА ДУЕЛЬ (INVITATIONS) */}
+        {incomingInvites.length > 0 && (
+          <section className="mb-10 space-y-3">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-amber-400 flex items-center gap-2">
+              <span className="animate-ping inline-block h-2 w-2 rounded-full bg-amber-400" />
+              🔔 ВАМ ПРИЙШОВ ВИКЛИК НА ГРУ ({incomingInvites.length})
+            </h2>
+            {incomingInvites.map((inv) => (
+              <div
+                key={inv.id}
+                className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border-2 border-amber-500 bg-gradient-to-r from-amber-950/50 via-slate-900 to-black p-5 shadow-[0_0_30px_rgba(245,158,11,0.2)]"
+              >
+                <div>
+                  <span className="text-xs font-black uppercase text-amber-300">
+                    {inv.game_type === "blackjack" ? "🃏 БЛЕКДЖЕК ДУЕЛЬ" : "🎲 ДУЕЛЬ В КОСТІ"}
+                  </span>
+                  <div className="text-base font-bold text-white mt-1">
+                    Гравець <span className="text-amber-400 font-black">{inv.challenger_name}</span> кинув вам виклик!
+                  </div>
+                  <div className="text-xs text-slate-300 mt-1">
+                    Ставка:{" "}
+                    <span className="font-black text-white">
+                      {inv.stake} {inv.currency === "coins" ? "🪙 Монет" : "🔘 Хохлянців"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleRespondInvite(inv, "accept")}
+                    disabled={acceptingDuelId === inv.id}
+                    className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 py-2.5 font-sans text-xs font-black uppercase tracking-wider text-white shadow-lg hover:from-emerald-500 hover:to-teal-400 transition disabled:opacity-50"
+                  >
+                    {acceptingDuelId === inv.id ? "Приймаємо..." : "⚔️ ПРИЙНЯТИ"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRespondInvite(inv, "decline")}
+                    disabled={acceptingDuelId === inv.id}
+                    className="rounded-xl bg-slate-800 px-4 py-2.5 font-sans text-xs font-bold uppercase text-slate-300 hover:bg-rose-950 hover:text-rose-300 transition disabled:opacity-50"
+                  >
+                    ВІДХИЛИТИ
+                  </button>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
+
+        {/* МОЇ ВІДПРАВЛЕНІ ВИКЛИКИ */}
+        {outgoingInvites.length > 0 && (
+          <section className="mb-10 space-y-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              ⏳ ОЧІКУВАННЯ ВІДПОВІДІ СУПЕРНИКА ({outgoingInvites.length})
+            </h2>
+            {outgoingInvites.map((out) => (
+              <div
+                key={out.id}
+                className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/40 p-3.5 text-xs"
+              >
+                <div>
+                  Ви викликали гравця <span className="font-bold text-indigo-400">{out.opponent_name}</span> у{" "}
+                  {out.game_type === "blackjack" ? "Блекджек" : "Кості"} на {out.stake}{" "}
+                  {out.currency === "coins" ? "монет" : "хохлянців"}.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRespondInvite(out, "decline")}
+                  className="rounded-lg bg-slate-800 px-3 py-1 text-[11px] font-bold text-slate-300 hover:bg-rose-900/40 hover:text-rose-300 transition"
+                >
+                  Скасувати
+                </button>
+              </div>
+            ))}
           </section>
         )}
 
