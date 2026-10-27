@@ -252,6 +252,11 @@ create table if not exists public.pvp_duels (
   opponent_roll integer[]
 );
 
+-- Оновлюємо check constraint на статус, щоб дозволити 'completed'
+alter table public.pvp_duels drop constraint if exists pvp_duels_status_check;
+alter table public.pvp_duels add constraint pvp_duels_status_check 
+check (status in ('pending', 'accepted', 'declined', 'completed', 'cancelled'));
+
 -- Додавання колонок якщо таблиця вже існувала раніше
 alter table public.pvp_duels add column if not exists challenger_roll integer[];
 alter table public.pvp_duels add column if not exists opponent_roll integer[];

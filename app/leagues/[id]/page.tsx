@@ -63,12 +63,6 @@ type Bet = {
   profile: Profile | null;
 };
 
-type BetPool = {
-  pick: BetPick;
-  total: number;
-  bettors: number;
-};
-
 type LeagueDetails = {
   league: League;
   owner: Profile | null;
@@ -81,11 +75,11 @@ type LeagueDetails = {
 };
 
 const backLinkClassName =
-  "text-sm font-medium text-emerald-800 underline decoration-emerald-800/40 underline-offset-4 transition hover:text-emerald-950";
+  "text-xs font-bold uppercase tracking-wider text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1.5";
 const fieldClassName =
-  "h-11 w-full border border-[#c8cec7] bg-[#fbfcfa] px-3 text-sm outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 disabled:cursor-not-allowed disabled:bg-[#f0f1ed]";
+  "h-12 w-full rounded-xl border-2 border-slate-700 bg-slate-900/90 px-3.5 font-mono text-sm font-semibold text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50";
 const buttonClassName =
-  "h-11 shrink-0 bg-[#202722] px-5 text-sm font-semibold text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-[#a5ada6]";
+  "h-12 shrink-0 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-500 px-6 font-sans text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-cyan-900/30 transition hover:from-cyan-500 hover:to-teal-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50";
 
 function getErrorCode(error: unknown) {
   if (
@@ -96,7 +90,6 @@ function getErrorCode(error: unknown) {
   ) {
     return error.code;
   }
-
   return null;
 }
 
@@ -120,386 +113,291 @@ function getBetErrorMessage(error: unknown) {
   if (code === "23505" || message.includes("23505")) {
     return "Ви вже зробили ставку на цей матч";
   }
-  if (code === "insufficient_funds" || message.includes("insufficient_funds")) {
-    return "Недостатньо монет";
+  if (message.includes("match_already_started")) {
+    return "Матч уже розпочався або завершений";
   }
-  if (code === "betting_closed" || message.includes("betting_closed")) {
-    return "Ставки на цей матч закриті";
+  if (message.includes("insufficient_funds")) {
+    return "Недостатньо монет для цієї ставки";
   }
-  if (code === "not_member" || message.includes("not_member")) {
-    return "Ви не учасник ліги";
+  if (message.includes("invalid_bet_amount")) {
+    return "Некоректна сума ставки";
   }
-  if (code === "invalid_bet" || message.includes("invalid_bet")) {
-    return "Некоректна ставка";
-  }
-  return "Не вдалося зробити ставку. Спробуйте ще раз";
-}
 
-function parseScore(value: FormDataEntryValue | null) {
-  if (typeof value !== "string" || value.trim() === "") return null;
-  const score = Number(value);
-  return Number.isSafeInteger(score) && score >= 0 ? score : null;
-}
-
-function getBetPickLabel(pick: BetPick, match: Match) {
-  if (pick === "home") return match.team_home;
-  if (pick === "away") return match.team_away;
-  return "Нічия";
+  return "Не вдалося зробити ставку. Спробуйте пізніше.";
 }
 
 function formatMatchTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("uk-UA", {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(new Date(value));
+  }).format(date);
 }
 
 function toDateTimeLocalValue(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  return date.toISOString().slice(0, 16);
+  const pad = (num: number) => String(num).padStart(2, "0");
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-function sortMatches(matches: Match[]) {
-  return [...matches].sort((first, second) => {
-    if (first.status !== second.status) {
-      return first.status === "planned" ? -1 : 1;
-    }
-
-    const timeDifference =
-      new Date(first.match_time).getTime() -
-      new Date(second.match_time).getTime();
-    return first.status === "planned" ? timeDifference : -timeDifference;
-  });
+function getBetPickLabel(pick: BetPick, match: Match) {
+  if (pick === "home") return `Перемога: ${match.team_home}`;
+  if (pick === "draw") return "Нічия";
+  return `Перемога: ${match.team_away}`;
 }
 
 export default function LeagueDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+
   const [details, setDetails] = useState<LeagueDetails | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isAuthResolved, setIsAuthResolved] = useState(
     !isSupabaseConfigured,
   );
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
-  const [now, setNow] = useState(0);
-  const [busyAction, setBusyAction] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [betError, setBetError] = useState<{
     matchId: string;
     message: string;
   } | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
 
-  const reload = useCallback(() => {
-    setRefreshKey((current) => current + 1);
-  }, []);
-
-  useEffect(() => {
+  const reload = useCallback(async () => {
     const client = getSupabaseClient();
-    if (!client) return;
+    if (!client || !id) return;
 
-    let active = true;
-    let authEventVersion = 0;
-    const {
-      data: { subscription },
-    } = client.auth.onAuthStateChange((_event, session) => {
-      if (!active) return;
-      authEventVersion += 1;
-      setCurrentUserId(session?.user.id ?? null);
-      setIsAuthResolved(true);
-    });
+    try {
+      const { data: league, error: leagueError } = await client
+        .from("leagues")
+        .select("id, title, invite_code, owner_id")
+        .eq("id", id)
+        .maybeSingle();
 
-    const initialAuthEventVersion = authEventVersion;
-    void client.auth
-      .getSession()
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (authEventVersion !== initialAuthEventVersion) return;
-        if (error) {
-          setLoadError(
-            "Не вдалося перевірити сесію. Оновіть сторінку або увійдіть знову.",
-          );
-          setCurrentUserId(null);
-        } else {
-          setCurrentUserId(data.session?.user.id ?? null);
-        }
-        setIsAuthResolved(true);
-      })
-      .catch(() => {
-        if (!active) return;
-        if (authEventVersion !== initialAuthEventVersion) return;
-        setLoadError(
-          "Не вдалося перевірити сесію. Оновіть сторінку або увійдіть знову.",
-        );
-        setCurrentUserId(null);
-        setIsAuthResolved(true);
-      });
-
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadLeague() {
-      setIsLoading(true);
-      const client = getSupabaseClient();
-      if (!client) {
-        setLoadError(
-          "Додайте URL проєкту Supabase та анонімний ключ у змінні середовища.",
-        );
-        setIsLoading(false);
+      if (leagueError) throw leagueError;
+      if (!league) {
+        setNotFound(true);
         return;
       }
 
-      try {
-        const { data: league, error: leagueError } = await client
-          .from("leagues")
-          .select("id, title, invite_code, owner_id")
-          .eq("id", id)
-          .maybeSingle();
-
-        if (leagueError) throw leagueError;
-        if (!league) {
-          if (!cancelled) setNotFound(true);
-          return;
-        }
-
-        const [
-          { data: memberRows, error: membersError },
-          { data: matchRows, error: matchesError },
-        ] = await Promise.all([
-          client
-            .from("league_members")
-            .select("user_id, role")
-            .eq("league_id", league.id),
-          client
-            .from("matches")
-            .select(
-              "id, league_id, team_home, team_away, match_time, status, home_score, away_score",
-            )
-            .eq("league_id", league.id)
-            .order("match_time", { ascending: true }),
-        ]);
-
-        if (membersError) throw membersError;
-        if (matchesError) throw matchesError;
-
-        const members = (memberRows ?? []) as Array<
-          Pick<Member, "user_id" | "role">
-        >;
-        const matches = (matchRows ?? []) as Match[];
-        const matchIds = matches.map((match) => match.id);
-
-        const { data: predictionRows, error: predictionsError } = matchIds.length
+      const [
+        membersResponse,
+        matchesResponse,
+        predictionsResponse,
+        betsResponse,
+      ] = await Promise.all([
+        client
+          .from("league_members")
+          .select("user_id, role")
+          .eq("league_id", id),
+        client
+          .from("matches")
+          .select(
+            "id, league_id, team_home, team_away, match_time, status, home_score, away_score",
+          )
+          .eq("league_id", id)
+          .order("match_time", { ascending: true }),
+        isAuthResolved
           ? await client
               .from("predictions")
               .select(
                 "id, user_id, match_id, predicted_home_score, predicted_away_score, points_earned",
               )
-              .in("match_id", matchIds)
-          : { data: [], error: null };
-
-        if (predictionsError) throw predictionsError;
-
-        const predictions = (predictionRows ?? []) as Omit<
-          Prediction,
-          "profile"
-        >[];
-        const { data: betRows, error: betsError } = matchIds.length
+          : Promise.resolve({ data: [] }),
+        isAuthResolved
           ? await client
               .from("bets")
               .select("user_id, match_id, pick, stake, payout, settled")
-              .in("match_id", matchIds)
-          : { data: [], error: null };
+          : Promise.resolve({ data: [] }),
+      ]);
 
-        if (betsError) throw betsError;
+      const memberRows = membersResponse.data ?? [];
+      const matchRows = (matchesResponse.data as Match[]) ?? [];
+      const predictionRows = predictionsResponse.data ?? [];
+      const betRows = (betsResponse.data as Bet[]) ?? [];
 
-        const bets = (betRows ?? []) as Omit<Bet, "profile">[];
-        const pools: Record<string, Record<BetPick, number>> = {};
-        const plannedMatches = matches.filter(
-          (match) =>
-            match.status === "planned" &&
-            new Date(match.match_time).getTime() > Date.now(),
-        );
-        const poolResults = await Promise.all(
-          plannedMatches.map(async (match) => {
-            const { data, error } = await client.rpc("match_bet_pools", {
-              p_match: match.id,
-            });
-            if (error) throw error;
-            return { matchId: match.id, rows: (data ?? []) as BetPool[] };
-          }),
-        );
-        for (const { matchId, rows } of poolResults) {
-          pools[matchId] = { home: 0, draw: 0, away: 0 };
-          for (const row of rows) {
-            if (
-              row.pick === "home" ||
-              row.pick === "draw" ||
-              row.pick === "away"
-            ) {
-              pools[matchId][row.pick] = Number(row.total) || 0;
-            }
-          }
-        }
+      const plannedMatches = matchRows.filter(
+        (match) => match.status === "planned",
+      );
 
-        const profileIds = [
-          ...new Set([
-            league.owner_id,
-            ...members.map((member) => member.user_id),
-            ...predictions.map((prediction) => prediction.user_id),
-            ...bets.map((bet) => bet.user_id),
-            ...(currentUserId ? [currentUserId] : []),
-          ]),
-        ];
+      const poolResults = await Promise.all(
+        plannedMatches.map(async (match) => {
+          const { data, error } = await client.rpc("match_bet_pools", {
+            p_match: match.id,
+          });
+          if (error) return { matchId: match.id, pools: { home: 0, draw: 0, away: 0 } };
+          const p = (data ?? []).reduce(
+            (acc: any, row: any) => {
+              if (row.pick in acc) acc[row.pick] = row.total;
+              return acc;
+            },
+            { home: 0, draw: 0, away: 0 },
+          );
+          return { matchId: match.id, pools: p };
+        }),
+      );
 
+      const poolsByMatch: Record<string, Record<BetPick, number>> = {};
+      for (const item of poolResults) {
+        poolsByMatch[item.matchId] = item.pools;
+      }
+
+      const userIds = Array.from(
+        new Set([
+          league.owner_id,
+          ...memberRows.map((m) => m.user_id),
+          ...predictionRows.map((p) => p.user_id),
+          ...betRows.map((b) => b.user_id),
+        ]),
+      );
+
+      let profilesById = new Map<string, Profile>();
+      if (userIds.length > 0) {
         const { data: profileRows, error: profilesError } = await client
           .from("profiles")
           .select("id, username, coins")
-          .in("id", profileIds);
+          .in("id", userIds);
 
-        if (profilesError) throw profilesError;
-
-        const profiles = (profileRows ?? []) as Profile[];
-        const profilesById = new Map(
-          profiles.map((profile) => [profile.id, profile]),
-        );
-        const pointsByUser = new Map<
-          string,
-          { points: number; exactScores: number }
-        >();
-
-        for (const prediction of predictions) {
-          const total = pointsByUser.get(prediction.user_id) ?? {
-            points: 0,
-            exactScores: 0,
-          };
-          total.points += prediction.points_earned ?? 0;
-          if (prediction.points_earned === 3) total.exactScores += 1;
-          pointsByUser.set(prediction.user_id, total);
+        if (!profilesError && profileRows) {
+          profilesById = new Map(profileRows.map((p) => [p.id, p]));
         }
-
-        if (!cancelled) {
-          setDetails({
-            league: league as League,
-            owner: profilesById.get(league.owner_id) ?? null,
-            members: members
-              .map((member) => {
-                const total = pointsByUser.get(member.user_id);
-                return {
-                  ...member,
-                  profile: profilesById.get(member.user_id) ?? null,
-                  points: total?.points ?? 0,
-                  exactScores: total?.exactScores ?? 0,
-                };
-              })
-              .sort(
-                (first, second) =>
-                  second.points - first.points ||
-                  second.exactScores - first.exactScores ||
-                  (first.profile?.username ?? "").localeCompare(
-                    second.profile?.username ?? "",
-                    "uk",
-                  ),
-              ),
-            matches: sortMatches(matches),
-            predictions: predictions.map((prediction) => ({
-              ...prediction,
-              profile: profilesById.get(prediction.user_id) ?? null,
-            })),
-            bets: bets.map((bet) => ({
-              ...bet,
-              payout: bet.payout === null ? null : Number(bet.payout),
-              stake: Number(bet.stake),
-              profile: profilesById.get(bet.user_id) ?? null,
-            })),
-            pools,
-            currentBalance: currentUserId
-              ? (profilesById.get(currentUserId)?.coins ?? null)
-              : null,
-          });
-          setNow(Date.now());
-          setLoadError(null);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setLoadError(
-            getActionError(
-              error,
-              "Не вдалося завантажити дані ліги. Перевірте доступ до таблиць і політики читання в Supabase.",
-            ),
-          );
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
       }
-    }
 
-    void loadLeague();
-    return () => {
-      cancelled = true;
-    };
-  }, [id, refreshKey, currentUserId]);
+      const matchMap = new Map(matchRows.map((m) => [m.id, m]));
+      const memberStats = new Map<string, { points: number; exact: number }>();
+      for (const m of memberRows) {
+        memberStats.set(m.user_id, { points: 0, exact: 0 });
+      }
+
+      for (const pred of predictionRows) {
+        const match = matchMap.get(pred.match_id);
+        if (
+          match &&
+          match.status === "finished" &&
+          match.home_score !== null &&
+          match.away_score !== null
+        ) {
+          const stats = memberStats.get(pred.user_id);
+          if (stats) {
+            let pts = 0;
+            const actualDiff = match.home_score - match.away_score;
+            const predDiff = pred.predicted_home_score - pred.predicted_away_score;
+
+            if (
+              match.home_score === pred.predicted_home_score &&
+              match.away_score === pred.predicted_away_score
+            ) {
+              pts = 3;
+              stats.exact += 1;
+            } else if (
+              (actualDiff > 0 && predDiff > 0) ||
+              (actualDiff < 0 && predDiff < 0) ||
+              (actualDiff === 0 && predDiff === 0)
+            ) {
+              pts = 1;
+            }
+            stats.points += pts;
+          }
+        }
+      }
+
+      const members: Member[] = memberRows
+        .map((m) => ({
+          user_id: m.user_id,
+          role: m.role as "owner" | "member",
+          profile: profilesById.get(m.user_id) ?? null,
+          points: memberStats.get(m.user_id)?.points ?? 0,
+          exactScores: memberStats.get(m.user_id)?.exact ?? 0,
+        }))
+        .sort((a, b) => b.points - a.points || b.exactScores - a.exactScores);
+
+      const predictions: Prediction[] = predictionRows.map((p) => ({
+        ...p,
+        profile: profilesById.get(p.user_id) ?? null,
+      }));
+
+      const bets: Bet[] = betRows.map((b) => ({
+        ...b,
+        profile: profilesById.get(b.user_id) ?? null,
+      }));
+
+      const myProf = currentUserId ? profilesById.get(currentUserId) : null;
+
+      setDetails({
+        league: league as League,
+        owner: profilesById.get(league.owner_id) ?? null,
+        members,
+        matches: matchRows,
+        predictions,
+        bets,
+        pools: poolsByMatch,
+        currentBalance: myProf?.coins ?? null,
+      });
+    } catch (err: any) {
+      console.error(err);
+      setLoadError("Не вдалося завантажити лігу.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id, currentUserId, isAuthResolved]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 15_000);
-    return () => window.clearInterval(timer);
+    const client = getSupabaseClient();
+    if (!client) {
+      setIsAuthResolved(true);
+      return;
+    }
+
+    client.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id ?? null);
+      setIsAuthResolved(true);
+    });
   }, []);
+
+  useEffect(() => {
+    if (isAuthResolved) {
+      void reload();
+    }
+  }, [isAuthResolved, reload]);
 
   async function handleCopyInviteCode() {
     if (!details) return;
-
     setCopyMessage(null);
     setCopyError(null);
     try {
       await navigator.clipboard.writeText(details.league.invite_code);
-      setCopyMessage("Скопійовано");
+      setCopyMessage("Код успішно скопійовано!");
     } catch {
-      setCopyError("Не вдалося скопіювати код. Спробуйте скопіювати його вручну.");
+      setCopyError("Не вдалося скопіювати код.");
     }
   }
 
-  async function handleSavePrediction(
-    event: FormEvent<HTMLFormElement>,
-    match: Match,
-  ) {
+  async function handleSavePrediction(event: FormEvent<HTMLFormElement>, match: Match) {
     event.preventDefault();
+    const client = getSupabaseClient();
+    if (!client || !currentUserId) return;
+
+    const form = new FormData(event.currentTarget);
+    const homeScore = Number(form.get("home-score"));
+    const awayScore = Number(form.get("away-score"));
+
+    setBusyAction(`prediction-${match.id}`);
     setActionError(null);
     setActionMessage(null);
 
-    const formData = new FormData(event.currentTarget);
-    const homeScore = parseScore(formData.get("home-score"));
-    const awayScore = parseScore(formData.get("away-score"));
-    if (homeScore === null || awayScore === null) {
-      setActionError("Введіть цілі числа, більші або рівні нулю.");
-      return;
-    }
-
-    if (!currentUserId) {
-      setActionError("Увійдіть у свій акаунт, щоб зберегти прогноз.");
-      return;
-    }
-
-    const client = getSupabaseClient();
-    if (!client) {
-      setActionError("Не вдалося підключитися до Supabase.");
-      return;
-    }
-
-    const actionId = `prediction-${match.id}`;
-    setBusyAction(actionId);
     try {
       const { error } = await client.from("predictions").upsert(
         {
@@ -510,65 +408,58 @@ export default function LeagueDetailsPage() {
         },
         { onConflict: "user_id,match_id" },
       );
-      if (error) throw error;
 
-      setActionMessage("Прогноз збережено.");
+      if (error) throw error;
+      setActionMessage("Ваш прогноз збережено!");
       reload();
-    } catch (error) {
-      setActionError(
-        getActionError(error, "Не вдалося зберегти прогноз. Спробуйте ще раз."),
-      );
+    } catch (err: any) {
+      setActionError(getActionError(err, "Не вдалося зберегти прогноз."));
     } finally {
       setBusyAction(null);
     }
   }
 
-  async function handlePlaceBet(
-    event: FormEvent<HTMLFormElement>,
-    match: Match,
-  ) {
+  async function handlePlaceBet(event: FormEvent<HTMLFormElement>, match: Match) {
     event.preventDefault();
-    setBetError(null);
+    const client = getSupabaseClient();
+    if (!client || !currentUserId) return;
 
-    const formData = new FormData(event.currentTarget);
-    const pick = formData.get("bet-pick");
-    const stakeValue = Number(formData.get("bet-stake"));
+    const form = new FormData(event.currentTarget);
+    const pick = form.get("bet-pick") as BetPick;
+    const stakeValue = Number(form.get("bet-stake"));
+
+    if (!stakeValue || stakeValue <= 0) {
+      setBetError({ matchId: match.id, message: "Введіть коректну ставку" });
+      return;
+    }
+
     if (
-      (pick !== "home" && pick !== "draw" && pick !== "away") ||
-      !Number.isSafeInteger(stakeValue) ||
-      stakeValue < 1 ||
       details?.currentBalance === null ||
       details?.currentBalance === undefined ||
       stakeValue > details.currentBalance
     ) {
-      setBetError({ matchId: match.id, message: "Некоректна ставка" });
+      setBetError({ matchId: match.id, message: "Недостатньо монет" });
       return;
     }
 
-    const client = getSupabaseClient();
-    if (!client || !currentUserId) {
-      setBetError({
-        matchId: match.id,
-        message: "Не вдалося зробити ставку. Спробуйте ще раз",
-      });
-      return;
-    }
+    setBusyAction(`bet-${match.id}`);
+    setBetError(null);
+    setActionError(null);
+    setActionMessage(null);
 
-    const actionId = `bet-${match.id}`;
-    setBusyAction(actionId);
     try {
       const { error } = await client.rpc("place_bet", {
         p_match: match.id,
         p_pick: pick,
         p_stake: stakeValue,
       });
-      if (error) throw error;
 
-      setActionMessage("Ставку зроблено.");
+      if (error) throw error;
+      setActionMessage("Ставку на матч прийнято!");
       window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
       reload();
-    } catch (error) {
-      setBetError({ matchId: match.id, message: getBetErrorMessage(error) });
+    } catch (err: any) {
+      setBetError({ matchId: match.id, message: getBetErrorMessage(err) });
     } finally {
       setBusyAction(null);
     }
@@ -576,252 +467,51 @@ export default function LeagueDetailsPage() {
 
   async function handleAddMatch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const client = getSupabaseClient();
+    if (!client || !details) return;
+
+    const form = new FormData(event.currentTarget);
+    const teamHome = String(form.get("team-home")).trim();
+    const teamAway = String(form.get("team-away")).trim();
+    const matchTime = String(form.get("match-time"));
+
+    setBusyAction("add-match");
     setActionError(null);
     setActionMessage(null);
 
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const teamHome = String(formData.get("team-home") ?? "").trim();
-    const teamAway = String(formData.get("team-away") ?? "").trim();
-    const localMatchTime = String(formData.get("match-time") ?? "");
-    const matchDate = new Date(localMatchTime);
-
-    if (!teamHome || !teamAway || !localMatchTime || Number.isNaN(matchDate.getTime())) {
-      setActionError("Вкажіть обидві команди та коректні дату й час матчу.");
-      return;
-    }
-
-    const client = getSupabaseClient();
-    if (!client || !details) {
-      setActionError("Не вдалося підключитися до Supabase.");
-      return;
-    }
-
-    setBusyAction("add-match");
     try {
       const { error } = await client.from("matches").insert({
         league_id: details.league.id,
         team_home: teamHome,
         team_away: teamAway,
-        match_time: matchDate.toISOString(),
+        match_time: new Date(matchTime).toISOString(),
         status: "planned",
       });
-      if (error) throw error;
 
-      form.reset();
-      setActionMessage("Матч додано.");
+      if (error) throw error;
+      setActionMessage("Матч успішно додано у розклад!");
+      (event.target as HTMLFormElement).reset();
       reload();
-    } catch (error) {
-      setActionError(
-        getActionError(error, "Не вдалося додати матч. Перевірте введені дані."),
-      );
+    } catch (err) {
+      setActionError(getActionError(err, "Не вдалося додати матч."));
     } finally {
       setBusyAction(null);
     }
   }
 
-  async function handleUpdateMatch(
-    event: FormEvent<HTMLFormElement>,
-    match: Match,
-  ) {
+  async function handleSaveResult(event: FormEvent<HTMLFormElement>, match: Match) {
     event.preventDefault();
-    setActionError(null);
-    setActionMessage(null);
-
-    const formData = new FormData(event.currentTarget);
-    const teamHome = String(formData.get("team-home") ?? "").trim();
-    const teamAway = String(formData.get("team-away") ?? "").trim();
-    const localMatchTime = String(formData.get("match-time") ?? "");
-    const matchDate = new Date(localMatchTime);
-
-    if (!teamHome || !teamAway || !localMatchTime || Number.isNaN(matchDate.getTime())) {
-      setActionError("Вкажіть обидві команди та коректні дату й час матчу.");
-      return;
-    }
-
     const client = getSupabaseClient();
-    if (!client || !details) {
-      setActionError("Не вдалося підключитися до Supabase.");
-      return;
-    }
+    if (!client || !details) return;
 
-    setBusyAction(`update-match-${match.id}`);
-    try {
-      const { data, error } = await client
-        .from("matches")
-        .update({
-          team_home: teamHome,
-          team_away: teamAway,
-          match_time: new Date(localMatchTime).toISOString(),
-        })
-        .eq("id", match.id)
-        .eq("league_id", details.league.id)
-        .eq("status", "planned")
-        .select("id")
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) {
-        setActionError("Дію заборонено");
-        return;
-      }
-
-      setEditingMatchId(null);
-      setActionMessage("Матч оновлено.");
-      reload();
-    } catch (error) {
-      setActionError(
-        getActionError(error, "Не вдалося оновити матч. Спробуйте ще раз."),
-      );
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function handleDeleteMatch(match: Match) {
-    if (!window.confirm("Видалити матч? Прогнози на нього теж зникнуть.")) return;
-
-    setActionError(null);
-    setActionMessage(null);
-    const client = getSupabaseClient();
-    if (!client || !details) {
-      setActionError("Не вдалося підключитися до Supabase.");
-      return;
-    }
-
-    setBusyAction(`delete-match-${match.id}`);
-    try {
-      const { data, error } = await client
-        .from("matches")
-        .delete()
-        .eq("id", match.id)
-        .eq("league_id", details.league.id)
-        .select("id")
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) {
-        setActionError("Дію заборонено");
-        return;
-      }
-
-      setEditingMatchId(null);
-      setActionMessage("Матч видалено.");
-      reload();
-    } catch (error) {
-      setActionError(
-        getActionError(error, "Не вдалося видалити матч. Спробуйте ще раз."),
-      );
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function handleLeaveLeague() {
-    if (!details || !currentUserId) return;
-    if (!window.confirm("Вийти з ліги?")) return;
-
-    setActionError(null);
-    setActionMessage(null);
-    const client = getSupabaseClient();
-    if (!client) {
-      setActionError("Не вдалося підключитися до Supabase.");
-      return;
-    }
-
-    setBusyAction("leave-league");
-    try {
-      const { data, error } = await client
-        .from("league_members")
-        .delete()
-        .eq("user_id", currentUserId)
-        .eq("league_id", details.league.id)
-        .select("user_id")
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) {
-        setActionError("Дію заборонено");
-        return;
-      }
-
-      router.push("/leagues");
-    } catch (error) {
-      setActionError(
-        getActionError(error, "Не вдалося вийти з ліги. Спробуйте ще раз."),
-      );
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function handleDeleteLeague() {
-    if (!details || !currentUserId) return;
-    const title = details.league.title;
-    if (
-      !window.confirm(
-        `Видалити лігу «${title}»? Усі матчі та прогнози буде видалено.`,
-      )
-    ) {
-      return;
-    }
-    if (window.prompt(`Для підтвердження введіть назву ліги: ${title}`) !== title) {
-      return;
-    }
-
-    setActionError(null);
-    setActionMessage(null);
-    const client = getSupabaseClient();
-    if (!client) {
-      setActionError("Не вдалося підключитися до Supabase.");
-      return;
-    }
-
-    setBusyAction("delete-league");
-    try {
-      const { data, error } = await client
-        .from("leagues")
-        .delete()
-        .eq("id", details.league.id)
-        .eq("owner_id", currentUserId)
-        .select("id")
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) {
-        setActionError("Дію заборонено");
-        return;
-      }
-
-      router.push("/leagues");
-    } catch (error) {
-      setActionError(
-        getActionError(error, "Не вдалося видалити лігу. Спробуйте ще раз."),
-      );
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function handleSaveResult(
-    event: FormEvent<HTMLFormElement>,
-    match: Match,
-  ) {
-    event.preventDefault();
-    setActionError(null);
-    setActionMessage(null);
-
-    const formData = new FormData(event.currentTarget);
-    const homeScore = parseScore(formData.get("home-score"));
-    const awayScore = parseScore(formData.get("away-score"));
-    if (homeScore === null || awayScore === null) {
-      setActionError("Введіть цілі числа, більші або рівні нулю.");
-      return;
-    }
-
-    const client = getSupabaseClient();
-    if (!client || !details) {
-      setActionError("Не вдалося підключитися до Supabase.");
-      return;
-    }
+    const form = new FormData(event.currentTarget);
+    const homeScore = Number(form.get("home-score"));
+    const awayScore = Number(form.get("away-score"));
 
     setBusyAction(`result-${match.id}`);
+    setActionError(null);
+    setActionMessage(null);
+
     try {
       const { data, error } = await client
         .from("matches")
@@ -834,19 +524,75 @@ export default function LeagueDetailsPage() {
         .eq("league_id", details.league.id)
         .select("id")
         .maybeSingle();
+
       if (error) throw error;
       if (!data) {
         setActionError("Дію заборонено");
         return;
       }
 
-      setActionMessage("Результат матчу збережено.");
+      setActionMessage("Результат матчу зафіксовано, очки нараховано!");
       reload();
-    } catch (error) {
-      setActionError(
-        getActionError(error, "Не вдалося зберегти результат матчу."),
-      );
+    } catch (err) {
+      setActionError(getActionError(err, "Не вдалося зберегти результат матчу."));
     } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleDeleteMatch(match: Match) {
+    if (!window.confirm(`Видалити матч ${match.team_home} — ${match.team_away}?`)) return;
+    const client = getSupabaseClient();
+    if (!client || !details) return;
+
+    setBusyAction(`delete-match-${match.id}`);
+    try {
+      const { error } = await client.from("matches").delete().eq("id", match.id);
+      if (error) throw error;
+      setActionMessage("Матч видалено.");
+      reload();
+    } catch (err) {
+      setActionError(getActionError(err, "Не вдалося видалити матч."));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleLeaveLeague() {
+    if (!details || !currentUserId) return;
+    if (!window.confirm("Дійсно покинути цю лігу?")) return;
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    setBusyAction("leave-league");
+    try {
+      const { error } = await client
+        .from("league_members")
+        .delete()
+        .eq("league_id", details.league.id)
+        .eq("user_id", currentUserId);
+
+      if (error) throw error;
+      router.replace("/leagues");
+    } catch {
+      setActionError("Не вдалося покинути лігу.");
+      setBusyAction(null);
+    }
+  }
+
+  async function handleDeleteLeague() {
+    if (!details || !currentUserId) return;
+    if (!window.confirm(`ВИДАЛИТИ ЛІГУ «${details.league.title}» НАЗАВЖДИ?`)) return;
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    setBusyAction("delete-league");
+    try {
+      const { error } = await client.from("leagues").delete().eq("id", details.league.id);
+      if (error) throw error;
+      router.replace("/leagues");
+    } catch {
+      setActionError("Не вдалося видалити лігу.");
       setBusyAction(null);
     }
   }
@@ -861,134 +607,196 @@ export default function LeagueDetailsPage() {
     !isOwner &&
       currentUserId &&
       details?.members.some(
-        (member) =>
-          member.user_id === currentUserId && member.role === "member",
+        (member) => member.user_id === currentUserId && member.role === "member",
       ),
   );
 
+  const now = Date.now();
+
   return (
-    <main className="min-h-screen flex-1 bg-[#f4f5f1] px-5 py-10 text-[#202722] sm:px-8 sm:py-14">
+    <main className="min-h-screen flex-1 bg-[#07090d] px-4 py-8 font-mono text-slate-100 sm:px-8 sm:py-12">
       <div className="mx-auto max-w-5xl">
-        <Link href="/leagues" className={backLinkClassName}>
-          ← Назад до ліг
-        </Link>
+        {/* Navigation Bar */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <Link href="/leagues" className={backLinkClassName}>
+            ← Назад до списку ліг
+          </Link>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link
+              href="/online"
+              className="rounded-lg border border-indigo-500/80 bg-indigo-950/40 px-3 py-1.5 text-xs font-bold text-indigo-300 hover:bg-indigo-900/60 transition shadow-sm"
+            >
+              🌐 Онлайн Дуелі
+            </Link>
+            <Link
+              href="/dice"
+              className="rounded-lg border border-red-600/60 bg-red-950/30 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-900/40 transition"
+            >
+              🎲 Кості
+            </Link>
+            <Link
+              href="/blackjack"
+              className="rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition"
+            >
+              🃏 Блекджек
+            </Link>
+            <Link
+              href="/cases"
+              className="rounded-lg border border-purple-800 bg-purple-950/30 px-3 py-1.5 text-xs font-bold text-purple-300 hover:bg-purple-900/40 transition"
+            >
+              🎁 Кейси
+            </Link>
+          </div>
+        </div>
 
         {isLoading ? (
-          <p className="py-12 text-sm text-[#626b64]" role="status">
-            Завантаження ліги…
-          </p>
+          <div className="py-20 text-center">
+            <span className="text-sm font-bold text-cyan-400 animate-pulse">
+              ⚡ Завантаження ліги та розкладу матчів...
+            </span>
+          </div>
         ) : notFound ? (
-          <section className="mt-8 border border-[#e0e3dd] bg-white px-6 py-10 text-center shadow-sm">
-            <h1 className="text-2xl font-semibold">Лігу не знайдено</h1>
-            <Link
-              href="/leagues"
-              className={`${backLinkClassName} mt-4 inline-block`}
-            >
-              Повернутися до списку ліг
+          <section className="mt-8 rounded-3xl border-2 border-slate-800 bg-[#0e121a] p-10 text-center shadow-xl">
+            <span className="text-4xl">🔍</span>
+            <h1 className="mt-3 text-2xl font-black text-white">ЛІГУ НЕ ЗНАЙДЕНО</h1>
+            <p className="mt-1 text-xs text-slate-400">Можливо її було видалено або код невірний.</p>
+            <Link href="/leagues" className="mt-5 inline-block rounded-xl bg-cyan-600 px-6 py-2.5 text-xs font-bold uppercase text-black hover:bg-cyan-500 transition">
+              До списку ліг
             </Link>
           </section>
         ) : loadError ? (
-          <p
-            role="alert"
-            className="mt-8 border-l-4 border-rose-600 bg-white px-5 py-4 text-sm leading-6 text-rose-800 shadow-sm"
-          >
+          <p role="alert" className="mt-8 rounded-xl border border-rose-800 bg-rose-950/40 p-4 text-center text-sm font-bold text-rose-300">
             {loadError}
           </p>
         ) : details ? (
           <>
-            <header className="mb-8 mt-8 border-b border-[#d9ddd6] pb-7">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">
-                Matchday · Ліга
-              </p>
-              <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
-                {details.league.title}
-              </h1>
-              <p className="mt-3 text-sm text-[#626b64]">
-                Творець:{" "}
-                <span className="font-medium text-[#202722]">
-                  {details.owner?.username ?? "Ім’я творця недоступне"}
-                </span>
-              </p>
-            </header>
+            {/* Header картка ліги */}
+            <header className="mb-8 rounded-3xl border-2 border-cyan-900/60 bg-gradient-to-r from-[#0d131f] via-[#090d14] to-[#07090d] p-6 sm:p-8 shadow-2xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-block rounded-full border border-cyan-500/40 bg-cyan-950/40 px-3 py-0.5 text-[10px] font-bold text-cyan-300 uppercase tracking-widest mb-2">
+                    ⚽ ЛІГА ПРОГНОЗІВ НА МАТЧІ
+                  </div>
+                  <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl">
+                    {details.league.title}
+                  </h1>
+                  <p className="mt-2 text-xs text-slate-400 flex items-center gap-1.5">
+                    <span>👑 Організатор:</span>
+                    <span className="font-bold text-emerald-400">
+                      {details.owner?.username ?? "Організатор"}
+                    </span>
+                  </p>
+                </div>
 
-            <section
-              aria-labelledby="invite-code-heading"
-              className="mb-8 border border-[#e0e3dd] bg-white p-5 shadow-sm sm:p-6"
-            >
-              <h2 id="invite-code-heading" className="text-lg font-semibold">
-                Інвайт-код
-              </h2>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <code className="break-all border border-[#d9ddd6] bg-[#f4f5f1] px-4 py-2 font-mono text-lg font-semibold tracking-[0.12em]">
-                  {details.league.invite_code}
-                </code>
-                <button
-                  type="button"
-                  onClick={handleCopyInviteCode}
-                  className={buttonClassName}
-                >
-                  Копіювати
-                </button>
-                {copyMessage && (
-                  <p role="status" className="text-sm text-emerald-800">
-                    {copyMessage}
-                  </p>
-                )}
-                {copyError && (
-                  <p role="alert" className="text-sm text-rose-700">
-                    {copyError}
-                  </p>
+                {/* Баланс монет */}
+                {details.currentBalance !== null && (
+                  <div className="rounded-2xl border border-amber-500/40 bg-amber-950/30 px-5 py-3 text-right shrink-0">
+                    <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider block">
+                      Ваш ігровий банк
+                    </span>
+                    <span className="text-xl font-black text-amber-300">
+                      🪙 {details.currentBalance.toLocaleString()} монет
+                    </span>
+                  </div>
                 )}
               </div>
+            </header>
+
+            {/* Інвайт-код блок */}
+            <section className="mb-8 rounded-2xl border border-slate-800 bg-[#0d1117] p-5 shadow-lg">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">
+                    🔑 КОД ДЛЯ ЗАПРОШЕННЯ ДРУЗІВ:
+                  </span>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Поділіться цим кодом, щоб друзі могли вступити у вашу лігу
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <code className="rounded-xl border-2 border-cyan-500/60 bg-black/80 px-4 py-2 font-mono text-lg font-black tracking-widest text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                    {details.league.invite_code}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={handleCopyInviteCode}
+                    className="rounded-xl bg-gradient-to-r from-cyan-600 to-teal-500 px-5 py-2.5 text-xs font-black uppercase text-black hover:from-cyan-400 hover:to-teal-300 transition shadow-md"
+                  >
+                    📋 Копіювати
+                  </button>
+                </div>
+              </div>
+              {copyMessage && (
+                <p className="mt-2 text-xs font-bold text-emerald-400 text-right">{copyMessage}</p>
+              )}
+              {copyError && (
+                <p className="mt-2 text-xs font-bold text-rose-400 text-right">{copyError}</p>
+              )}
             </section>
 
-            <section aria-labelledby="members-heading" className="mb-10">
-              <div className="mb-4 flex items-baseline justify-between gap-4">
-                <h2 id="members-heading" className="text-lg font-semibold">
-                  Учасники
+            {/* Повідомлення дій */}
+            {actionError && (
+              <div role="alert" className="mb-6 rounded-xl border border-rose-600 bg-rose-950/40 p-4 text-center text-sm font-bold text-rose-300">
+                ⚠️ {actionError}
+              </div>
+            )}
+            {actionMessage && (
+              <div role="status" className="mb-6 rounded-xl border border-emerald-600 bg-emerald-950/40 p-4 text-center text-sm font-bold text-emerald-300">
+                ✓ {actionMessage}
+              </div>
+            )}
+
+            {/* ТАБЛИЦЯ ЛІДЕРІВ / УЧАСНИКИ ЛІГИ */}
+            <section className="mb-10 rounded-3xl border-2 border-slate-800 bg-[#0c1017] p-6 shadow-xl">
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+                <h2 className="text-base font-black text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                  <span>🏆</span> ТАБЛИЦЯ ЛІДЕРІВ ЛІГИ ({details.members.length})
                 </h2>
-                <span className="text-sm text-[#626b64]">
-                  {details.members.length}
+                <span className="text-xs text-slate-400 font-bold">
+                  Правила: +3 за точний рахунок, +1 за вгаданий результат
                 </span>
               </div>
 
               {details.members.length === 0 ? (
-                <p className="border border-dashed border-[#c8cec7] bg-white px-5 py-8 text-sm text-[#626b64]">
-                  У цій лізі поки немає учасників.
-                </p>
+                <p className="py-6 text-center text-xs text-slate-500">У цій лізі поки немає учасників.</p>
               ) : (
-                <div className="overflow-x-auto border border-[#e0e3dd] bg-white shadow-sm">
-                  <table className="w-full min-w-[32rem] text-left text-sm">
-                    <thead className="border-b border-[#e0e3dd] bg-[#f8f9f6] text-xs uppercase tracking-wide text-[#626b64]">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-mono">
+                    <thead className="border-b border-slate-800 text-slate-500">
                       <tr>
-                        <th scope="col" className="px-5 py-3 font-semibold">
-                          Учасник
-                        </th>
-                        <th scope="col" className="px-5 py-3 font-semibold">
-                          Роль
-                        </th>
-                        <th scope="col" className="px-5 py-3 text-right font-semibold">
-                          Очки
-                        </th>
+                        <th className="pb-2.5">#</th>
+                        <th className="pb-2.5">Учасник</th>
+                        <th className="pb-2.5">Роль</th>
+                        <th className="pb-2.5 text-center">Точні рахунки</th>
+                        <th className="pb-2.5 text-right">Бали ліги</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#e0e3dd]">
-                      {details.members.map((member) => (
-                        <tr key={member.user_id}>
-                          <td className="px-5 py-4 font-medium">
-                            {member.profile?.username ?? "Ім’я недоступне"}
+                    <tbody className="divide-y divide-slate-800/60">
+                      {details.members.map((member, idx) => (
+                        <tr key={member.user_id} className="hover:bg-slate-800/30 transition">
+                          <td className="py-3 font-bold text-slate-500">{idx + 1}</td>
+                          <td className="py-3 font-bold text-white flex items-center gap-1.5">
+                            <span>{idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "👤"}</span>
+                            <span>{member.profile?.username ?? "Гравець"}</span>
                           </td>
-                          <td
-                            className={`px-5 py-4 text-xs font-semibold uppercase tracking-wide ${
-                              member.role === "owner"
-                                ? "text-emerald-800"
-                                : "text-[#7a827b]"
-                            }`}
-                          >
-                            {member.role === "owner" ? "Творець" : "Учасник"}
+                          <td className="py-3">
+                            <span
+                              className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase ${
+                                member.role === "owner"
+                                  ? "border border-amber-600/50 bg-amber-950/30 text-amber-300"
+                                  : "border border-slate-700 bg-slate-800 text-slate-300"
+                              }`}
+                            >
+                              {member.role === "owner" ? "👑 Організатор" : "⚽ Гравець"}
+                            </span>
                           </td>
-                          <td className="px-5 py-4 text-right tabular-nums">
-                            {member.points}
+                          <td className="py-3 text-center text-slate-300 font-bold">
+                            {member.exactScores}
+                          </td>
+                          <td className="py-3 text-right">
+                            <span className="rounded-lg bg-emerald-950/60 border border-emerald-500/50 px-3 py-1 font-black text-emerald-300 text-sm">
+                              +{member.points} оч.
+                            </span>
                           </td>
                         </tr>
                       ))}
@@ -998,77 +806,48 @@ export default function LeagueDetailsPage() {
               )}
             </section>
 
-            {actionError && (
-              <p
-                role="alert"
-                className="mb-4 border-l-4 border-rose-600 bg-white px-4 py-3 text-sm text-rose-800"
-              >
-                {actionError}
-              </p>
-            )}
-            {actionMessage && (
-              <p
-                role="status"
-                className="mb-4 border-l-4 border-emerald-600 bg-white px-4 py-3 text-sm text-emerald-800"
-              >
-                {actionMessage}
-              </p>
-            )}
+            {/* ПАНЕЛЬ ОРГАНІЗАТОРА (ДОДАТИ МАТЧ) */}
+            {isOwner && (
+              <section className="mb-10 rounded-3xl border-2 border-cyan-800/60 bg-gradient-to-r from-cyan-950/30 via-[#0d121c] to-[#0a0d14] p-6 shadow-2xl">
+                <div className="mb-4">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-cyan-400 block">
+                    ⚙️ ПАНЕЛЬ ОРГАНІЗАТОРА
+                  </span>
+                  <h2 className="text-xl font-black text-white">Додати матч у розклад</h2>
+                </div>
 
-            {!isAuthResolved ? (
-              <p role="status" className="mb-8 text-sm text-[#626b64]">
-                Перевіряємо сесію…
-              </p>
-            ) : isOwner ? (
-              <section
-                aria-labelledby="add-match-heading"
-                className="mb-8 border border-[#e0e3dd] bg-white p-5 shadow-sm sm:p-6"
-              >
-                <h2 id="add-match-heading" className="mb-5 text-lg font-semibold">
-                  Додати матч
-                </h2>
-                <form
-                  className="grid gap-4 sm:grid-cols-2"
-                  onSubmit={handleAddMatch}
-                >
+                <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" onSubmit={handleAddMatch}>
                   <div>
-                    <label
-                      htmlFor="team-home"
-                      className="mb-1.5 block text-sm font-medium"
-                    >
-                      Господарі
+                    <label htmlFor="team-home" className="mb-1.5 block text-xs font-bold text-slate-300">
+                      Господарі (Команда 1)
                     </label>
                     <input
                       id="team-home"
                       name="team-home"
                       type="text"
+                      placeholder="Напр. Динамо Київ"
                       required
                       maxLength={100}
                       className={fieldClassName}
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="team-away"
-                      className="mb-1.5 block text-sm font-medium"
-                    >
-                      Гості
+                    <label htmlFor="team-away" className="mb-1.5 block text-xs font-bold text-slate-300">
+                      Гості (Команда 2)
                     </label>
                     <input
                       id="team-away"
                       name="team-away"
                       type="text"
+                      placeholder="Напр. Шахтар Донецьк"
                       required
                       maxLength={100}
                       className={fieldClassName}
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="match-time"
-                      className="mb-1.5 block text-sm font-medium"
-                    >
-                      Дата й час
+                    <label htmlFor="match-time" className="mb-1.5 block text-xs font-bold text-slate-300">
+                      Дата й час матчу
                     </label>
                     <input
                       id="match-time"
@@ -1082,633 +861,355 @@ export default function LeagueDetailsPage() {
                     <button
                       type="submit"
                       disabled={busyAction === "add-match"}
-                      className={buttonClassName}
+                      className="h-12 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 font-sans text-xs font-black uppercase text-black hover:brightness-110 active:scale-95 transition disabled:opacity-50"
                     >
-                      {busyAction === "add-match" ? "Додавання…" : "Додати матч"}
+                      {busyAction === "add-match" ? "Додаємо..." : "⚽ Додати матч"}
                     </button>
                   </div>
                 </form>
               </section>
-            ) : null}
+            )}
 
-            <section aria-labelledby="matches-heading">
-              <div className="mb-5 flex items-baseline justify-between gap-4">
-                <h2 id="matches-heading" className="text-2xl font-semibold">
-                  Матчі
+            {/* СПИСОК МАТЧІВ */}
+            <section>
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                <h2 className="text-xl font-black text-white uppercase tracking-wider flex items-center gap-2">
+                  <span>⚽</span> РОЗКЛАД МАТЧІВ ({details.matches.length})
                 </h2>
-                <span className="text-sm text-[#626b64]">
-                  {details.matches.length}
-                </span>
+                <span className="text-xs text-slate-400">Роби прогнози та ставки до початку гри</span>
               </div>
 
               {details.matches.length === 0 ? (
-                <p className="border border-dashed border-[#c8cec7] bg-white px-5 py-8 text-sm text-[#626b64]">
-                  У цій лізі поки немає матчів.
-                </p>
+                <div className="rounded-3xl border-2 border-dashed border-slate-800 bg-[#0d1017] p-12 text-center text-slate-400">
+                  <span className="text-4xl">⚽</span>
+                  <h3 className="mt-3 text-base font-bold text-white">У цій лізі поки немає матчів</h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {isOwner ? "Створіть перший матч у панелі організатора вище!" : "Організатор ліги незабаром додасть матчі."}
+                  </p>
+                </div>
               ) : (
-                <ul className="space-y-4">
+                <ul className="space-y-6">
                   {details.matches.map((match) => {
                     const isFinished = match.status === "finished";
-                    const started =
-                      isFinished || now >= new Date(match.match_time).getTime();
+                    const started = isFinished || now >= new Date(match.match_time).getTime();
                     const ownPrediction = details.predictions.find(
-                      (prediction) =>
-                        prediction.match_id === match.id &&
-                        prediction.user_id === currentUserId,
+                      (p) => p.match_id === match.id && p.user_id === currentUserId,
                     );
                     const ownBet = details.bets.find(
-                      (bet) =>
-                        bet.match_id === match.id &&
-                        bet.user_id === currentUserId,
+                      (b) => b.match_id === match.id && b.user_id === currentUserId,
                     );
-                    const visibleBets = details.bets
-                      .filter((bet) => bet.match_id === match.id)
-                      .sort((first, second) =>
-                        (first.profile?.username ?? "").localeCompare(
-                          second.profile?.username ?? "",
-                          "uk",
-                        ),
-                      );
-                    const matchPools = details.pools[match.id] ?? {
-                      home: 0,
-                      draw: 0,
-                      away: 0,
-                    };
-                    const totalPool =
-                      matchPools.home + matchPools.draw + matchPools.away;
-                    const visiblePredictions = details.predictions
-                      .filter(
-                        (prediction) =>
-                          prediction.match_id === match.id &&
-                          (started || prediction.user_id === currentUserId),
-                      )
-                      .sort((first, second) =>
-                        (first.profile?.username ?? "").localeCompare(
-                          second.profile?.username ?? "",
-                          "uk",
-                        ),
-                      );
+                    const visibleBets = details.bets.filter((b) => b.match_id === match.id);
+                    const matchPools = details.pools[match.id] ?? { home: 0, draw: 0, away: 0 };
+                    const totalPool = matchPools.home + matchPools.draw + matchPools.away;
+                    const visiblePredictions = details.predictions.filter(
+                      (p) => p.match_id === match.id && (started || p.user_id === currentUserId),
+                    );
 
                     return (
                       <li
                         key={match.id}
-                        className="border border-[#e0e3dd] bg-white p-5 shadow-sm sm:p-6"
+                        className="rounded-3xl border-2 border-slate-800 bg-gradient-to-b from-[#111724] via-[#0d111a] to-[#080a0f] p-6 shadow-2xl hover:border-slate-700 transition"
                       >
-                        <div className="flex flex-wrap items-start justify-between gap-4">
+                        {/* Команди та рахунок */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
                           <div>
-                            <h3 className="text-lg font-semibold">
-                              {match.team_home} <span className="text-[#7a827b]">—</span>{" "}
-                              {match.team_away}
-                            </h3>
-                            <p className="mt-1 text-sm text-[#626b64]">
-                              {formatMatchTime(match.match_time)}
+                            <div className="flex items-center gap-3">
+                              <span className="text-xl sm:text-2xl font-black text-white">
+                                {match.team_home}
+                              </span>
+                              <span className="rounded-md border border-cyan-800/80 bg-cyan-950/60 px-2 py-0.5 text-xs font-black text-cyan-300">
+                                VS
+                              </span>
+                              <span className="text-xl sm:text-2xl font-black text-white">
+                                {match.team_away}
+                              </span>
+                            </div>
+                            <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1.5 font-sans">
+                              <span>🕒 {formatMatchTime(match.match_time)}</span>
                             </p>
                           </div>
-                          <div className="text-right">
+
+                          <div className="text-right shrink-0">
                             <span
-                              className={`inline-block px-2.5 py-1 text-xs font-semibold ${
+                              className={`inline-block rounded-full px-3 py-1 text-xs font-black uppercase tracking-wider ${
                                 isFinished
-                                  ? "bg-emerald-50 text-emerald-800"
-                                  : "bg-orange-50 text-orange-800"
+                                  ? "border border-emerald-500/50 bg-emerald-950/40 text-emerald-300"
+                                  : started
+                                  ? "border border-amber-500/50 bg-amber-950/40 text-amber-300 animate-pulse"
+                                  : "border border-cyan-500/50 bg-cyan-950/40 text-cyan-300"
                               }`}
                             >
-                              {isFinished ? "Завершено" : "Заплановано"}
+                              {isFinished ? "🏁 Завершено" : started ? "⚡ Наживо" : "🟢 Заплановано"}
                             </span>
                             {isFinished && (
-                              <p className="mt-2 text-xl font-semibold tabular-nums">
+                              <div className="mt-2 text-3xl font-black text-amber-400">
                                 {match.home_score} : {match.away_score}
-                              </p>
+                              </div>
                             )}
                           </div>
                         </div>
 
-                        {isOwner && match.status === "planned" && (
-                          <div className="mt-4 flex flex-wrap gap-3 border-t border-[#e0e3dd] pt-4">
-                            <button
-                              type="button"
-                              disabled={busyAction !== null}
-                              onClick={() => {
-                                setEditingMatchId(
-                                  editingMatchId === match.id ? null : match.id,
-                                );
-                                setActionError(null);
-                              }}
-                              className={buttonClassName}
-                            >
-                              {editingMatchId === match.id
-                                ? "Скасувати редагування"
-                                : "Редагувати"}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={busyAction !== null}
-                              onClick={() => void handleDeleteMatch(match)}
-                              className="h-11 shrink-0 border border-rose-700 px-5 text-sm font-semibold text-rose-800 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {busyAction === `delete-match-${match.id}`
-                                ? "Видалення…"
-                                : "Видалити"}
-                            </button>
-                          </div>
-                        )}
-
-                        {isOwner && isFinished && (
-                          <div className="mt-4 flex justify-end border-t border-[#e0e3dd] pt-4">
-                            <button
-                              type="button"
-                              disabled={busyAction !== null}
-                              onClick={() => void handleDeleteMatch(match)}
-                              className="h-11 shrink-0 border border-rose-700 px-5 text-sm font-semibold text-rose-800 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {busyAction === `delete-match-${match.id}`
-                                ? "Видалення…"
-                                : "Видалити"}
-                            </button>
-                          </div>
-                        )}
-
-                        {isOwner && editingMatchId === match.id && (
-                          <form
-                            className="mt-4 grid gap-4 border-t border-[#e0e3dd] pt-4 sm:grid-cols-2"
-                            onSubmit={(event) =>
-                              void handleUpdateMatch(event, match)
-                            }
-                          >
-                            <div>
-                              <label
-                                htmlFor={`edit-team-home-${match.id}`}
-                                className="mb-1.5 block text-sm font-medium"
-                              >
-                                Господарі
-                              </label>
-                              <input
-                                id={`edit-team-home-${match.id}`}
-                                name="team-home"
-                                type="text"
-                                required
-                                maxLength={100}
-                                defaultValue={match.team_home}
-                                disabled={busyAction === `update-match-${match.id}`}
-                                className={fieldClassName}
-                              />
-                            </div>
-                            <div>
-                              <label
-                                htmlFor={`edit-team-away-${match.id}`}
-                                className="mb-1.5 block text-sm font-medium"
-                              >
-                                Гості
-                              </label>
-                              <input
-                                id={`edit-team-away-${match.id}`}
-                                name="team-away"
-                                type="text"
-                                required
-                                maxLength={100}
-                                defaultValue={match.team_away}
-                                disabled={busyAction === `update-match-${match.id}`}
-                                className={fieldClassName}
-                              />
-                            </div>
-                            <div>
-                              <label
-                                htmlFor={`edit-match-time-${match.id}`}
-                                className="mb-1.5 block text-sm font-medium"
-                              >
-                                Дата й час
-                              </label>
-                              <input
-                                id={`edit-match-time-${match.id}`}
-                                name="match-time"
-                                type="datetime-local"
-                                required
-                                defaultValue={toDateTimeLocalValue(match.match_time)}
-                                disabled={busyAction === `update-match-${match.id}`}
-                                className={fieldClassName}
-                              />
-                            </div>
-                            <div className="flex items-end gap-3">
-                              <button
-                                type="submit"
-                                disabled={busyAction !== null}
-                                className={buttonClassName}
-                              >
-                                {busyAction === `update-match-${match.id}`
-                                  ? "Збереження…"
-                                  : "Зберегти зміни"}
-                              </button>
-                            </div>
-                          </form>
-                        )}
-
-                        {!isAuthResolved && (
-                          <p
-                            role="status"
-                            className="mt-4 text-sm text-[#626b64]"
-                          >
-                            Перевіряємо сесію…
-                          </p>
-                        )}
-
-                        {!isFinished && !started && (
-                          <form
-                            className="mt-5 border-t border-[#e0e3dd] pt-4"
-                            onSubmit={(event) =>
-                              void handleSavePrediction(event, match)
-                            }
-                          >
-                            <p className="mb-3 text-sm font-semibold">
-                              Ваш прогноз
-                            </p>
-                            <div className="flex flex-wrap items-end gap-3">
-                              <div className="w-24">
-                                <label
-                                  htmlFor={`prediction-home-${match.id}`}
-                                  className="mb-1 block text-xs text-[#626b64]"
-                                >
-                                  {match.team_home}
-                                </label>
-                                <input
-                                  id={`prediction-home-${match.id}`}
-                                  name="home-score"
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  required
-                                  defaultValue={
-                                    ownPrediction?.predicted_home_score
-                                  }
-                                  disabled={
-                                    busyAction === `prediction-${match.id}` ||
-                                    !currentUserId
-                                  }
-                                  className={fieldClassName}
-                                />
-                              </div>
-                              <span className="pb-3 text-[#7a827b]">:</span>
-                              <div className="w-24">
-                                <label
-                                  htmlFor={`prediction-away-${match.id}`}
-                                  className="mb-1 block text-xs text-[#626b64]"
-                                >
-                                  {match.team_away}
-                                </label>
-                                <input
-                                  id={`prediction-away-${match.id}`}
-                                  name="away-score"
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  required
-                                  defaultValue={
-                                    ownPrediction?.predicted_away_score
-                                  }
-                                  disabled={
-                                    busyAction === `prediction-${match.id}` ||
-                                    !currentUserId
-                                  }
-                                  className={fieldClassName}
-                                />
-                              </div>
-                              <button
-                                type="submit"
-                                disabled={
-                                  busyAction === `prediction-${match.id}` ||
-                                  !currentUserId
-                                }
-                                className={buttonClassName}
-                              >
-                                {busyAction === `prediction-${match.id}`
-                                  ? "Збереження…"
-                                  : "Зберегти"}
-                              </button>
-                            </div>
-                            {!currentUserId && (
-                              <p className="mt-3 text-sm text-[#626b64]">
-                                Увійдіть у свій акаунт, щоб подати прогноз.
-                              </p>
-                            )}
-                          </form>
-                        )}
-
-                        {isOwner && started && !isFinished && (
-                          <form
-                            className="mt-5 border-t border-[#e0e3dd] pt-4"
-                            onSubmit={(event) =>
-                              void handleSaveResult(event, match)
-                            }
-                          >
-                            <p className="mb-3 text-sm font-semibold">
-                              Внести результат
-                            </p>
-                            <div className="flex flex-wrap items-end gap-3">
-                              <div className="w-24">
-                                <label
-                                  htmlFor={`result-home-${match.id}`}
-                                  className="mb-1 block text-xs text-[#626b64]"
-                                >
-                                  {match.team_home}
-                                </label>
-                                <input
-                                  id={`result-home-${match.id}`}
-                                  name="home-score"
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  required
-                                  className={fieldClassName}
-                                  disabled={busyAction === `result-${match.id}`}
-                                />
-                              </div>
-                              <span className="pb-3 text-[#7a827b]">:</span>
-                              <div className="w-24">
-                                <label
-                                  htmlFor={`result-away-${match.id}`}
-                                  className="mb-1 block text-xs text-[#626b64]"
-                                >
-                                  {match.team_away}
-                                </label>
-                                <input
-                                  id={`result-away-${match.id}`}
-                                  name="away-score"
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  required
-                                  className={fieldClassName}
-                                  disabled={busyAction === `result-${match.id}`}
-                                />
-                              </div>
-                              <button
-                                type="submit"
-                                disabled={busyAction === `result-${match.id}`}
-                                className={buttonClassName}
-                              >
-                                {busyAction === `result-${match.id}`
-                                  ? "Збереження…"
-                                  : "Завершити матч"}
-                              </button>
-                            </div>
-                          </form>
-                        )}
-
-                        {isOwner && isFinished && (
-                          <form
-                            className="mt-5 border-t border-[#e0e3dd] pt-4"
-                            onSubmit={(event) =>
-                              void handleSaveResult(event, match)
-                            }
-                          >
-                            <p className="mb-3 text-sm font-semibold">
-                              Виправити результат
-                            </p>
-                            <p className="mb-3 text-sm text-[#626b64]">
-                              Виплати вже здійснено, виправлення не змінює монети
-                            </p>
-                            <div className="flex flex-wrap items-end gap-3">
-                              <div className="w-24">
-                                <label
-                                  htmlFor={`result-home-${match.id}`}
-                                  className="mb-1 block text-xs text-[#626b64]"
-                                >
-                                  {match.team_home}
-                                </label>
-                                <input
-                                  id={`result-home-${match.id}`}
-                                  name="home-score"
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  required
-                                  defaultValue={match.home_score ?? ""}
-                                  className={fieldClassName}
-                                  disabled={busyAction === `result-${match.id}`}
-                                />
-                              </div>
-                              <span className="pb-3 text-[#7a827b]">:</span>
-                              <div className="w-24">
-                                <label
-                                  htmlFor={`result-away-${match.id}`}
-                                  className="mb-1 block text-xs text-[#626b64]"
-                                >
-                                  {match.team_away}
-                                </label>
-                                <input
-                                  id={`result-away-${match.id}`}
-                                  name="away-score"
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  required
-                                  defaultValue={match.away_score ?? ""}
-                                  className={fieldClassName}
-                                  disabled={busyAction === `result-${match.id}`}
-                                />
-                              </div>
-                              <button
-                                type="submit"
-                                disabled={busyAction === `result-${match.id}`}
-                                className={buttonClassName}
-                              >
-                                {busyAction === `result-${match.id}`
-                                  ? "Збереження…"
-                                  : "Виправити результат"}
-                              </button>
-                            </div>
-                          </form>
-                        )}
-
-                        {!isFinished && !started && (
-                          <section className="mt-5 border-t border-[#e0e3dd] pt-4">
-                            <h4 className="mb-3 text-sm font-semibold">
-                              Ставка на результат
-                            </h4>
-                            {ownBet ? (
-                              <p className="text-sm text-[#626b64]">
-                                Вашу ставку вже зроблено:{" "}
-                                <span className="font-medium text-[#202722]">
-                                  {getBetPickLabel(ownBet.pick, match)} —{" "}
-                                  {ownBet.stake} монет
+                        {/* Кнопки модерації організатора */}
+                        {isOwner && (
+                          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/60 pb-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {started && !isFinished && (
+                                <span className="text-xs font-bold text-amber-400">
+                                  Матч розпочався! Внесіть результат після фінального свистка:
                                 </span>
-                              </p>
-                            ) : (
-                              <form
-                                onSubmit={(event) =>
-                                  void handlePlaceBet(event, match)
-                                }
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={busyAction !== null}
+                                onClick={() => void handleDeleteMatch(match)}
+                                className="rounded-lg border border-rose-800/80 bg-rose-950/30 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-900/50 transition"
                               >
-                                <fieldset
-                                  disabled={
-                                    busyAction === `bet-${match.id}` ||
-                                    !currentUserId ||
-                                    details.currentBalance === null
-                                  }
-                                >
-                                  <legend className="sr-only">
-                                    Оберіть результат матчу
-                                  </legend>
-                                  <div className="grid gap-3 sm:grid-cols-3">
-                                    {(
-                                      [
-                                        ["home", "Господарі"],
-                                        ["draw", "Нічия"],
-                                        ["away", "Гості"],
-                                      ] as const
-                                    ).map(([pick, label], index) => {
-                                      const pickPool = matchPools[pick];
-                                      const multiplier =
-                                        pickPool > 0 && totalPool > 0
-                                          ? `${(totalPool / pickPool).toLocaleString(
-                                              "uk-UA",
-                                              { maximumFractionDigits: 2 },
-                                            )}×`
-                                          : "—";
+                                ✕ Видалити матч
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
-                                      return (
-                                        <label
-                                          key={pick}
-                                          className="border border-[#d9ddd6] bg-[#fbfcfa] p-3 text-sm"
-                                        >
-                                          <span className="flex items-center gap-2 font-medium">
-                                            <input
-                                              type="radio"
-                                              name="bet-pick"
-                                              value={pick}
-                                              required
-                                              defaultChecked={index === 0}
-                                              className="accent-emerald-800"
-                                            />
-                                            {label}
-                                          </span>
-                                          <span className="mt-2 block text-xs text-[#626b64]">
-                                            Ставки: {pickPool} монет
-                                          </span>
-                                          <span className="mt-1 block text-xs text-[#626b64]">
-                                            Приблизний множник: {multiplier}
-                                          </span>
-                                        </label>
-                                      );
-                                    })}
-                                  </div>
-                                  <div className="mt-3 flex flex-wrap items-end gap-3">
-                                    <div className="w-36">
+                        {/* Внесення результату (Організатор) */}
+                        {isOwner && started && (
+                          <form
+                            className="mt-5 rounded-2xl border border-amber-600/50 bg-amber-950/20 p-4"
+                            onSubmit={(e) => void handleSaveResult(e, match)}
+                          >
+                            <span className="text-xs font-black uppercase text-amber-300 block mb-2">
+                              {isFinished ? "Виправити підсумковий рахунок:" : "Внести фінальний результат:"}
+                            </span>
+                            <div className="flex flex-wrap items-end gap-3">
+                              <div className="w-24">
+                                <label className="text-[10px] text-slate-400 block mb-1">
+                                  {match.team_home}
+                                </label>
+                                <input
+                                  name="home-score"
+                                  type="number"
+                                  min="0"
+                                  required
+                                  defaultValue={match.home_score ?? 0}
+                                  className={fieldClassName}
+                                />
+                              </div>
+                              <span className="pb-3 text-xl font-bold text-amber-400">:</span>
+                              <div className="w-24">
+                                <label className="text-[10px] text-slate-400 block mb-1">
+                                  {match.team_away}
+                                </label>
+                                <input
+                                  name="away-score"
+                                  type="number"
+                                  min="0"
+                                  required
+                                  defaultValue={match.away_score ?? 0}
+                                  className={fieldClassName}
+                                />
+                              </div>
+                              <button
+                                type="submit"
+                                disabled={busyAction === `result-${match.id}`}
+                                className="h-12 rounded-xl bg-amber-500 px-6 font-sans text-xs font-black uppercase text-black hover:bg-amber-400 transition"
+                              >
+                                {busyAction === `result-${match.id}` ? "Збереження..." : "🏁 Завершити матч"}
+                              </button>
+                            </div>
+                          </form>
+                        )}
+
+                        {/* ФОРМА ПРОГНОЗУ НА МАТЧ */}
+                        {!isFinished && !started && (
+                          <form
+                            className="mt-6 rounded-2xl border border-slate-800 bg-[#0c1017] p-4 sm:p-5"
+                            onSubmit={(e) => void handleSavePrediction(e, match)}
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                                <span>🎯</span> ВАШ ПРОГНОЗ НА РАХУНОК
+                              </span>
+                              {ownPrediction && (
+                                <span className="rounded bg-emerald-950/60 border border-emerald-600/60 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                                  Поточний: {ownPrediction.predicted_home_score} : {ownPrediction.predicted_away_score}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-end gap-3">
+                              <div className="w-24">
+                                <label className="mb-1 block text-[10px] text-slate-400 truncate">
+                                  {match.team_home}
+                                </label>
+                                <input
+                                  name="home-score"
+                                  type="number"
+                                  min="0"
+                                  required
+                                  defaultValue={ownPrediction?.predicted_home_score ?? 0}
+                                  className={fieldClassName}
+                                />
+                              </div>
+                              <span className="pb-3 text-xl font-bold text-slate-500">:</span>
+                              <div className="w-24">
+                                <label className="mb-1 block text-[10px] text-slate-400 truncate">
+                                  {match.team_away}
+                                </label>
+                                <input
+                                  name="away-score"
+                                  type="number"
+                                  min="0"
+                                  required
+                                  defaultValue={ownPrediction?.predicted_away_score ?? 0}
+                                  className={fieldClassName}
+                                />
+                              </div>
+                              <button
+                                type="submit"
+                                disabled={busyAction === `prediction-${match.id}` || !currentUserId}
+                                className="h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 font-sans text-xs font-black uppercase tracking-wider text-white shadow-lg hover:from-emerald-500 hover:to-teal-400 transition"
+                              >
+                                {busyAction === `prediction-${match.id}` ? "Збереження..." : "✓ Зберегти прогноз"}
+                              </button>
+                            </div>
+                          </form>
+                        )}
+
+                        {/* СТАВКА НА РЕЗУЛЬТАТ (КОЇНИ) */}
+                        {!isFinished && !started && (
+                          <section className="mt-5 rounded-2xl border border-slate-800 bg-[#0c1017] p-4 sm:p-5">
+                            <span className="text-xs font-black uppercase tracking-wider text-amber-400 block mb-3">
+                              💰 СТАВКА НА ПЕРЕМОЖЦЯ (ПУЛ МОНЕТ)
+                            </span>
+
+                            {ownBet ? (
+                              <div className="rounded-xl border border-amber-600/50 bg-amber-950/30 p-3 text-xs font-bold text-amber-300">
+                                Ваша ставка: {getBetPickLabel(ownBet.pick, match)} — {ownBet.stake} монет.
+                              </div>
+                            ) : (
+                              <form onSubmit={(e) => void handlePlaceBet(e, match)}>
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                  {(
+                                    [
+                                      ["home", match.team_home],
+                                      ["draw", "Нічия"],
+                                      ["away", match.team_away],
+                                    ] as const
+                                  ).map(([pick, label], idx) => {
+                                    const pickPool = matchPools[pick];
+                                    const multiplier =
+                                      pickPool > 0 && totalPool > 0
+                                        ? `${(totalPool / pickPool).toFixed(2)}x`
+                                        : "—";
+
+                                    return (
                                       <label
-                                        htmlFor={`bet-stake-${match.id}`}
-                                        className="mb-1 block text-xs text-[#626b64]"
+                                        key={pick}
+                                        className="cursor-pointer rounded-xl border border-slate-700/80 bg-slate-900/60 p-3.5 hover:border-amber-500 transition block text-xs"
                                       >
-                                        Сума (баланс:{" "}
-                                        {details.currentBalance ?? "—"})
+                                        <div className="flex items-center gap-2 font-bold text-white">
+                                          <input
+                                            type="radio"
+                                            name="bet-pick"
+                                            value={pick}
+                                            required
+                                            defaultChecked={idx === 0}
+                                            className="accent-amber-400"
+                                          />
+                                          <span>{label}</span>
+                                        </div>
+                                        <div className="mt-2 text-[11px] text-slate-400">
+                                          Пул: <span className="text-amber-400 font-bold">{pickPool}</span> 🪙
+                                        </div>
+                                        <div className="text-[10px] text-cyan-400 font-bold">
+                                          Множник: {multiplier}
+                                        </div>
                                       </label>
-                                      <input
-                                        id={`bet-stake-${match.id}`}
-                                        name="bet-stake"
-                                        type="number"
-                                        min="1"
-                                        max={details.currentBalance ?? undefined}
-                                        step="1"
-                                        required
-                                        className={fieldClassName}
-                                      />
-                                    </div>
-                                    <button
-                                      type="submit"
-                                      disabled={
-                                        busyAction === `bet-${match.id}` ||
-                                        !currentUserId ||
-                                        details.currentBalance === null
-                                      }
-                                      className={buttonClassName}
-                                    >
-                                      {busyAction === `bet-${match.id}`
-                                        ? "Ставимо…"
-                                        : "Поставити"}
-                                    </button>
+                                    );
+                                  })}
+                                </div>
+
+                                <div className="mt-4 flex flex-wrap items-end gap-3">
+                                  <div className="w-40">
+                                    <label className="text-[10px] text-slate-400 block mb-1">
+                                      Сума ставки (монет):
+                                    </label>
+                                    <input
+                                      name="bet-stake"
+                                      type="number"
+                                      min="1"
+                                      max={details.currentBalance ?? undefined}
+                                      required
+                                      defaultValue="50"
+                                      className={fieldClassName}
+                                    />
                                   </div>
-                                </fieldset>
-                                {!currentUserId && (
-                                  <p className="mt-3 text-sm text-[#626b64]">
-                                    Увійдіть у свій акаунт, щоб зробити ставку.
-                                  </p>
-                                )}
-                                {betError?.matchId === match.id && (
-                                  <p
-                                    role="alert"
-                                    className="mt-3 text-sm text-rose-700"
+                                  <button
+                                    type="submit"
+                                    disabled={busyAction === `bet-${match.id}` || !currentUserId}
+                                    className="h-12 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 font-sans text-xs font-black uppercase text-black hover:from-amber-400 hover:to-amber-500 transition shadow-lg"
                                   >
-                                    {betError.message}
-                                  </p>
+                                    {busyAction === `bet-${match.id}` ? "Ставимо..." : "Поставити монети"}
+                                  </button>
+                                </div>
+                                {betError?.matchId === match.id && (
+                                  <p className="mt-2 text-xs font-bold text-rose-400">{betError.message}</p>
                                 )}
                               </form>
                             )}
                           </section>
                         )}
 
+                        {/* Прогнози та ставки інших учасників */}
                         {started && (
-                          <section className="mt-5 border-t border-[#e0e3dd] pt-4">
-                            <h4 className="mb-3 text-sm font-semibold">
-                              Ставки учасників
-                            </h4>
-                            {visibleBets.length === 0 ? (
-                              <p className="text-sm text-[#626b64]">
-                                Ставок поки немає.
-                              </p>
-                            ) : (
-                              <ul className="divide-y divide-[#eef0ec]">
-                                {visibleBets.map((bet) => (
-                                  <li
-                                    key={`${bet.user_id}-${bet.match_id}`}
-                                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2 text-sm"
-                                  >
-                                    <span className="text-[#626b64]">
-                                      {bet.profile?.username ?? "Учасник"}
-                                    </span>
-                                    <span className="font-medium tabular-nums">
-                                      {getBetPickLabel(bet.pick, match)} ·{" "}
-                                      {bet.stake} монет
-                                      {isFinished && (
-                                        <span className="ml-3 text-[#626b64]">
-                                          Виплата: {bet.payout ?? "—"} монет
-                                        </span>
-                                      )}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </section>
-                        )}
-
-                        {(isFinished || started) && (
-                          <div className="mt-5 border-t border-[#e0e3dd] pt-4">
-                            <h4 className="mb-3 text-sm font-semibold">
-                              Прогнози учасників
-                            </h4>
-                            {visiblePredictions.length === 0 ? (
-                              <p className="text-sm text-[#626b64]">
-                                Прогнозів поки немає.
-                              </p>
-                            ) : (
-                              <ul className="divide-y divide-[#eef0ec]">
-                                {visiblePredictions.map((prediction) => (
-                                  <li
-                                    key={prediction.id}
-                                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2 text-sm"
-                                  >
-                                    <span className="text-[#626b64]">
-                                      {prediction.profile?.username ??
-                                        "Учасник"}
-                                    </span>
-                                    <span className="font-medium tabular-nums">
-                                      {prediction.predicted_home_score} :{" "}
-                                      {prediction.predicted_away_score}
-                                      <span className="ml-3 text-[#626b64]">
-                                        {prediction.points_earned ?? 0} оч.
+                          <div className="mt-5 border-t border-slate-800 pt-4 grid gap-4 sm:grid-cols-2 text-xs">
+                            {/* Прогнози */}
+                            <div>
+                              <span className="font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                                Прогнози на гру:
+                              </span>
+                              {visiblePredictions.length === 0 ? (
+                                <p className="text-slate-600">Прогнозів немає</p>
+                              ) : (
+                                <ul className="space-y-1">
+                                  {visiblePredictions.map((pred) => (
+                                    <li key={pred.id} className="flex justify-between py-1 border-b border-slate-800/40">
+                                      <span className="text-slate-300 font-medium">{pred.profile?.username ?? "Гравець"}</span>
+                                      <span className="font-bold text-white">
+                                        {pred.predicted_home_score} : {pred.predicted_away_score}
+                                        {isFinished && (
+                                          <span className="ml-2 text-emerald-400 font-black">
+                                            +{pred.points_earned ?? 0} оч.
+                                          </span>
+                                        )}
                                       </span>
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+
+                            {/* Ставки */}
+                            <div>
+                              <span className="font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                                Ставки монет:
+                              </span>
+                              {visibleBets.length === 0 ? (
+                                <p className="text-slate-600">Ставок немає</p>
+                              ) : (
+                                <ul className="space-y-1">
+                                  {visibleBets.map((bet) => (
+                                    <li key={`${bet.user_id}-${bet.match_id}`} className="flex justify-between py-1 border-b border-slate-800/40">
+                                      <span className="text-slate-300 font-medium">{bet.profile?.username ?? "Гравець"}</span>
+                                      <span className="font-bold text-amber-400">
+                                        {bet.stake} 🪙 ({getBetPickLabel(bet.pick, match)})
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
                           </div>
                         )}
                       </li>
@@ -1718,39 +1219,36 @@ export default function LeagueDetailsPage() {
               )}
             </section>
 
+            {/* Небезпечна зона */}
             {(isOwner || isMember) && (
-              <section className="mt-12 border-t border-[#d9ddd6] pt-8">
-                {isOwner ? (
-                  <div className="border border-rose-200 bg-white p-5 shadow-sm sm:p-6">
-                    <h2 className="text-lg font-semibold text-rose-900">
-                      Небезпечна дія
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-[#626b64]">
-                      Видалення ліги також видалить усі її матчі та прогнози.
-                    </p>
+              <section className="mt-12 rounded-3xl border border-rose-900/40 bg-rose-950/10 p-6">
+                <h3 className="text-sm font-bold text-rose-400 uppercase tracking-wider">
+                  Зона керування членством:
+                </h3>
+                <div className="mt-3 flex items-center justify-between">
+                  <p className="text-xs text-slate-400">
+                    {isOwner ? "Видалення ліги очистить усі матчі та таблицю результатів." : "Вийти з ліги прогнозистів."}
+                  </p>
+                  {isOwner ? (
                     <button
                       type="button"
                       disabled={busyAction !== null}
                       onClick={() => void handleDeleteLeague()}
-                      className="mt-4 h-11 border border-rose-700 px-5 text-sm font-semibold text-rose-800 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-xl border border-rose-700 bg-rose-950/40 px-4 py-2 text-xs font-bold text-rose-300 hover:bg-rose-900/60 transition"
                     >
-                      {busyAction === "delete-league"
-                        ? "Видалення ліги…"
-                        : "Видалити лігу"}
+                      {busyAction === "delete-league" ? "Видалення..." : "Видалити лігу"}
                     </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={busyAction !== null}
-                    onClick={() => void handleLeaveLeague()}
-                    className="h-11 border border-rose-700 px-5 text-sm font-semibold text-rose-800 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {busyAction === "leave-league"
-                      ? "Вихід із ліги…"
-                      : "Вийти з ліги"}
-                  </button>
-                )}
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={busyAction !== null}
+                      onClick={() => void handleLeaveLeague()}
+                      className="rounded-xl border border-rose-700 bg-rose-950/40 px-4 py-2 text-xs font-bold text-rose-300 hover:bg-rose-900/60 transition"
+                    >
+                      {busyAction === "leave-league" ? "Вихід..." : "Вийти з ліги"}
+                    </button>
+                  )}
+                </div>
               </section>
             )}
           </>

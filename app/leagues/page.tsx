@@ -376,25 +376,40 @@ export default function LeaguesPage() {
               <p className="mt-1 text-xs text-gray-600">Створіть першу лігу вище!</p>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               {leagues.map((league) => (
                 <Link
                   key={league.id}
                   href={`/leagues/${league.id}`}
-                  className="group flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900/70 p-4 transition hover:border-cyan-500/70 hover:bg-cyan-950/20 hover:shadow-[0_0_15px_rgba(34,211,238,0.1)]"
+                  className="group relative flex items-center justify-between overflow-hidden rounded-2xl border-2 border-slate-800 bg-gradient-to-r from-[#111722] via-[#0d121c] to-[#0a0d14] p-5 transition-all duration-200 hover:-translate-y-1 hover:border-cyan-400 hover:shadow-[0_10px_25px_rgba(6,182,212,0.25)]"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">⚽</span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-800/80 bg-cyan-950/40 text-2xl shadow-inner group-hover:scale-110 transition-transform">
+                      ⚽
+                    </div>
                     <div>
-                      <h3 className="font-bold text-gray-200 group-hover:text-cyan-300">
+                      <h3 className="text-base font-black text-white group-hover:text-cyan-300 transition-colors">
                         {league.title}
                       </h3>
-                      <p className="text-xs text-gray-500">Матчі · Ставки · Таблиця</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-bold">
+                        <span className="rounded bg-slate-800/80 px-2 py-0.5 text-slate-300">
+                          Матчі
+                        </span>
+                        <span className="rounded bg-slate-800/80 px-2 py-0.5 text-slate-300">
+                          Ставки
+                        </span>
+                        <span className="rounded bg-emerald-950/60 border border-emerald-600/40 px-2 py-0.5 text-emerald-300">
+                          Таблиця
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <span className="text-cyan-400 transition-transform group-hover:translate-x-1">
-                    →
-                  </span>
+                  <div className="flex items-center gap-1 font-mono text-xs font-bold text-cyan-400 group-hover:text-cyan-300 transition">
+                    <span className="hidden sm:inline">Вхід</span>
+                    <span className="text-base transition-transform group-hover:translate-x-1">
+                      →
+                    </span>
+                  </div>
                 </Link>
               ))}
             </div>
