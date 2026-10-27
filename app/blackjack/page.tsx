@@ -118,16 +118,16 @@ function getUserErrorMessage(error: unknown) {
   const isError = (name: string) => code === name || message.includes(name);
 
   if (code === "23505" || isError("game_in_progress")) {
-    return "⚡ У вас уже є активна гра";
+    return "⚡ У тебе вже відкрита партія на столі.";
   }
-  if (isError("insufficient_funds")) return "💸 Недостатньо монет";
+  if (isError("insufficient_funds")) return "💸 Агенте, у тебе закінчилися монети на колу!";
   if (isError("invalid_bet")) return "⚠ Ставка від 1 до 500 монет";
   if (isError("no_active_game")) return "🃏 Активної гри немає";
   if (isError("cannot_double")) {
-    return "✋ Подвоїти можна лише на двох картах";
+    return "✋ Подвоїти можна лише на перших двох картах";
   }
-  if (isError("not_authenticated")) return "🔒 Увійдіть, щоб грати";
-  return "❌ Не вдалося виконати дію. Спробуйте ще раз";
+  if (isError("not_authenticated")) return "🔒 Спочатку покажи перепустку (увійди в акаунт)";
+  return "❌ Збій зв'язку з підпільним баром. Спробуй ще раз";
 }
 
 function renderCard(card: number, key: string) {
@@ -153,28 +153,51 @@ function renderHiddenCard(key: string) {
   return (
     <span
       key={key}
-      className="flex h-[7rem] w-[5rem] shrink-0 items-center justify-center rounded-lg border-2 border-yellow-500/40 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-4xl font-bold text-yellow-400 shadow-lg sm:h-[8rem] sm:w-[5.5rem]"
-      aria-label="Закрита карта дилера"
+      className="flex h-[7rem] w-[5rem] shrink-0 flex-col items-center justify-center rounded-lg border-2 border-yellow-500/40 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-yellow-400 shadow-lg sm:h-[8rem] sm:w-[5.5rem]"
+      aria-label="Секретна карта агента"
     >
-      ?
+      <span className="text-2xl">🕶️</span>
+      <span className="text-xs font-mono text-yellow-500/80">TOP SECRET</span>
     </span>
   );
 }
 
-function resultText(game: BlackjackGame) {
-  const winnings = game.payout - game.bet;
-  switch (game.result) {
-    case "blackjack":
-      return `🔥 БЛЕКДЖЕК! +${winnings} монет`;
-    case "win":
-      return `✅ Виграш +${winnings} монет`;
-    case "push":
-      return "🤝 Нічия, ставку повернено";
-    case "lose":
-      return "💀 Програш";
-    default:
-      return "Партію завершено";
-  }
+const AGENT_QUOTES = {
+  idle: [
+    "«Сідай за стіл. Холодна кола з льодом уже налита. Роби ставку, агенте.»",
+    "«Справжні справи вирішуються в темряві бару за склянкою коли. Твій хід.»",
+    "«Усі карти чисті, як моє досьє. На скільки граємо сьогодні?»",
+  ],
+  deal: [
+    "«Роздаю карти. Відпий ковтнути коли і тримай покерфейс...»",
+    "«Погнали. Летимо тихо, ставимо солідно. Що скажеш?»",
+  ],
+  hit: [
+    "«Ще одна карта? Люблю азартних агентів. Тільки не розлий колу.»",
+    "«Приймається. Карта лягає на стіл...»",
+  ],
+  double: [
+    "«Подвоєння?! Оце по-нашому. Ставка подвоєна, агент ризикує по-крупному!»",
+  ],
+  win: [
+    "«Чиста робота! Твоя інтуїція сьогодні на висоті. Чокаємося колою! 🥤»",
+    "«Ти переграв агентство. Забирай свій банк і випий за перемогу!»",
+  ],
+  blackjack: [
+    "«БЛЕКДЖЕК! Неперевершений хід. Навіть мої окуляри спітніли від такого фіналу! 🔥»",
+  ],
+  lose: [
+    "«Цього разу агентство перемогло. Допивай колу, віддихайся і відігравайся!»",
+    "«Удача вислизнула, як секретний агент. Наливаю ще одну склянку коли?»",
+  ],
+  push: [
+    "«Нічия. Залишились при своїх, як два агенти після переговорів. Мир і кола.»",
+  ],
+};
+
+function getRandomQuote(category: keyof typeof AGENT_QUOTES): string {
+  const list = AGENT_QUOTES[category];
+  return list[Math.floor(Math.random() * list.length)];
 }
 
 const ASCII_HEADER = `
@@ -193,6 +216,9 @@ export default function BlackjackPage() {
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [isBusy, setIsBusy] = useState(false);
   const [betInput, setBetInput] = useState("10");
+  const [agentSpeech, setAgentSpeech] = useState(
+    "«Сідай за стіл. Холодна кола з льодом уже налита. Роби ставку, агенте.»"
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(
     isSupabaseConfigured
       ? null
@@ -214,7 +240,12 @@ export default function BlackjackPage() {
         const { data, error } = await supabase.rpc("bj_state");
         if (error) throw error;
         const parsedGame = parseGame(data);
-        if (active) setGame(parsedGame);
+        if (active && parsedGame) {
+          setGame(parsedGame);
+          if (parsedGame.status === "active") {
+            setAgentSpeech("«Твоя партія чекає на столі. Роби свій хід, кола холоне!»");
+          }
+        }
       } catch (error) {
         console.error("Не вдалося завантажити стан блекджеку:", error);
         if (active) setErrorMessage(getUserErrorMessage(error));
@@ -308,7 +339,7 @@ export default function BlackjackPage() {
       return;
     }
     if (balance === null || bet > balance) {
-      setErrorMessage("💸 Недостатньо монет");
+      setErrorMessage("💸 Недостатньо монет на ставку");
       return;
     }
 
@@ -316,6 +347,8 @@ export default function BlackjackPage() {
     if (!client || isBusy) return;
     setIsBusy(true);
     setErrorMessage(null);
+    setAgentSpeech(getRandomQuote("deal"));
+
     try {
       const { data, error } = await client.rpc("bj_start", { p_bet: bet });
       if (error) throw error;
@@ -323,20 +356,20 @@ export default function BlackjackPage() {
       if (!nextGame) throw new Error("bj_start повернув неочікувану відповідь.");
       setGame(nextGame);
       window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
+
       if (nextGame.status === "finished") {
-        try {
-          await refreshLeaderboard();
-        } catch (error) {
-          console.error("Не вдалося оновити таблицю після блекджеку:", error);
-          setLeaderboardError("Не вдалося оновити таблицю друзів.");
+        if (nextGame.result === "blackjack") {
+          setAgentSpeech(getRandomQuote("blackjack"));
+        } else if (nextGame.result === "win") {
+          setAgentSpeech(getRandomQuote("win"));
+        } else if (nextGame.result === "lose") {
+          setAgentSpeech(getRandomQuote("lose"));
+        } else {
+          setAgentSpeech(getRandomQuote("push"));
         }
+        void refreshLeaderboard();
       }
-      try {
-        await refreshBalance();
-      } catch (error) {
-        console.error("Не вдалося оновити баланс після ставки:", error);
-        setErrorMessage("Гру розпочато, але не вдалося оновити баланс.");
-      }
+      void refreshBalance();
     } catch (error) {
       console.error("Не вдалося роздати карти:", error);
       const msg = getErrorMessage(error);
@@ -347,6 +380,7 @@ export default function BlackjackPage() {
           const existingGame = parseGame(data);
           if (existingGame) {
             setGame(existingGame);
+            setAgentSpeech("«Твоя партія вже активна. Карти на столі, допивай колу та грай!»");
             setErrorMessage(null);
           } else {
             setErrorMessage(getUserErrorMessage(error));
@@ -368,26 +402,30 @@ export default function BlackjackPage() {
     if (!client || isBusy) return;
     setIsBusy(true);
     setErrorMessage(null);
+
+    if (action === "bj_hit") setAgentSpeech(getRandomQuote("hit"));
+    if (action === "bj_double") setAgentSpeech(getRandomQuote("double"));
+
     try {
       const { data, error } = await client.rpc(action);
       if (error) throw error;
       const nextGame = parseGame(data);
       if (!nextGame) throw new Error(`${action} повернув неочікувану відповідь.`);
       setGame(nextGame);
+
       if (nextGame.status === "finished") {
         window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
-        try {
-          await refreshLeaderboard();
-        } catch (error) {
-          console.error("Не вдалося оновити таблицю після партії:", error);
-          setLeaderboardError("Не вдалося оновити таблицю друзів.");
+        if (nextGame.result === "blackjack") {
+          setAgentSpeech(getRandomQuote("blackjack"));
+        } else if (nextGame.result === "win") {
+          setAgentSpeech(getRandomQuote("win"));
+        } else if (nextGame.result === "lose") {
+          setAgentSpeech(getRandomQuote("lose"));
+        } else {
+          setAgentSpeech(getRandomQuote("push"));
         }
-        try {
-          await refreshBalance();
-        } catch (error) {
-          console.error("Не вдалося оновити баланс після завершення гри:", error);
-          setErrorMessage("Партію завершено, але не вдалося оновити баланс.");
-        }
+        void refreshLeaderboard();
+        void refreshBalance();
       }
     } catch (error) {
       console.error(`Не вдалося виконати ${action}:`, error);
@@ -400,6 +438,7 @@ export default function BlackjackPage() {
   function startNewGame() {
     setGame(null);
     setErrorMessage(null);
+    setAgentSpeech(getRandomQuote("idle"));
   }
 
   const isActiveGame = game?.status === "active";
@@ -407,56 +446,94 @@ export default function BlackjackPage() {
   return (
     <main className="min-h-screen flex-1 bg-[#0a0a0a] px-4 py-8 font-mono text-gray-100 sm:px-8 sm:py-12">
       <div className="mx-auto max-w-4xl">
-        <Link
-          href="/leagues"
-          className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-400 transition hover:text-cyan-300"
-        >
-          ← До ліг
-        </Link>
+        {/* Navigation & Bar Atmosphere Header */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-cyan-900/40 pb-4">
+          <Link
+            href="/leagues"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-400 transition hover:text-cyan-300"
+          >
+            ← До ліг
+          </Link>
+          <div className="flex items-center gap-2 rounded-full border border-red-900/60 bg-red-950/20 px-3 py-1 text-xs text-red-300">
+            <span className="inline-block animate-pulse text-base">🥤</span>
+            <span>UNDERGROUND COLA BAR · 24/7</span>
+          </div>
+        </div>
 
         {/* ASCII Header */}
-        <header className="mb-8 text-center">
+        <header className="mb-6 text-center">
           <pre className="mx-auto hidden overflow-x-auto text-[0.45rem] font-bold leading-tight text-cyan-400 sm:block sm:text-[0.55rem] md:text-xs" aria-hidden="true">
             {ASCII_HEADER}
           </pre>
           <h1 className="text-4xl font-bold text-cyan-400 sm:hidden">
             BLACKJACK
           </h1>
-          <p className="mt-3 text-sm text-yellow-400">
-            ⚡ Matchday · Блекджек v1.0 ⚡
-          </p>
-          <p className="mt-1 text-xs text-gray-500">
-            [ Роздача | Ставки | Подвоєння | Таблиця лідерів ]
+          <p className="mt-2 text-sm text-yellow-400">
+            🕶️ АГЕНТ "SHADOW" & ПІДПІЛЬНИЙ БАР 🥤
           </p>
         </header>
 
-        {/* Game Table */}
+        {/* AGENT & DIALOGUE BOX */}
+        <div className="mb-6 flex flex-col gap-4 rounded-xl border border-cyan-800/40 bg-gradient-to-r from-[#0d1713] via-[#09120e] to-[#120f17] p-4 shadow-[0_0_25px_rgba(0,255,200,0.04)] sm:flex-row sm:items-center">
+          {/* Agent Avatar */}
+          <div className="flex shrink-0 items-center gap-3 sm:border-r sm:border-cyan-900/40 sm:pr-4">
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-xl border-2 border-cyan-400 bg-gray-900 shadow-[0_0_15px_rgba(34,211,238,0.25)] text-3xl">
+              🕶️
+              <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] text-white font-bold" title="Склянка коли з льодом">
+                🥤
+              </span>
+            </div>
+            <div>
+              <p className="font-bold text-cyan-300">Агент "Shadow"</p>
+              <p className="text-[11px] text-gray-500">Дилер у смокінгу</p>
+              <p className="text-[10px] text-red-400 font-bold">*посьорбує колу*</p>
+            </div>
+          </div>
+
+          {/* Speech Bubble */}
+          <div className="flex-1 rounded-lg border border-cyan-900/30 bg-black/40 p-3">
+            <p className="text-xs text-yellow-300 sm:text-sm font-medium italic">
+              {agentSpeech}
+            </p>
+          </div>
+        </div>
+
+        {/* Main Game Table */}
         <section
           aria-label="Гра в блекджек"
           className="rounded-xl border border-cyan-900/50 bg-gradient-to-b from-[#0f1a15] to-[#0a120e] p-5 shadow-[0_0_30px_rgba(0,255,200,0.05)] sm:p-8"
         >
-          {/* Top bar */}
+          {/* Bar Top Bar */}
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-cyan-900/40 pb-4">
-            <h2 className="flex items-center gap-2 text-lg font-bold text-cyan-300">
-              <span className="text-xl">🃏</span> Ігровий стіл
-            </h2>
-            <p className="font-mono text-sm font-bold text-yellow-400" aria-live="polite">
-              💰 {balance === null ? "—" : `${balance.toLocaleString()} монет`}
-            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🍸</span>
+              <h2 className="text-base font-bold text-cyan-300">
+                Барна стійка дилера
+              </h2>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-400">Твоя кола: <span className="text-red-400 font-bold">100% 🥤</span></span>
+              <p className="font-mono text-sm font-bold text-yellow-400" aria-live="polite">
+                💰 {balance === null ? "—" : `${balance.toLocaleString()} монет`}
+              </p>
+            </div>
           </div>
 
           {isLoading ? (
             <p role="status" className="py-12 text-center text-gray-500">
-              <span className="animate-pulse">▌</span> Завантаження гри…
+              <span className="animate-pulse">▌</span> Агент розкладає фішки та наливає колу…
             </p>
           ) : (
             <>
               {game && (
                 <div className="mb-6 space-y-6">
-                  {/* Dealer */}
+                  {/* Dealer Section */}
                   <section aria-label="Карти дилера">
                     <div className="mb-3 flex items-baseline justify-between gap-3">
-                      <h3 className="font-bold text-red-400">👤 Дилер</h3>
+                      <h3 className="flex items-center gap-1.5 font-bold text-red-400">
+                        <span>🕶️ Агент-дилер</span>
+                        <span className="text-xs text-gray-500">[Банк агентства]</span>
+                      </h3>
                       <p className="font-mono text-sm text-gray-400">
                         {game.dealer_hidden ? "Очки: ?" : `Очки: ${game.dealer_value}`}
                       </p>
@@ -473,14 +550,19 @@ export default function BlackjackPage() {
                   {/* Divider */}
                   <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-800/50 to-transparent" />
-                    <span className="text-xs text-gray-600">VS</span>
+                    <span className="text-xs text-gray-600 flex items-center gap-1">
+                      🥤 <span>ЧОКАЄМОСЯ КОЛОЮ</span> 🥤
+                    </span>
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-800/50 to-transparent" />
                   </div>
 
-                  {/* Player */}
+                  {/* Player Section */}
                   <section aria-label="Карти гравця">
                     <div className="mb-3 flex items-baseline justify-between gap-3">
-                      <h3 className="font-bold text-cyan-300">🎮 Ти</h3>
+                      <h3 className="flex items-center gap-1.5 font-bold text-cyan-300">
+                        <span>🎮 Твої карти</span>
+                        <span className="text-xs text-gray-500">[Гравець під прикриттям]</span>
+                      </h3>
                       <p className="font-mono text-sm text-gray-400">
                         Очки: {game.player_value}
                       </p>
@@ -492,7 +574,7 @@ export default function BlackjackPage() {
                     </div>
                   </section>
 
-                  {/* Result */}
+                  {/* Result Box */}
                   {game.status === "finished" && (
                     <div
                       role="status"
@@ -504,13 +586,16 @@ export default function BlackjackPage() {
                             : "border-cyan-800/50 bg-cyan-950/30 text-cyan-300"
                       }`}
                     >
-                      {resultText(game)}
+                      {game.result === "blackjack" && "🔥 БЛЕКДЖЕК! Агент визнає поразку! 🔥"}
+                      {game.result === "win" && `✅ Перемога! Виграш +${game.payout - game.bet} монет`}
+                      {game.result === "push" && "🤝 Нічия! Ставку повернуто до кишені"}
+                      {game.result === "lose" && "💀 Програш! Агент забрав фішки на нову партію коли"}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Actions */}
+              {/* Action Buttons */}
               {isActiveGame ? (
                 <div className="flex flex-wrap gap-3">
                   <button
@@ -519,7 +604,7 @@ export default function BlackjackPage() {
                     disabled={isBusy}
                     className="h-11 rounded-lg bg-cyan-600 px-6 text-sm font-bold text-white shadow-lg shadow-cyan-600/20 transition hover:bg-cyan-500 hover:shadow-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {isBusy ? "⏳" : "🃏 Ще"}
+                    {isBusy ? "⏳" : "🃏 Ще карту"}
                   </button>
                   <button
                     type="button"
@@ -527,7 +612,7 @@ export default function BlackjackPage() {
                     disabled={isBusy}
                     className="h-11 rounded-lg border border-gray-600 px-6 text-sm font-bold text-gray-300 transition hover:border-gray-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    ✋ Стоп
+                    ✋ Досить (Стоп)
                   </button>
                   {game?.can_double && (
                     <button
@@ -536,7 +621,7 @@ export default function BlackjackPage() {
                       disabled={isBusy}
                       className="h-11 rounded-lg bg-yellow-600 px-6 text-sm font-bold text-black shadow-lg shadow-yellow-600/20 transition hover:bg-yellow-500 hover:shadow-yellow-500/30 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      ⚡ Подвоїти
+                      ⚡ Подвоїти ставку
                     </button>
                   )}
                 </div>
@@ -550,7 +635,7 @@ export default function BlackjackPage() {
                       htmlFor="blackjack-bet"
                       className="mb-1.5 block text-sm font-medium text-gray-400"
                     >
-                      Ставка (1–500 монет)
+                      Ставка агенту на стіл (1–500 монет)
                     </label>
                     <input
                       id="blackjack-bet"
@@ -573,15 +658,15 @@ export default function BlackjackPage() {
                       disabled={isBusy}
                       className="h-11 shrink-0 rounded-lg bg-cyan-600 px-6 text-sm font-bold text-white shadow-lg shadow-cyan-600/20 transition hover:bg-cyan-500 hover:shadow-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      🔄 Нова роздача
+                      🔄 Ще по склянці коли (Нова гра)
                     </button>
                   ) : (
                     <button
                       type="submit"
                       disabled={isBusy || balance === null}
-                      className="h-11 shrink-0 rounded-lg bg-gradient-to-r from-cyan-600 to-emerald-600 px-6 text-sm font-bold text-white shadow-lg shadow-cyan-600/20 transition hover:from-cyan-500 hover:to-emerald-500 hover:shadow-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="h-11 shrink-0 rounded-lg bg-gradient-to-r from-red-600 via-amber-600 to-yellow-600 px-6 text-sm font-bold text-white shadow-lg shadow-amber-600/20 transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {isBusy ? "⏳ Роздаємо…" : "🃏 Роздати"}
+                      {isBusy ? "⏳ Роздаємо…" : "🥤 Роздати & Пити колу"}
                     </button>
                   )}
                 </form>
@@ -589,7 +674,7 @@ export default function BlackjackPage() {
             </>
           )}
 
-          {/* Error */}
+          {/* Error Message */}
           {errorMessage && (
             <p role="alert" className="mt-4 rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-2 font-mono text-sm text-red-400">
               {errorMessage}
@@ -603,7 +688,7 @@ export default function BlackjackPage() {
           className="mt-8 rounded-xl border border-cyan-900/30 bg-gradient-to-b from-[#0f1a15] to-[#0a120e] p-5 shadow-[0_0_20px_rgba(0,255,200,0.03)] sm:p-6"
         >
           <h2 id="blackjack-leaderboard-heading" className="mb-4 text-lg font-bold text-cyan-300">
-            🏆 Таблиця друзів
+            🏆 Топ агентів підпільного клубу
           </h2>
           {leaderboardError ? (
             <p role="alert" className="text-sm text-red-400">
@@ -616,10 +701,10 @@ export default function BlackjackPage() {
               <table className="w-full min-w-[32rem] text-left text-sm">
                 <thead className="border-b border-cyan-900/40 text-gray-500">
                   <tr>
-                    <th scope="col" className="px-3 py-2 font-medium">Гравець</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Агент</th>
                     <th scope="col" className="px-3 py-2 font-medium">Партії</th>
                     <th scope="col" className="px-3 py-2 font-medium">Перемоги</th>
-                    <th scope="col" className="px-3 py-2 font-medium">Чистий виграш</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Профіт</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -629,7 +714,7 @@ export default function BlackjackPage() {
                       className="border-b border-gray-800/50 last:border-0 transition hover:bg-cyan-950/20"
                     >
                       <th scope="row" className="px-3 py-3 font-bold text-cyan-300">
-                        {index === 0 ? "👑 " : ""}{entry.username}
+                        {index === 0 ? "👑 " : "🕶️ "}{entry.username}
                       </th>
                       <td className="px-3 py-3 text-gray-400">{entry.games}</td>
                       <td className="px-3 py-3 text-gray-400">{entry.wins}</td>
@@ -655,7 +740,7 @@ export default function BlackjackPage() {
 
         {/* Footer */}
         <p className="mt-6 text-center text-xs text-gray-600">
-          Matchday Blackjack · Монети віртуальні · v1.0
+          Underground Cola Club · Монети віртуальні · 2026
         </p>
       </div>
     </main>
