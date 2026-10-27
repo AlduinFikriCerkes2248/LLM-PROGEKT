@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import {
   getSupabaseClient,
-  isSupabaseConfigured,
   PROFILE_UPDATED_EVENT,
 } from "../../lib/supabase/client";
 
@@ -140,7 +139,7 @@ export default function OnlinePage() {
         }));
 
         setOnlinePlayers([...BOT_PLAYERS, ...realPlayers]);
-      } catch (e) {
+      } catch {
         setOnlinePlayers(BOT_PLAYERS);
       }
     }
@@ -174,7 +173,18 @@ export default function OnlinePage() {
           .limit(3);
 
         if (data) {
-          const formatted: DuelInvite[] = data.map((d: any) => ({
+          type DuelRow = {
+            id: string;
+            challenger_id: string;
+            opponent_id: string;
+            game_type: DuelGame;
+            stake: number;
+            currency: DuelCurrency;
+            status: "pending" | "accepted" | "declined" | "completed";
+            created_at: string;
+            challenger?: { username?: string | null } | null;
+          };
+          const formatted: DuelInvite[] = (data as unknown as DuelRow[]).map((d) => ({
             id: d.id,
             challenger_id: d.challenger_id,
             challenger_name: d.challenger?.username || "Невідомий гравець",
