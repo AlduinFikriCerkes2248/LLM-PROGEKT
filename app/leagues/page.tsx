@@ -319,12 +319,18 @@ export default function LeaguesPage() {
               Обирай лігу, стеж за матчами та змагайся у точності прогнозів.
             </p>
           </div>
-          <div className="mt-6 flex items-center gap-3 sm:mt-0 sm:pb-1">
+          <div className="mt-6 flex flex-wrap items-center gap-3 sm:mt-0 sm:pb-1">
             <Link
               href="/wheel"
               className="inline-flex h-10 items-center border border-emerald-800 px-4 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50"
             >
               Колесо фортуни
+            </Link>
+            <Link
+              href="/blackjack"
+              className="inline-flex h-10 items-center border border-emerald-800 px-4 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50"
+            >
+              Блекджек
             </Link>
             <span className="flex h-10 min-w-10 items-center justify-center rounded-sm bg-[#202722] px-3 text-sm font-semibold text-white">
               {leagues.length.toString().padStart(2, "0")}
