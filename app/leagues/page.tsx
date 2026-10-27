@@ -237,6 +237,12 @@ export default function LeaguesPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
+              href="/online"
+              className="rounded-lg border border-indigo-500/80 bg-indigo-950/40 px-3 py-1.5 text-xs font-bold text-indigo-300 transition hover:bg-indigo-900/60 hover:shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse"
+            >
+              🌐 ОНЛАЙН ДУЕЛІ (PVP)
+            </Link>
+            <Link
               href="/dice"
               className="rounded-lg border border-red-600/60 bg-red-950/20 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:bg-red-900/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
             >

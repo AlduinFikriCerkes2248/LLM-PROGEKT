@@ -530,7 +530,13 @@ export default function BlackjackPage() {
           >
             ← Меню ліг
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/online"
+              className="rounded-lg border border-indigo-600/60 bg-indigo-950/40 px-3 py-1 text-xs font-bold text-indigo-300 hover:bg-indigo-900/60 transition"
+            >
+              🌐 Онлайн Дуелі
+            </Link>
             <Link
               href="/dice"
               className="rounded-lg border border-red-600/60 bg-red-950/30 px-3 py-1 text-xs font-bold text-red-300 hover:bg-red-900/40 transition"

@@ -10,6 +10,12 @@ import {
 
 type BetOption = "under7" | "seven" | "over7" | "doubles";
 
+type LeaderboardEntry = {
+  username: string;
+  coins: number;
+  hohlyantsi: number;
+};
+
 function CasinoDealer3D() {
   return (
     <div className="relative flex flex-col items-center">
@@ -78,6 +84,7 @@ function InteractiveColaGlass({
 
 export default function DicePage() {
   const [balance, setBalance] = useState<number | null>(null);
+  const [hohlyantsi, setHohlyantsi] = useState<number | null>(null);
   const [betAmount, setBetAmount] = useState("50");
   const [selectedBet, setSelectedBet] = useState<BetOption>("over7");
   const [isRolling, setIsRolling] = useState(false);
@@ -85,7 +92,7 @@ export default function DicePage() {
   const [dice2, setDice2] = useState(4);
   const [colaLevel, setColaLevel] = useState(100);
   const [dealerSpeech, setDealerSpeech] = useState(
-    "Кидай кості на сукно! Обери ставку та пий холодну колу."
+    "Кидай кості на червоне сукно! Обери ставку та пий холодну колу."
   );
   const [gameResult, setGameResult] = useState<{
     win: boolean;
@@ -93,21 +100,46 @@ export default function DicePage() {
     message: string;
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
   useEffect(() => {
-    async function loadBalance() {
+    async function loadData() {
       const client = getSupabaseClient();
       if (!client) return;
       const { data: authData } = await client.auth.getUser();
-      if (!authData?.user) return;
-      const { data } = await client
-        .from("profiles")
-        .select("coins")
-        .eq("id", authData.user.id)
-        .maybeSingle();
-      if (data && typeof data.coins === "number") setBalance(data.coins);
+      if (authData?.user) {
+        const { data } = await client
+          .from("profiles")
+          .select("coins, hohlyantsi")
+          .eq("id", authData.user.id)
+          .maybeSingle();
+        if (data) {
+          if (typeof data.coins === "number") setBalance(data.coins);
+          if (typeof data.hohlyantsi === "number") setHohlyantsi(data.hohlyantsi);
+        }
+      }
+
+      // Завантаження лідерборду
+      try {
+        const { data: topUsers } = await client
+          .from("profiles")
+          .select("username, coins, hohlyantsi")
+          .order("coins", { ascending: false })
+          .limit(10);
+        if (topUsers) {
+          setLeaderboard(
+            topUsers.map((u) => ({
+              username: u.username || "Агент",
+              coins: u.coins ?? 0,
+              hohlyantsi: u.hohlyantsi ?? 25,
+            }))
+          );
+        }
+      } catch {
+        // ignore
+      }
     }
-    void loadBalance();
+    void loadData();
   }, []);
 
   function handleDrinkCola() {
@@ -142,9 +174,8 @@ export default function DicePage() {
     setIsRolling(true);
     setErrorMessage(null);
     setGameResult(null);
-    setDealerSpeech("Кубики летять по столу...");
+    setDealerSpeech("Кубики летять по сукну столу...");
 
-    // Анімація прокрутки кубиків
     let rolls = 0;
     const interval = setInterval(() => {
       setDice1(Math.floor(Math.random() * 6) + 1);
@@ -153,7 +184,6 @@ export default function DicePage() {
     }, 80);
 
     try {
-      // Виклик захищеної RPC-функції в базі Supabase (без 403 помилок!)
       const { data, error } = await client.rpc("play_dice", {
         p_bet: bet,
         p_pick: selectedBet,
@@ -163,7 +193,7 @@ export default function DicePage() {
         clearInterval(interval);
         if (error) {
           console.error("Помилка play_dice:", error);
-          setErrorMessage("Помилка ставки. Переконайся, що функція play_dice створена в базі.");
+          setErrorMessage("Помилка ставки. Переконайся, що функція play_dice створена в базі Supabase.");
           setIsRolling(false);
           return;
         }
@@ -174,14 +204,14 @@ export default function DicePage() {
           if (typeof data.balance === "number") setBalance(data.balance);
 
           if (data.won) {
-            setDealerSpeech("ТОЧНО В ЦІЛЬ! Вітаю з виграшем!");
+            setDealerSpeech("ТОЧНО В ЦІЛЬ! Вітаю з солідним виграшем!");
             setGameResult({
               win: true,
               payout: data.payout - bet,
               message: `🎉 ПЕРЕМОГА! Сума ${data.sum} (${data.dice1}+${data.dice2}). Виплата: +${data.payout.toLocaleString()} монет!`,
             });
           } else {
-            setDealerSpeech("Цього разу не пощастило. Допивай колу і спробуй ще!");
+            setDealerSpeech("Цього разу не пощастило. Допивай колу і кидай ще раз!");
             setGameResult({
               win: false,
               payout: 0,
@@ -191,7 +221,7 @@ export default function DicePage() {
           window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
         }
         setIsRolling(false);
-      }, 1000);
+      }, 900);
     } catch (err) {
       clearInterval(interval);
       console.error(err);
@@ -211,7 +241,13 @@ export default function DicePage() {
           >
             ← Меню ліг
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/online"
+              className="rounded-lg border border-indigo-600/60 bg-indigo-950/40 px-3 py-1 text-xs font-bold text-indigo-300 hover:bg-indigo-900/60 transition"
+            >
+              🌐 Онлайн Дуелі
+            </Link>
             <Link
               href="/blackjack"
               className="rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-1 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition"
@@ -227,6 +263,12 @@ export default function DicePage() {
             <div className="rounded-lg bg-amber-950/40 border border-amber-500/40 px-3 py-1 text-xs font-bold text-amber-300">
               🪙 {balance === null ? "—" : `${balance.toLocaleString()} монет`}
             </div>
+            {hohlyantsi !== null && (
+              <div className="flex items-center gap-1 rounded-lg border border-slate-600 bg-slate-800/80 px-2 py-1 text-xs font-bold text-slate-200">
+                <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-400 text-[9px] font-black text-slate-950">Х</span>
+                <span>{hohlyantsi}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -390,6 +432,46 @@ export default function DicePage() {
             <p className="mt-4 text-xs font-bold text-rose-400 text-center">{errorMessage}</p>
           )}
         </div>
+
+        {/* ТАБЛИЦЯ ЛІДЕРІВ / РЕЙТИНГ */}
+        <section className="mt-8 rounded-3xl border-2 border-slate-800 bg-gradient-to-b from-[#0f1217] to-black p-6 shadow-xl">
+          <h2 className="mb-4 text-xs font-bold font-mono tracking-wider uppercase text-amber-400 flex items-center gap-2">
+            <span>🏆</span> ТОП ГРАВЦІВ КАЗИНО ТА КОСТЕЙ
+          </h2>
+          {leaderboard.length === 0 ? (
+            <p className="text-xs text-slate-500">Завантаження рейтингу...</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead className="border-b border-slate-800 text-slate-500">
+                  <tr>
+                    <th className="pb-2">#</th>
+                    <th className="pb-2">Гравець</th>
+                    <th className="pb-2 text-right">Золоті монети</th>
+                    <th className="pb-2 text-right">Хохлянці</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {leaderboard.map((entry, idx) => (
+                    <tr key={idx} className="hover:bg-slate-800/40 transition">
+                      <td className="py-2.5 font-bold text-slate-500">{idx + 1}</td>
+                      <td className="py-2.5 font-bold text-slate-200">
+                        {idx === 0 ? "🥇 " : idx === 1 ? "🥈 " : idx === 2 ? "🥉 " : "👤 "}
+                        {entry.username}
+                      </td>
+                      <td className="py-2.5 text-right font-black text-amber-400">
+                        🪙 {entry.coins.toLocaleString()}
+                      </td>
+                      <td className="py-2.5 text-right font-bold text-slate-300">
+                        🔘 {entry.hohlyantsi.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );

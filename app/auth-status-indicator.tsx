@@ -21,6 +21,7 @@ export default function AuthStatusIndicator() {
   const [user, setUser] = useState<SignedInUser | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [coins, setCoins] = useState<number | null>(null);
+  const [hohlyantsi, setHohlyantsi] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export default function AuthStatusIndicator() {
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("username, coins")
+          .select("username, coins, hohlyantsi")
           .eq("id", userId)
           .maybeSingle();
 
@@ -47,17 +48,14 @@ export default function AuthStatusIndicator() {
 
         if (error) {
           console.error("Не вдалося завантажити профіль користувача:", error);
-          setErrorMessage("Не вдалося завантажити профіль; показано email.");
         }
 
         setUsername(data?.username || null);
         setCoins(typeof data?.coins === "number" ? data.coins : null);
+        setHohlyantsi(typeof data?.hohlyantsi === "number" ? data.hohlyantsi : 25);
       } catch (error) {
         if (!active || requestId !== profileRequest) return;
-        console.error("Не вдалося завантажити профіль користувача:", error);
-        setErrorMessage("Не вдалося завантажити профіль; показано email.");
-        setUsername(null);
-        setCoins(null);
+        console.error("Помилка профілю:", error);
       } finally {
         if (active && requestId === profileRequest) setIsLoading(false);
       }
@@ -73,10 +71,6 @@ export default function AuthStatusIndicator() {
         : null;
 
       setUser(nextUser);
-      setUsername(null);
-      setCoins(null);
-      setErrorMessage(null);
-
       if (!signedInUser) {
         if (active && requestId === profileRequest) setIsLoading(false);
         return;
@@ -105,23 +99,12 @@ export default function AuthStatusIndicator() {
     const initialAuthEventVersion = authEventVersion;
     void supabase.auth
       .getSession()
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (authEventVersion !== initialAuthEventVersion) return;
-        if (error) {
-          console.error("Не вдалося перевірити сесію Supabase:", error);
-          setErrorMessage("Не вдалося перевірити сесію.");
-          setIsLoading(false);
-          return;
-        }
+      .then(({ data }) => {
+        if (!active || authEventVersion !== initialAuthEventVersion) return;
         void updateUser(data.session);
       })
-      .catch((error: unknown) => {
-        if (!active) return;
-        if (authEventVersion !== initialAuthEventVersion) return;
-        console.error("Не вдалося перевірити сесію Supabase:", error);
-        setErrorMessage("Не вдалося перевірити сесію.");
-        setIsLoading(false);
+      .catch(() => {
+        if (active) setIsLoading(false);
       });
 
     return () => {
@@ -133,21 +116,12 @@ export default function AuthStatusIndicator() {
 
   async function handleSignOut() {
     const client = getSupabaseClient();
-    if (!client) {
-      setErrorMessage("Не вдалося підключитися до Supabase.");
-      return;
-    }
-
-    setErrorMessage(null);
+    if (!client) return;
     setIsSigningOut(true);
     try {
-      const { error } = await client.auth.signOut();
-      if (error) throw error;
+      await client.auth.signOut();
       router.replace("/login");
       router.refresh();
-    } catch (error) {
-      console.error("Не вдалося вийти з акаунту:", error);
-      setErrorMessage("Не вдалося вийти з акаунту. Спробуйте ще раз.");
     } finally {
       setIsSigningOut(false);
     }
@@ -158,23 +132,39 @@ export default function AuthStatusIndicator() {
   return (
     <>
       <div aria-hidden="true" className="h-14" />
-      <aside className="fixed right-3 top-3 z-50 max-w-[calc(100vw-1.5rem)] rounded-lg border border-cyan-900/60 bg-[#0d1411]/90 px-3.5 py-2 font-mono text-xs text-gray-200 shadow-[0_0_20px_rgba(0,255,200,0.06)] backdrop-blur-md sm:right-5 sm:top-4">
+      <aside className="fixed right-3 top-3 z-50 max-w-[calc(100vw-1.5rem)] rounded-xl border border-slate-700/80 bg-[#0d1218]/95 px-3.5 py-2 font-mono text-xs text-gray-200 shadow-[0_4px_25px_rgba(0,0,0,0.6)] backdrop-blur-md sm:right-5 sm:top-4">
         {isLoading ? (
           <span role="status" className="animate-pulse text-cyan-400">⚡ синхронізація...</span>
         ) : user ? (
           <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
-            <span className="flex items-center gap-1.5 max-w-40 truncate font-bold text-cyan-300" title={username ?? user.email ?? undefined}>
+            {/* Нікнейм з аватаркою */}
+            <span className="flex items-center gap-1.5 max-w-40 truncate font-bold text-slate-100">
               <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
-              {username || user.email || "Користувач"}
+              {username || user.email || "Агент"}
             </span>
-            <span className="whitespace-nowrap font-bold text-yellow-400" aria-label="Баланс монет">
+
+            {/* Золоті монети */}
+            <span className="whitespace-nowrap font-bold text-amber-400" title="Золоті монети">
               🪙 {coins === null ? "—" : coins.toLocaleString()}
             </span>
+
+            {/* Друга валюта: Хохлянці (сіра металева монета) */}
+            <span
+              className="flex items-center gap-1 rounded-md border border-slate-600 bg-slate-800/80 px-2 py-0.5 font-bold text-slate-200 shadow-inner"
+              title="Хохлянці (сіра валюта для кейсів та онлайн дуелей)"
+            >
+              <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 via-slate-400 to-slate-600 text-[9px] font-black text-slate-950 shadow-sm">
+                Х
+              </span>
+              <span>{hohlyantsi === null ? "25" : hohlyantsi.toLocaleString()}</span>
+            </span>
+
+            {/* Кнопка виходу */}
             <button
               type="button"
               onClick={handleSignOut}
               disabled={isSigningOut}
-              className="rounded border border-red-900/50 bg-red-950/30 px-2 py-0.5 font-bold text-red-400 transition hover:border-red-700 hover:bg-red-900/40 hover:text-red-300 disabled:cursor-wait disabled:opacity-60"
+              className="rounded border border-red-900/50 bg-red-950/30 px-2 py-0.5 font-bold text-red-400 transition hover:bg-red-900/50 disabled:opacity-50"
             >
               {isSigningOut ? "..." : "ВИХІД"}
             </button>
@@ -189,11 +179,6 @@ export default function AuthStatusIndicator() {
               УВІЙТИ
             </Link>
           </div>
-        )}
-        {errorMessage && (
-          <p role="alert" className="mt-1 max-w-64 text-[11px] text-red-400">
-            {errorMessage}
-          </p>
         )}
       </aside>
     </>

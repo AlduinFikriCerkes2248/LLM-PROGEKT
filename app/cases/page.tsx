@@ -16,6 +16,7 @@ type CaseItem = {
   tagline: string;
   coinsDisplay: string;
   xpDisplay: string;
+  hohlyantsiPrice: number;
   badge: string;
   badgeColor: string;
   boxColor: string;
@@ -28,8 +29,9 @@ const CASES: CaseItem[] = [
     id: "khokhlov",
     title: "Хохловська заначка",
     tagline: "Класична народна схованка під подушкою на чорний день.",
-    coinsDisplay: "500 - 700 монет",
+    coinsDisplay: "500 - 800 монет",
     xpDisplay: "+60 XP",
+    hohlyantsiPrice: 5,
     badge: "СТАРТОВИЙ КЕЙС",
     badgeColor: "border-emerald-600/50 bg-emerald-950/40 text-emerald-300",
     boxColor: "from-emerald-950 via-slate-900 to-black border-emerald-700/60",
@@ -42,6 +44,7 @@ const CASES: CaseItem[] = [
     tagline: "Солідний дипломат із цінними паперами та готівкою.",
     coinsDisplay: "20 000 - 25 000 монет",
     xpDisplay: "+400 XP",
+    hohlyantsiPrice: 25,
     badge: "РІДКІСНИЙ КЕЙС",
     badgeColor: "border-cyan-600/50 bg-cyan-950/40 text-cyan-300",
     boxColor: "from-cyan-950 via-slate-900 to-black border-cyan-500/60",
@@ -54,6 +57,7 @@ const CASES: CaseItem[] = [
     tagline: "Справжній джекпот сервера. Доступ до скарбниці адміністратора.",
     coinsDisplay: "1 000 000 МОНЕТ",
     xpDisplay: "+5 000 XP",
+    hohlyantsiPrice: 100,
     badge: "ЛЕГЕНДАРНИЙ ДЖЕКПОТ",
     badgeColor: "border-amber-500 bg-amber-950/50 text-amber-300 animate-pulse",
     boxColor: "from-amber-950 via-yellow-950/40 to-black border-yellow-500",
@@ -64,24 +68,25 @@ const CASES: CaseItem[] = [
 
 export default function CasesPage() {
   const [balance, setBalance] = useState<number | null>(null);
+  const [hohlyantsi, setHohlyantsi] = useState<number | null>(null);
   const [isOpening, setIsOpening] = useState(false);
   const [openedReward, setOpenedReward] = useState<{
     box: string;
     coins: number;
     xp: number;
+    costMessage?: string;
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [dailyClaimed, setDailyClaimed] = useState(false);
 
   useEffect(() => {
-    // Перевірка щоденного безкоштовного кейсу
     const today = new Date().toISOString().slice(0, 10);
     const lastClaim = localStorage.getItem("matchday:last_daily_case");
     if (lastClaim === today) {
       setDailyClaimed(true);
     }
 
-    async function loadBalance() {
+    async function loadBalances() {
       const client = getSupabaseClient();
       if (!client) return;
       const { data: authData } = await client.auth.getUser();
@@ -89,19 +94,19 @@ export default function CasesPage() {
 
       const { data } = await client
         .from("profiles")
-        .select("coins")
+        .select("coins, hohlyantsi")
         .eq("id", authData.user.id)
         .maybeSingle();
 
-      if (data && typeof data.coins === "number") {
-        setBalance(data.coins);
+      if (data) {
+        if (typeof data.coins === "number") setBalance(data.coins);
+        if (typeof data.hohlyantsi === "number") setHohlyantsi(data.hohlyantsi);
       }
     }
-
-    void loadBalance();
+    void loadBalances();
   }, []);
 
-  async function handleOpenCase(caseType: CaseType, isDaily = false) {
+  async function handleOpenDailyCase() {
     if (isOpening) return;
     const client = getSupabaseClient();
     if (!client) {
@@ -115,7 +120,7 @@ export default function CasesPage() {
 
     try {
       const { data, error } = await client.rpc("open_loot_box", {
-        p_box_type: caseType,
+        p_box_type: "khokhlov",
       });
 
       if (error) throw error;
@@ -125,9 +130,9 @@ export default function CasesPage() {
           box: data.box,
           coins: data.coins,
           xp: data.xp,
+          costMessage: "Безкоштовний щоденний бонус",
         });
 
-        // Нараховуємо XP у локальне сховище для блекджеку
         try {
           const currentXp = parseInt(localStorage.getItem("matchday:bj_xp") || "0", 10);
           localStorage.setItem("matchday:bj_xp", (currentXp + data.xp).toString());
@@ -135,29 +140,89 @@ export default function CasesPage() {
           // ignore
         }
 
-        // Оновлюємо статус щоденного кейсу, якщо це він
-        if (isDaily || caseType === "khokhlov") {
-          const today = new Date().toISOString().slice(0, 10);
-          localStorage.setItem("matchday:last_daily_case", today);
-          setDailyClaimed(true);
-        }
+        const today = new Date().toISOString().slice(0, 10);
+        localStorage.setItem("matchday:last_daily_case", today);
+        setDailyClaimed(true);
 
-        // Оновлюємо баланс скрізь
         window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
 
         const { data: authData } = await client.auth.getUser();
         if (authData?.user) {
           const { data: prof } = await client
             .from("profiles")
-            .select("coins")
+            .select("coins, hohlyantsi")
             .eq("id", authData.user.id)
             .maybeSingle();
-          if (prof && typeof prof.coins === "number") setBalance(prof.coins);
+          if (prof) {
+            if (typeof prof.coins === "number") setBalance(prof.coins);
+            if (typeof prof.hohlyantsi === "number") setHohlyantsi(prof.hohlyantsi);
+          }
         }
       }
     } catch (err: unknown) {
       console.error("Помилка відкриття кейсу:", err);
-      setErrorMessage("Не вдалося відкрити кейс. Переконайтеся, що ви увійшли.");
+      setErrorMessage("Не вдалося відкрити кейс. Переконайтеся, що ви увійшли у систему.");
+    } finally {
+      setIsOpening(false);
+    }
+  }
+
+  async function handleBuyWithHohlyantsi(caseItem: CaseItem) {
+    if (isOpening) return;
+    const client = getSupabaseClient();
+    if (!client) {
+      setErrorMessage("Підключення до Supabase відсутнє.");
+      return;
+    }
+
+    if (hohlyantsi !== null && hohlyantsi < caseItem.hohlyantsiPrice) {
+      setErrorMessage(`Недостатньо Хохлянців! Потрібно: ${caseItem.hohlyantsiPrice} 🔘`);
+      return;
+    }
+
+    setIsOpening(true);
+    setErrorMessage(null);
+    setOpenedReward(null);
+
+    try {
+      const { data, error } = await client.rpc("buy_case_with_hohlyantsi", {
+        p_box_type: caseItem.id,
+      });
+
+      if (error) {
+        if (error.message.includes("insufficient_hohlyantsi")) {
+          throw new Error("Недостатньо хохлянців на вашому рахунку.");
+        }
+        throw error;
+      }
+
+      if (data && data.success) {
+        setOpenedReward({
+          box: data.box,
+          coins: data.coins_reward,
+          xp: data.xp_reward,
+          costMessage: `Куплено за ${data.cost} Хохлянців`,
+        });
+
+        try {
+          const currentXp = parseInt(localStorage.getItem("matchday:bj_xp") || "0", 10);
+          localStorage.setItem("matchday:bj_xp", (currentXp + data.xp_reward).toString());
+        } catch {
+          // ignore
+        }
+
+        if (typeof data.coins === "number") setBalance(data.coins);
+        if (typeof data.hohlyantsi === "number") setHohlyantsi(data.hohlyantsi);
+
+        window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
+      }
+    } catch (err: unknown) {
+      console.error("Помилка купівлі кейсу:", err);
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : "Помилка при купівлі кейсу за Хохлянці. Перевірте базу даних."
+      );
     } finally {
       setIsOpening(false);
     }
@@ -174,15 +239,35 @@ export default function CasesPage() {
           >
             ← До ліг
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/online"
+              className="rounded-lg border border-indigo-600/60 bg-indigo-950/40 px-3 py-1 text-xs font-bold text-indigo-300 hover:bg-indigo-900/60 transition"
+            >
+              🌐 Онлайн Дуелі
+            </Link>
             <Link
               href="/blackjack"
               className="rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-1 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition"
             >
               🃏 Блекджек
             </Link>
+            <Link
+              href="/dice"
+              className="rounded-lg border border-red-800 bg-red-950/30 px-3 py-1 text-xs font-bold text-red-300 hover:bg-red-900/40 transition"
+            >
+              🎲 Кості
+            </Link>
+            {/* Баланс золотих монет */}
             <div className="font-mono text-xs text-amber-400 font-semibold">
-              Баланс: {balance === null ? "—" : `${balance.toLocaleString()} монет`}
+              🪙 {balance === null ? "—" : `${balance.toLocaleString()} монет`}
+            </div>
+            {/* Баланс Хохлянців */}
+            <div className="flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/80 px-2.5 py-1 text-xs font-bold text-slate-200 shadow-inner">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 via-slate-400 to-slate-600 text-[10px] font-black text-slate-950">
+                Х
+              </span>
+              <span>{hohlyantsi === null ? "25" : hohlyantsi.toLocaleString()} Хохлянців</span>
             </div>
           </div>
         </div>
@@ -190,13 +275,13 @@ export default function CasesPage() {
         {/* Header */}
         <header className="mb-10 text-center">
           <div className="inline-block rounded-full border border-amber-600/40 bg-amber-950/20 px-4 py-1 text-xs text-amber-300 font-bold mb-3">
-            🎁 СЕКРЕТНІ КЕЙСИ ТА НАГОРОДИ
+            🎁 СЕКРЕТНІ КЕЙСИ ТА ВАЛЮТА «ХОХЛЯНЦІ»
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
             КЕЙСИ ТА КВЕСТИ
           </h1>
           <p className="mx-auto mt-2 max-w-xl text-xs text-slate-400 sm:text-sm">
-            Отримуй щоденний безкоштовний кейс, вибивай до 1 000 000 монет та прокачуй свій рівень агента!
+            Забирай щоденний бонус або купуй кейси за срібні Хохлянці, вибивай до 1 000 000 монет і прокачуй рівень агента!
           </p>
         </header>
 
@@ -205,25 +290,25 @@ export default function CasesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <span className="text-xs font-bold uppercase text-emerald-400 tracking-wider">
-                ⚡ ЩОДЕННИЙ БОНУС (1 РАЗ НА ДОБУ)
+                ⚡ БЕЗКОШТОВНИЙ ЩОДЕННИЙ БОНУС (1 РАЗ НА ДОБУ)
               </span>
               <h2 className="text-xl font-bold text-white mt-1">
                 Безкоштовна «Хохловська заначка»
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Заходь щодня та забирай 500+ монет і досвід для збільшення лімітів ставок.
+                Заходь щодня та отримуй 500-800 монет і +60 XP безкоштовно.
               </p>
             </div>
             <button
               type="button"
-              onClick={() => handleOpenCase("khokhlov", true)}
+              onClick={handleOpenDailyCase}
               disabled={isOpening || dailyClaimed}
               className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-emerald-600/20 transition hover:from-emerald-500 hover:to-teal-400 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isOpening
                 ? "Відкриття..."
                 : dailyClaimed
-                  ? "Вже отримано сьогодні"
+                  ? "Вже забрано сьогодні"
                   : "🎁 Забрати безкоштовно"}
             </button>
           </div>
@@ -236,7 +321,12 @@ export default function CasesPage() {
             <h3 className="mt-2 text-lg font-bold text-amber-300 uppercase">
               КЕЙС «{openedReward.box}» ВІДКРИТО!
             </h3>
-            <p className="mt-2 text-2xl font-black text-white">
+            {openedReward.costMessage && (
+              <p className="text-xs font-bold text-slate-400 mt-0.5">
+                {openedReward.costMessage}
+              </p>
+            )}
+            <p className="mt-2 text-3xl font-black text-white">
               +{openedReward.coins.toLocaleString()} МОНЕТ
             </p>
             <p className="text-sm font-bold text-emerald-400 mt-1">
@@ -284,24 +374,34 @@ export default function CasesPage() {
                 <div className="mt-6 rounded-xl border border-slate-800 bg-black/50 p-3 space-y-1.5 font-mono text-center">
                   <div className="text-sm font-bold text-amber-400">{c.coinsDisplay}</div>
                   <div className="text-xs font-semibold text-emerald-400">{c.xpDisplay}</div>
+                  <div className="text-[11px] text-slate-300 pt-1 border-t border-slate-800 flex items-center justify-center gap-1 font-bold">
+                    <span>Ціна:</span>
+                    <span className="text-slate-100">{c.hohlyantsiPrice}</span>
+                    <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-slate-400 text-[8px] font-black text-slate-950">Х</span>
+                    <span>Хохлянців</span>
+                  </div>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => handleOpenCase(c.id)}
-                disabled={isOpening}
-                className="mt-6 w-full rounded-xl bg-slate-800 py-3 font-mono text-xs font-bold uppercase tracking-wider text-slate-200 transition hover:bg-slate-700 hover:text-white disabled:opacity-50"
-              >
-                {isOpening ? "Відкриття..." : "Відкрити кейс"}
-              </button>
+              <div className="mt-6 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => handleBuyWithHohlyantsi(c)}
+                  disabled={isOpening || (hohlyantsi !== null && hohlyantsi < c.hohlyantsiPrice)}
+                  className="w-full rounded-xl bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 py-3 font-mono text-xs font-bold uppercase tracking-wider text-white shadow-lg transition hover:brightness-110 active:scale-95 disabled:opacity-40"
+                >
+                  {isOpening
+                    ? "Відкриття..."
+                    : `Купити за ${c.hohlyantsiPrice} Хохлянців`}
+                </button>
+              </div>
             </div>
           ))}
         </div>
 
         {/* Footer */}
         <p className="mt-12 text-center text-xs text-slate-600">
-          Matchday Lootbox System · Монети віртуальні · 2026
+          Matchday Lootbox & Currency System · Хохлянці та монети віртуальні · 2026
         </p>
       </div>
     </main>
