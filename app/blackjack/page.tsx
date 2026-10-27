@@ -31,13 +31,18 @@ type LeaderboardEntry = {
   net: number;
 };
 
-// Конфігурація рівнів агента та лімітів максимальної ставки
+// 10 рівнів з лімітами до 1 000 000 монет
 const LEVELS = [
-  { level: 1, title: "Стажер під прикриттям", minXp: 0, maxXp: 150, maxBet: 500 },
-  { level: 2, title: "Оперативник бару", minXp: 150, maxXp: 450, maxBet: 1000 },
-  { level: 3, title: "Спецагент 007", minXp: 450, maxXp: 1000, maxBet: 1800 },
-  { level: 4, title: "Ветеран розвідки", minXp: 1000, maxXp: 2200, maxBet: 2600 },
-  { level: 5, title: "Майстер-Шпигун", minXp: 2200, maxXp: 5000, maxBet: 3500 },
+  { level: 1, title: "Новачок за столом", minXp: 0, maxXp: 200, maxBet: 500, reward: 0 },
+  { level: 2, title: "Завсідник бару", minXp: 200, maxXp: 600, maxBet: 1500, reward: 1000 },
+  { level: 3, title: "Спецагент", minXp: 600, maxXp: 1400, maxBet: 5000, reward: 3000 },
+  { level: 4, title: "Професійний гравець", minXp: 1400, maxXp: 3000, maxBet: 15000, reward: 10000 },
+  { level: 5, title: "Хайролер", minXp: 3000, maxXp: 7000, maxBet: 50000, reward: 25000 },
+  { level: 6, title: "Тіньовий дилер", minXp: 7000, maxXp: 15000, maxBet: 120000, reward: 60000 },
+  { level: 7, title: "VIP-Гість казино", minXp: 15000, maxXp: 30000, maxBet: 250000, reward: 150000 },
+  { level: 8, title: "Магнат азарту", minXp: 30000, maxXp: 60000, maxBet: 500000, reward: 300000 },
+  { level: 9, title: "Сіндикат", minXp: 60000, maxXp: 120000, maxBet: 750000, reward: 500000 },
+  { level: 10, title: "Олігарх / Власник столу", minXp: 120000, maxXp: 250000, maxBet: 1000000, reward: 1000000 },
 ];
 
 function getLevelInfo(totalXp: number) {
@@ -130,7 +135,7 @@ function getErrorMessage(error: unknown) {
     : "";
 }
 
-function getUserErrorMessage(error: unknown, maxBetAllowed = 3500) {
+function getUserErrorMessage(error: unknown, maxBetAllowed = 1000000) {
   const code = getErrorCode(error);
   const message = getErrorMessage(error);
   const isError = (name: string) => code === name || message.includes(name);
@@ -139,7 +144,7 @@ function getUserErrorMessage(error: unknown, maxBetAllowed = 3500) {
     return "Партія вже активна. Карти на столі.";
   }
   if (isError("insufficient_funds")) return "Недостатньо монет для ставки.";
-  if (isError("invalid_bet")) return `Ставка має бути від 1 до ${maxBetAllowed} монет (за твоїм рівнем).`;
+  if (isError("invalid_bet")) return `Ставка від 1 до ${maxBetAllowed.toLocaleString()} монет.`;
   if (isError("no_active_game")) return "Активної партії немає.";
   if (isError("cannot_double")) return "Подвоїти можна лише на перших двох картах.";
   if (isError("not_authenticated")) return "Необхідно увійти до системи.";
@@ -152,16 +157,16 @@ function renderCard(card: number, key: string) {
   return (
     <div
       key={key}
-      className={`relative flex h-32 w-24 shrink-0 flex-col justify-between rounded-lg border border-slate-700 bg-gradient-to-b from-slate-900 to-slate-950 p-2 shadow-2xl transition-all sm:h-36 sm:w-26 ${
-        isRed ? "text-rose-500" : "text-slate-100"
+      className={`relative flex h-28 w-20 shrink-0 flex-col justify-between rounded-xl border-2 border-slate-700 bg-gradient-to-b from-white to-slate-200 p-2 shadow-2xl transition-all sm:h-32 sm:w-22 ${
+        isRed ? "text-red-600" : "text-slate-900"
       }`}
     >
-      <div className="flex justify-between items-start font-mono text-base font-bold leading-none">
+      <div className="flex justify-between items-start font-mono text-base font-extrabold leading-none">
         <span>{ranks[card % 13]}</span>
         <span className="text-sm">{suit}</span>
       </div>
-      <div className="self-center text-4xl select-none opacity-90">{suit}</div>
-      <div className="flex justify-between items-end font-mono text-base font-bold leading-none rotate-180">
+      <div className="self-center text-3xl select-none">{suit}</div>
+      <div className="flex justify-between items-end font-mono text-base font-extrabold leading-none rotate-180">
         <span>{ranks[card % 13]}</span>
         <span className="text-sm">{suit}</span>
       </div>
@@ -173,70 +178,45 @@ function renderHiddenCard(key: string) {
   return (
     <div
       key={key}
-      className="relative flex h-32 w-24 shrink-0 items-center justify-center rounded-lg border-2 border-amber-600/40 bg-gradient-to-br from-neutral-900 via-neutral-950 to-neutral-900 p-2 shadow-2xl sm:h-36 sm:w-26"
+      className="relative flex h-28 w-20 shrink-0 items-center justify-center rounded-xl border-2 border-red-700 bg-gradient-to-br from-red-800 to-red-950 p-2 shadow-2xl sm:h-32 sm:w-22"
     >
-      <div className="h-full w-full rounded border border-neutral-800 bg-[radial-gradient(#333_1px,transparent_1px)] [background-size:8px_8px] flex items-center justify-center">
-        <span className="font-mono text-xs tracking-widest text-amber-500/70 font-bold uppercase">SECRET</span>
+      <div className="h-full w-full rounded-lg border border-red-600/40 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:6px_6px] flex items-center justify-center text-center">
+        <span className="font-mono text-[10px] text-red-200 font-bold uppercase tracking-wider">SECRET</span>
       </div>
     </div>
   );
 }
 
-function AgentAvatar() {
+// 3D-стилізований дилер за столом казино (як на скріншоті гри)
+function CasinoDealer3D() {
   return (
-    <svg viewBox="0 0 120 120" className="h-20 w-20 shrink-0 drop-shadow-md">
-      <path d="M20 120 C20 88 35 75 60 75 C85 75 100 88 100 120 Z" fill="#111827" />
-      <polygon points="50,75 70,75 64,105 56,105" fill="#f8fafc" />
-      <polygon points="58,78 62,78 64,108 60,114 56,108" fill="#0f172a" stroke="#000" strokeWidth="1" />
-      <rect x="52" y="60" width="16" height="18" fill="#d4a373" />
-      <ellipse cx="60" cy="48" rx="22" ry="26" fill="#e0a96d" />
-      <path d="M38 45 C38 24 50 20 60 20 C70 20 82 24 82 45 C82 30 76 25 60 25 C44 25 38 32 38 45 Z" fill="#0f172a" />
-      <rect x="42" y="42" width="16" height="10" rx="2" fill="#09090b" stroke="#27272a" strokeWidth="1.5" />
-      <rect x="62" y="42" width="16" height="10" rx="2" fill="#09090b" stroke="#27272a" strokeWidth="1.5" />
-      <line x1="58" y1="46" x2="62" y2="46" stroke="#27272a" strokeWidth="2" />
-      <line x1="45" y1="44" x2="52" y2="49" stroke="#71717a" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
-      <line x1="65" y1="44" x2="72" y2="49" stroke="#71717a" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
-      <path d="M59 56 L61 56" stroke="#b07d4b" strokeWidth="2" strokeLinecap="round" />
-      <path d="M54 64 L66 64" stroke="#8c582f" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ColaGlass({
-  level,
-  onDrink,
-}: {
-  level: number;
-  onDrink: () => void;
-}) {
-  return (
-    <div
-      onClick={onDrink}
-      className="group relative flex cursor-pointer flex-col items-center justify-end rounded-xl border border-neutral-800 bg-neutral-900/60 p-3 shadow-inner transition hover:border-amber-600/50 hover:bg-neutral-900"
-      title="Натисніть, щоб зробити ковток коли!"
-    >
-      <div className="relative h-28 w-16 overflow-hidden rounded-b-xl border-x-2 border-b-4 border-slate-400/40 bg-slate-900/40 backdrop-blur-sm">
-        <div className="absolute -top-3 left-7 h-16 w-2 rotate-12 bg-rose-600 border border-rose-700 shadow-sm" />
-        {level > 10 && (
-          <div className="absolute top-8 left-3 h-5 w-5 rotate-12 rounded border border-white/30 bg-white/20 backdrop-blur-sm z-10" />
-        )}
-        {level > 35 && (
-          <div className="absolute top-14 right-2 h-5 w-5 -rotate-12 rounded border border-white/30 bg-white/20 backdrop-blur-sm z-10" />
-        )}
-        <div
-          className="absolute bottom-0 w-full bg-gradient-to-t from-[#1a0804] via-[#2d0e07] to-[#42170d] transition-all duration-500 ease-out flex items-start justify-center"
-          style={{ height: `${level}%` }}
-        >
-          {level > 0 && (
-            <div className="h-1.5 w-full bg-amber-700/60 animate-pulse border-t border-amber-500/40" />
-          )}
+    <div className="relative flex flex-col items-center">
+      {/* Голова дилера з великими круглими очима та бровами */}
+      <div className="relative flex h-24 w-24 flex-col items-center justify-center rounded-full bg-slate-400 border-4 border-slate-600 shadow-2xl">
+        {/* Густі чорні брови */}
+        <div className="absolute top-3 flex w-16 justify-between px-1">
+          <div className="h-3 w-6 rounded-full bg-slate-900 -rotate-12" />
+          <div className="h-3 w-6 rounded-full bg-slate-900 rotate-12" />
         </div>
+        {/* Великі виразні круглі очі */}
+        <div className="flex w-16 justify-between px-1.5 mt-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white border border-slate-700">
+            <div className="h-4 w-4 rounded-full bg-slate-900" />
+          </div>
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white border border-slate-700">
+            <div className="h-4 w-4 rounded-full bg-slate-900" />
+          </div>
+        </div>
+        {/* Маленький ніс */}
+        <div className="h-2 w-2.5 rounded-full bg-slate-500 mt-1" />
       </div>
-      <div className="mt-2 text-center">
-        <span className="font-mono text-xs font-bold text-slate-300 group-hover:text-amber-400 transition-colors">
-          {level > 0 ? `${level}% коли` : "Порожньо"}
-        </span>
-        <p className="text-[10px] text-slate-500">ковток</p>
+
+      {/* Тіло дилера у сорочці та жовтій краватці */}
+      <div className="relative -mt-3 h-14 w-28 rounded-t-3xl bg-slate-800 border-x-4 border-t-4 border-slate-700 flex flex-col items-center">
+        {/* Комір сорочки */}
+        <div className="h-3 w-10 bg-white clip-path-polygon" />
+        {/* Яскраво-жовта краватка (як у грі) */}
+        <div className="h-8 w-3 bg-amber-400 rounded-b-sm shadow-md" />
       </div>
     </div>
   );
@@ -248,28 +228,23 @@ export default function BlackjackPage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [isBusy, setIsBusy] = useState(false);
-  const [betInput, setBetInput] = useState("50");
-  const [colaLevel, setColaLevel] = useState(100);
+  const [betInput, setBetInput] = useState("100");
   const [xp, setXp] = useState(0);
+  const [winStreak, setWinStreak] = useState(0);
   const [agentSpeech, setAgentSpeech] = useState(
-    "Вітаю. Сідай за стіл. Склянка холодної коли поруч. Зроби ставку, коли будеш готовий."
+    "Beat the dealer without busting 21. Make your bet, player!"
   );
-  const [errorMessage, setErrorMessage] = useState<string | null>(
-    isSupabaseConfigured ? null : "Спочатку налаштуйте підключення до Supabase."
-  );
-  const [leaderboardError, setLeaderboardError] = useState<string | null>(
-    isSupabaseConfigured ? null : "Таблиця лідерів тимчасово недоступна."
-  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const currentLevelInfo = getLevelInfo(xp);
 
-  // Завантаження збереженого досвіду
   useEffect(() => {
     try {
       const savedXp = localStorage.getItem("matchday:bj_xp");
-      if (savedXp) {
-        setXp(Math.max(0, parseInt(savedXp, 10) || 0));
-      }
+      if (savedXp) setXp(Math.max(0, parseInt(savedXp, 10) || 0));
+
+      const savedStreak = localStorage.getItem("matchday:streak");
+      if (savedStreak) setWinStreak(Math.max(0, parseInt(savedStreak, 10) || 0));
     } catch {
       // ignore
     }
@@ -285,35 +260,38 @@ export default function BlackjackPage() {
     }
   }
 
-  // Оновлення XP після партії
-  function handleGameOutcomeXp(outcome: GameResult, betAmount: number) {
+  function handleGameOutcome(outcome: GameResult, betAmount: number) {
     let delta = 0;
     const oldLevel = currentLevelInfo.level;
 
     if (outcome === "blackjack") {
-      // За блекджек повна ставка у досвід
-      delta = Math.min(300, Math.max(30, betAmount));
+      delta = Math.min(2000, Math.max(50, betAmount));
       saveXp(xp + delta);
+      const nextStreak = winStreak + 1;
+      setWinStreak(nextStreak);
+      localStorage.setItem("matchday:streak", nextStreak.toString());
     } else if (outcome === "win") {
-      // За виграш половина ставки в досвід
-      delta = Math.min(200, Math.max(15, Math.floor(betAmount / 2)));
+      delta = Math.min(1000, Math.max(25, Math.floor(betAmount / 2)));
       saveXp(xp + delta);
+      const nextStreak = winStreak + 1;
+      setWinStreak(nextStreak);
+      localStorage.setItem("matchday:streak", nextStreak.toString());
     } else if (outcome === "push") {
-      delta = 5;
+      delta = 10;
       saveXp(xp + delta);
     } else if (outcome === "lose") {
-      // При програші втрачається половина поточного досвіду на поточному рівні
       const currentLevelBase = currentLevelInfo.minXp;
       const progressInLevel = Math.max(0, xp - currentLevelBase);
       const lostXp = Math.floor(progressInLevel / 2);
       saveXp(xp - lostXp);
-      delta = -lostXp;
+      setWinStreak(0);
+      localStorage.setItem("matchday:streak", "0");
     }
 
     const nextLevelInfo = getLevelInfo(Math.max(0, xp + delta));
     if (nextLevelInfo.level > oldLevel) {
       setAgentSpeech(
-        `«Підвищення рангу! Тепер ти ${nextLevelInfo.title} (Рівень ${nextLevelInfo.level}). Твій новий ліміт ставки: ${nextLevelInfo.maxBet} монет!»`
+        `LEVEL UP! Тепер твій ранг: ${nextLevelInfo.title} (Рівень ${nextLevelInfo.level}). Ліміт ставки: ${nextLevelInfo.maxBet.toLocaleString()} монет!`
       );
     }
   }
@@ -321,107 +299,50 @@ export default function BlackjackPage() {
   useEffect(() => {
     const client = getSupabaseClient();
     if (!client) return;
-    const supabase = client;
-
-    let active = true;
 
     async function loadGame() {
       try {
-        const { data, error } = await supabase.rpc("bj_state");
+        const { data, error } = await client!.rpc("bj_state");
         if (error) throw error;
         const parsedGame = parseGame(data);
-        if (active && parsedGame) {
-          setGame(parsedGame);
-          if (parsedGame.status === "active") {
-            setAgentSpeech("Твоя партія ще не завершена. Карти чекають на столі.");
-          }
-        }
+        if (parsedGame) setGame(parsedGame);
       } catch (error) {
-        console.error("Не вдалося завантажити стан блекджеку:", error);
-        if (active) setErrorMessage(getUserErrorMessage(error, currentLevelInfo.maxBet));
+        console.error("Помилка завантаження стану:", error);
       } finally {
-        if (active) setIsLoading(false);
-      }
-    }
-
-    async function loadLeaderboard() {
-      try {
-        const { data, error } = await supabase.rpc("bj_leaderboard");
-        if (error) throw error;
-        const rows = parseLeaderboard(data);
-        if (active) setLeaderboard(rows);
-      } catch (error) {
-        console.error("Не вдалося завантажити таблицю блекджеку:", error);
-        if (active) setLeaderboardError("Не вдалося завантажити таблицю.");
+        setIsLoading(false);
       }
     }
 
     async function loadBalance() {
       try {
-        const { data: authData, error: authError } = await supabase.auth.getUser();
-        if (authError) throw authError;
-        if (!authData.user) {
-          if (active) setBalance(null);
-          return;
-        }
-
-        const { data, error } = await supabase
+        const { data: authData } = await client!.auth.getUser();
+        if (!authData?.user) return;
+        const { data } = await client!
           .from("profiles")
           .select("coins")
           .eq("id", authData.user.id)
           .maybeSingle();
-        if (error) throw error;
-        if (active) {
-          setBalance(data && typeof data.coins === "number" ? data.coins : null);
-        }
-      } catch (error) {
-        console.error("Не вдалося завантажити баланс:", error);
-        if (active) setBalance(null);
+        if (data && typeof data.coins === "number") setBalance(data.coins);
+      } catch {
+        // ignore
       }
     }
 
     void loadGame();
-    void loadLeaderboard();
     void loadBalance();
-
-    return () => {
-      active = false;
-    };
   }, []);
-
-  function handleDrinkCola() {
-    if (colaLevel > 0) {
-      const nextLevel = Math.max(0, colaLevel - 25);
-      setColaLevel(nextLevel);
-      if (nextLevel === 0) {
-        setAgentSpeech("Допив до дна. Зараз наллю ще склянку, зосередься на грі.");
-      } else {
-        setAgentSpeech("Гарний ковток. Холодний лід заспокоює нерви перед ставкою.");
-      }
-    } else {
-      setColaLevel(100);
-      setAgentSpeech("Ось нова свіжа склянка коли з льодом. Продовжуємо.");
-    }
-  }
 
   async function refreshBalance() {
     const client = getSupabaseClient();
     if (!client) return;
-    const { data: authData, error: authError } = await client.auth.getUser();
-    if (authError || !authData.user) return;
+    const { data: authData } = await client.auth.getUser();
+    if (!authData?.user) return;
     const { data } = await client
       .from("profiles")
       .select("coins")
       .eq("id", authData.user.id)
       .maybeSingle();
-    setBalance(data && typeof data.coins === "number" ? data.coins : null);
-  }
-
-  async function refreshLeaderboard() {
-    const client = getSupabaseClient();
-    if (!client) return;
-    const { data } = await client.rpc("bj_leaderboard");
-    if (data) setLeaderboard(parseLeaderboard(data));
+    if (data && typeof data.coins === "number") setBalance(data.coins);
   }
 
   async function handleDeal(event: FormEvent<HTMLFormElement>) {
@@ -430,11 +351,11 @@ export default function BlackjackPage() {
     const maxAllowed = currentLevelInfo.maxBet;
 
     if (!Number.isInteger(bet) || bet < 1 || bet > maxAllowed) {
-      setErrorMessage(`Твій рівень дозволяє ставку від 1 до ${maxAllowed} монет.`);
+      setErrorMessage(`Твій ліміт ставки від 1 до ${maxAllowed.toLocaleString()} монет.`);
       return;
     }
     if (balance === null || bet > balance) {
-      setErrorMessage("Недостатньо монет на рахунку.");
+      setErrorMessage("Недостатньо монет на балансі.");
       return;
     }
 
@@ -442,7 +363,7 @@ export default function BlackjackPage() {
     if (!client || isBusy) return;
     setIsBusy(true);
     setErrorMessage(null);
-    setAgentSpeech("Ставка прийнята. Роздаю карти.");
+    setAgentSpeech("Cards on the table. Good luck!");
 
     try {
       const { data, error } = await client.rpc("bj_start", { p_bet: bet });
@@ -453,17 +374,16 @@ export default function BlackjackPage() {
       window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
 
       if (nextGame.status === "finished") {
-        handleGameOutcomeXp(nextGame.result, bet);
+        handleGameOutcome(nextGame.result, bet);
         if (nextGame.result === "blackjack") {
-          setAgentSpeech("Блекджек! Бездоганна комбінація, подвійний досвід твій.");
+          setAgentSpeech("BLACKJACK! Amazing natural 21!");
         } else if (nextGame.result === "win") {
-          setAgentSpeech("Твоя перемога. Досвід зараховано.");
+          setAgentSpeech("You win! House pays out.");
         } else if (nextGame.result === "lose") {
-          setAgentSpeech("Цього разу дилер сильніший. Частина досвіду згоріла.");
+          setAgentSpeech("Dealer wins this round.");
         } else {
-          setAgentSpeech("Нічия. Ставка повертається.");
+          setAgentSpeech("Push. Bets returned.");
         }
-        void refreshLeaderboard();
       }
       void refreshBalance();
     } catch (error) {
@@ -474,7 +394,7 @@ export default function BlackjackPage() {
           const existingGame = parseGame(stateData);
           if (existingGame) {
             setGame(existingGame);
-            setAgentSpeech("Партія вже на столі. Заверши її перед новою роздачею.");
+            setAgentSpeech("Game in progress. Finish your hand!");
             setErrorMessage(null);
           }
         } catch {
@@ -494,30 +414,29 @@ export default function BlackjackPage() {
     setIsBusy(true);
     setErrorMessage(null);
 
-    if (action === "bj_hit") setAgentSpeech("Береш ще карту. Подивимось...");
-    if (action === "bj_double") setAgentSpeech("Подвоєння ставки. Серйозний ризик!");
+    if (action === "bj_hit") setAgentSpeech("Hit! Dealing another card...");
+    if (action === "bj_double") setAgentSpeech("Double Down! Doubling the bet!");
 
     try {
       const { data, error } = await client.rpc(action);
       if (error) throw error;
       const nextGame = parseGame(data);
-      if (!nextGame) throw new Error("Неочікувана відповідь від сервера.");
+      if (!nextGame) throw new Error("Помилка ходу.");
       setGame(nextGame);
 
       if (nextGame.status === "finished") {
         window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
-        handleGameOutcomeXp(nextGame.result, nextGame.bet);
+        handleGameOutcome(nextGame.result, nextGame.bet);
 
         if (nextGame.result === "blackjack") {
-          setAgentSpeech("Блекджек. Бездоганна комбінація.");
+          setAgentSpeech("Blackjack! Flawless victory.");
         } else if (nextGame.result === "win") {
-          setAgentSpeech("Твій виграш. Досвід додано!");
+          setAgentSpeech("You beat the dealer!");
         } else if (nextGame.result === "lose") {
-          setAgentSpeech("Партія програна. Половина досвіду рівня згоріла.");
+          setAgentSpeech("Bust / Dealer takes the pot.");
         } else {
-          setAgentSpeech("Нічия. Фішки повернено.");
+          setAgentSpeech("Push. Hand tied.");
         }
-        void refreshLeaderboard();
         void refreshBalance();
       }
     } catch (error) {
@@ -530,198 +449,189 @@ export default function BlackjackPage() {
   function startNewGame() {
     setGame(null);
     setErrorMessage(null);
-    setAgentSpeech("Стіл вільний. Роби ставку на наступну партію.");
+    setAgentSpeech("Ready for the next hand. Place your bet!");
   }
 
   const isActiveGame = game?.status === "active";
-
-  // Розрахунок відсотка прогресу до наступного рівня
   const levelRange = currentLevelInfo.maxXp - currentLevelInfo.minXp;
-  const currentLevelProgress = Math.min(levelRange, Math.max(0, xp - currentLevelInfo.minXp));
-  const progressPercent = Math.min(100, Math.floor((currentLevelProgress / levelRange) * 100));
+  const currentProgress = Math.min(levelRange, Math.max(0, xp - currentLevelInfo.minXp));
+  const progressPercent = Math.min(100, Math.floor((currentProgress / levelRange) * 100));
 
   return (
-    <main className="min-h-screen flex-1 bg-[#090b0e] px-4 py-8 text-slate-100 sm:px-8 sm:py-12">
-      <div className="mx-auto max-w-4xl">
-        {/* Navigation */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+    <main className="min-h-screen flex-1 bg-[#07090c] px-3 py-6 font-mono text-slate-100 sm:px-8 sm:py-10">
+      <div className="mx-auto max-w-5xl">
+        {/* Top Bar */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
           <Link
             href="/leagues"
-            className="text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-100 transition"
+            className="text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition"
           >
-            ← Повернутися до ліг
+            ← Меню ліг
           </Link>
-          <div className="flex items-center gap-4">
-            {/* Level Badge */}
-            <div className="flex items-center gap-2 rounded-lg border border-amber-600/40 bg-amber-950/20 px-3 py-1">
-              <span className="text-amber-400 font-bold text-xs">РІВЕНЬ {currentLevelInfo.level}</span>
-              <span className="text-slate-400 text-[11px]">· {currentLevelInfo.title}</span>
-            </div>
-            {/* Balance */}
-            <div className="font-mono text-xs text-amber-400 font-semibold">
-              Баланс: {balance === null ? "—" : `${balance.toLocaleString()} монет`}
+          <div className="flex items-center gap-3">
+            <Link
+              href="/cases"
+              className="rounded-lg border border-purple-600/60 bg-purple-950/30 px-3 py-1 text-xs font-bold text-purple-300 hover:bg-purple-900/40 transition"
+            >
+              🎁 Кейси
+            </Link>
+            <div className="rounded-lg bg-amber-950/40 border border-amber-500/40 px-3 py-1 text-xs font-bold text-amber-300">
+              🪙 {balance === null ? "—" : `${balance.toLocaleString()} монет`}
             </div>
           </div>
         </div>
 
-        {/* Level XP Progress Bar */}
-        <div className="mb-6 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-          <div className="flex justify-between text-xs font-mono mb-1.5">
-            <span className="text-slate-400">
-              Досвід агента: <span className="text-emerald-400 font-bold">{xp} XP</span>
-            </span>
-            <span className="text-slate-400">
-              Макс. ставка: <span className="text-amber-400 font-bold">{currentLevelInfo.maxBet} монет</span>
-            </span>
-          </div>
-          <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
-            <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-500"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
-            <span>Рівень {currentLevelInfo.level}</span>
-            <span>{currentLevelProgress} / {levelRange} XP до наступного рівня</span>
-            <span>Рівень {Math.min(5, currentLevelInfo.level + 1)}</span>
-          </div>
-        </div>
-
-        {/* Стіл переговорів / Бар агента */}
-        <div className="relative mb-8 overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-[#13171f] to-[#0c0f14] p-5 shadow-2xl sm:p-7">
-          {/* Верхня панель: Агент + Кола */}
-          <div className="mb-6 flex flex-col gap-4 border-b border-slate-800/80 pb-6 sm:flex-row sm:items-center sm:justify-between">
-            {/* Агент */}
-            <div className="flex items-center gap-4">
-              <div className="rounded-2xl border border-slate-700/60 bg-gradient-to-b from-slate-800 to-slate-900 p-1.5 shadow-lg">
-                <AgentAvatar />
+        {/* 3D CASINO TABLE CONTAINER (стиль як на скріншоті гри) */}
+        <div className="relative overflow-hidden rounded-3xl border-4 border-amber-900/60 bg-gradient-to-b from-[#141822] via-[#0d1017] to-[#08090d] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.9)] sm:p-8">
+          
+          {/* Верхня панель: Квест LUCKY STREAK + Інфо рівня */}
+          <div className="mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-slate-800/80 pb-4">
+            {/* Квест: LUCKY STREAK (як на скріншоті) */}
+            <div className="rounded-2xl border-2 border-slate-700 bg-black/60 p-3 shadow-lg min-w-56">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CHALLENGE</span>
+                <span className="text-xs font-extrabold text-amber-400">+{winStreak * 2} 🪙</span>
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base font-bold text-slate-100">Агент Маркус</h1>
-                  <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-400">ДИЛЕР</span>
-                </div>
-                <p className="mt-1 max-w-sm text-xs italic text-amber-200/90 font-serif leading-relaxed">
-                  "{agentSpeech}"
-                </p>
+              <div className="text-sm font-black text-white mt-0.5 flex items-center gap-1.5">
+                <span>🔥 LUCKY STREAK</span>
+                <span className="rounded bg-amber-500/20 px-1.5 py-0.2 text-xs text-amber-300">{winStreak}/3</span>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">Виграй 3 партії поспіль → отримай кейс!</p>
+              <div className="mt-2 h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 transition-all duration-300"
+                  style={{ width: `${Math.min(100, (winStreak / 3) * 100)}%` }}
+                />
               </div>
             </div>
 
-            {/* Інтерактивна склянка коли */}
-            <div className="flex items-center gap-3 self-end sm:self-center">
-              <ColaGlass level={colaLevel} onDrink={handleDrinkCola} />
+            {/* Рівень гравця та XP */}
+            <div className="rounded-2xl border border-slate-800 bg-black/40 p-3 text-right">
+              <div className="text-xs font-bold text-emerald-400">
+                РІВЕНЬ {currentLevelInfo.level} · {currentLevelInfo.title}
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                {xp.toLocaleString()} / {currentLevelInfo.maxXp.toLocaleString()} XP
+              </div>
+              <div className="text-xs font-bold text-amber-400 mt-1">
+                Макс. ставка: {currentLevelInfo.maxBet.toLocaleString()} монет
+              </div>
             </div>
           </div>
 
-          {/* Справжнє сукно ігрового столу */}
-          <div className="relative rounded-2xl border border-emerald-950/80 bg-gradient-to-b from-[#0a2318] via-[#081b13] to-[#06140e] p-6 shadow-inner sm:p-8">
-            <div className="pointer-events-none absolute inset-x-8 top-1/2 -translate-y-1/2 border-t border-dashed border-emerald-700/20" />
-
-            {isLoading ? (
-              <div className="py-16 text-center font-mono text-xs text-slate-500">
-                Завантаження столу...
+          {/* ПОЛЕ СТОЛУ З ДИЛЕРОМ ПО ЦЕНТРУ */}
+          <div className="relative mx-auto max-w-3xl rounded-[3rem] border-4 border-amber-800/80 bg-gradient-to-b from-[#1b3d2b] via-[#142e20] to-[#0e2017] p-6 shadow-2xl sm:p-10 text-center">
+            
+            {/* Дилер по центру столу */}
+            <div className="mb-4 flex flex-col items-center">
+              <CasinoDealer3D />
+              {/* Фраза дилера */}
+              <div className="mt-3 rounded-full border border-emerald-600/40 bg-black/60 px-5 py-1.5 text-xs text-emerald-300 font-serif italic shadow-md">
+                "{agentSpeech}"
               </div>
-            ) : (
-              <div className="space-y-8">
-                {/* Карти дилера */}
-                <div>
-                  <div className="mb-3 flex items-center justify-between text-xs font-mono">
-                    <span className="text-slate-400">КАРТИ ДИЛЕРА</span>
-                    <span className="font-bold text-slate-300">
-                      {game ? (game.dealer_hidden ? "Очки: ?" : `Очки: ${game.dealer_value}`) : "—"}
-                    </span>
-                  </div>
-                  <div className="flex min-h-36 flex-wrap gap-3 items-center">
-                    {game ? (
-                      game.dealer_cards.map((card, index) =>
-                        game.dealer_hidden && index === game.dealer_cards.length - 1
-                          ? renderHiddenCard(`hidden-${index}`)
-                          : renderCard(card, `dealer-${index}`)
-                      )
-                    ) : (
-                      <div className="flex h-32 w-24 items-center justify-center rounded-lg border border-dashed border-emerald-900/60 font-mono text-[11px] text-emerald-800">
-                        порожньо
-                      </div>
-                    )}
-                  </div>
-                </div>
+            </div>
 
-                {/* Карти гравця */}
-                <div>
-                  <div className="mb-3 flex items-center justify-between text-xs font-mono">
-                    <span className="text-slate-400">ТВОЇ КАРТИ</span>
-                    <span className="font-bold text-slate-300">
-                      {game ? `Очки: ${game.player_value}` : "—"}
-                    </span>
-                  </div>
-                  <div className="flex min-h-36 flex-wrap gap-3 items-center">
-                    {game ? (
-                      game.player_cards.map((card, index) =>
-                        renderCard(card, `player-${index}`)
-                      )
-                    ) : (
-                      <div className="flex h-32 w-24 items-center justify-center rounded-lg border border-dashed border-emerald-900/60 font-mono text-[11px] text-emerald-800">
-                        порожньо
-                      </div>
-                    )}
-                  </div>
-                </div>
+            {/* Золотий напис на напівкруглому сукні (як у грі) */}
+            <div className="mb-8 inline-block rounded-xl border border-amber-500/30 bg-black/30 px-6 py-1.5">
+              <span className="font-serif text-xs font-bold tracking-widest text-amber-300/80 uppercase sm:text-sm">
+                Beat the dealer without busting 21
+              </span>
+            </div>
 
-                {/* Результат партії */}
-                {game?.status === "finished" && (
-                  <div className="rounded-xl border border-slate-700 bg-slate-900/90 p-4 text-center">
-                    <p className="font-mono text-sm font-bold text-slate-100">
-                      {game.result === "blackjack" && "БЛЕКДЖЕК! ПОДВІЙНИЙ ДОСВІД"}
-                      {game.result === "win" && `ВИГРАШ: +${game.payout - game.bet} МОНЕТ`}
-                      {game.result === "push" && "НІЧИЯ: СТАВКУ ПОВЕРНЕНО"}
-                      {game.result === "lose" && "ПРОГРАШ: ПОЛОВИНА ДОСВІДУ РІВНЯ ЗГОРІЛА"}
-                    </p>
+            {/* КАРТИ ДИЛЕРА */}
+            <div className="mb-8">
+              <div className="mb-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                КАРТИ ДИЛЕРА {game && !game.dealer_hidden && `(ОЧКИ: ${game.dealer_value})`}
+              </div>
+              <div className="flex min-h-32 flex-wrap items-center justify-center gap-3">
+                {game ? (
+                  game.dealer_cards.map((card, index) =>
+                    game.dealer_hidden && index === game.dealer_cards.length - 1
+                      ? renderHiddenCard(`hidden-${index}`)
+                      : renderCard(card, `dealer-${index}`)
+                  )
+                ) : (
+                  <div className="flex h-28 w-20 items-center justify-center rounded-xl border-2 border-dashed border-emerald-800/70 text-xs text-emerald-700">
+                    EMPTY
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* КАРТИ ГРАВЦЯ */}
+            <div className="mb-6">
+              <div className="mb-2 text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                ТВОЇ КАРТИ {game && `(ОЧКИ: ${game.player_value})`}
+              </div>
+              <div className="flex min-h-32 flex-wrap items-center justify-center gap-3">
+                {game ? (
+                  game.player_cards.map((card, index) => renderCard(card, `player-${index}`))
+                ) : (
+                  <div className="flex h-28 w-20 items-center justify-center rounded-xl border-2 border-dashed border-emerald-800/70 text-xs text-emerald-700">
+                    EMPTY
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Результат раунду */}
+            {game?.status === "finished" && (
+              <div className="animate-in zoom-in-95 my-4 rounded-2xl border-2 border-yellow-500 bg-black/80 p-4 text-center">
+                <div className="text-xl font-black text-amber-300 uppercase">
+                  {game.result === "blackjack" && "🔥 BLACKJACK! ПОДВІЙНИЙ ВИГРАШ 🔥"}
+                  {game.result === "win" && `🎉 ВИГРАШ: +${(game.payout - game.bet).toLocaleString()} МОНЕТ`}
+                  {game.result === "push" && "🤝 НІЧИЯ · СТАВКУ ПОВЕРНЕНО"}
+                  {game.result === "lose" && "💀 ДИЛЕР ПЕРЕМІГ"}
+                </div>
               </div>
             )}
           </div>
 
-          {/* Панель керування та ставок */}
-          <div className="mt-6">
+          {/* НИЖНЯ ПАНЕЛЬ: ВЕЛИЧЕЗНІ КНОПКИ ДІЙ (ЯК НА СКРІНШОТІ: HIT, STAND, PLAY) */}
+          <div className="mt-8">
             {isActiveGame ? (
-              <div className="flex flex-wrap gap-3">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                {/* Велика червона кнопка HIT */}
                 <button
                   type="button"
                   onClick={() => void handleAction("bj_hit")}
                   disabled={isBusy}
-                  className="h-11 rounded-lg bg-emerald-600 px-6 font-mono text-xs font-bold uppercase tracking-wider text-white shadow transition hover:bg-emerald-500 disabled:opacity-50"
+                  className="h-20 rounded-2xl bg-gradient-to-b from-red-500 to-red-700 border-b-8 border-red-900 font-sans text-2xl font-black uppercase tracking-wider text-white shadow-[0_10px_25px_rgba(239,68,68,0.5)] active:translate-y-1 active:border-b-4 transition disabled:opacity-50"
                 >
-                  Ще карту
+                  HIT
                 </button>
+
+                {/* Велика жовта кнопка STAND */}
                 <button
                   type="button"
                   onClick={() => void handleAction("bj_stand")}
                   disabled={isBusy}
-                  className="h-11 rounded-lg border border-slate-700 bg-slate-800 px-6 font-mono text-xs font-bold uppercase tracking-wider text-slate-200 transition hover:bg-slate-700 disabled:opacity-50"
+                  className="h-20 rounded-2xl bg-gradient-to-b from-amber-400 to-yellow-600 border-b-8 border-yellow-800 font-sans text-2xl font-black uppercase tracking-wider text-slate-950 shadow-[0_10px_25px_rgba(234,179,8,0.5)] active:translate-y-1 active:border-b-4 transition disabled:opacity-50"
                 >
-                  Досить
+                  STAND
                 </button>
+
+                {/* Кнопка DOUBLE */}
                 {game?.can_double && (
                   <button
                     type="button"
                     onClick={() => void handleAction("bj_double")}
                     disabled={isBusy}
-                    className="h-11 rounded-lg border border-amber-500/60 bg-amber-950/40 px-6 font-mono text-xs font-bold uppercase tracking-wider text-amber-300 transition hover:bg-amber-900/50 disabled:opacity-50"
+                    className="col-span-2 sm:col-span-1 h-20 rounded-2xl bg-gradient-to-b from-orange-500 to-amber-700 border-b-8 border-amber-950 font-sans text-xl font-black uppercase tracking-wider text-white shadow-[0_10px_25px_rgba(249,115,22,0.5)] active:translate-y-1 active:border-b-4 transition disabled:opacity-50"
                   >
-                    Подвоїти
+                    DOUBLE
                   </button>
                 )}
               </div>
             ) : (
-              <form onSubmit={handleDeal} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <form onSubmit={handleDeal} className="flex flex-col gap-4 sm:flex-row sm:items-end">
                 <div className="flex-1">
-                  <div className="flex justify-between items-center mb-1">
-                    <label htmlFor="bet-input" className="font-mono text-xs text-slate-400">
-                      Ставка на стіл (1–{currentLevelInfo.maxBet}):
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label htmlFor="bet-input" className="text-xs font-bold text-slate-300">
+                      СТАВКА НА СТІЛ (1 – {currentLevelInfo.maxBet.toLocaleString()}):
                     </label>
-                    <span className="font-mono text-[10px] text-amber-400">
-                      Ліміт рангу: {currentLevelInfo.maxBet}
+                    <span className="text-[11px] font-bold text-amber-400">
+                      Макс: {currentLevelInfo.maxBet.toLocaleString()} монет
                     </span>
                   </div>
                   <input
@@ -733,72 +643,44 @@ export default function BlackjackPage() {
                     onChange={(e) => setBetInput(e.target.value)}
                     disabled={isBusy}
                     required
-                    className="h-11 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 font-mono text-sm text-slate-100 outline-none transition focus:border-emerald-500"
+                    className="h-16 w-full rounded-2xl border-2 border-slate-700 bg-slate-900 px-4 font-mono text-xl font-bold text-white outline-none focus:border-emerald-500 transition shadow-inner"
                   />
                 </div>
+
                 {game?.status === "finished" ? (
                   <button
                     type="button"
                     onClick={startNewGame}
                     disabled={isBusy}
-                    className="h-11 rounded-lg bg-emerald-600 px-6 font-mono text-xs font-bold uppercase tracking-wider text-white shadow transition hover:bg-emerald-500 disabled:opacity-50"
+                    className="h-16 shrink-0 rounded-2xl bg-gradient-to-b from-emerald-500 to-emerald-700 border-b-8 border-emerald-900 px-8 font-sans text-xl font-black uppercase tracking-wider text-white shadow-[0_10px_25px_rgba(16,185,129,0.5)] active:translate-y-1 active:border-b-4 transition disabled:opacity-50"
                   >
-                    Нова роздача
+                    PLAY AGAIN
                   </button>
                 ) : (
+                  /* Велика зелена кнопка PLAY / DEAL (як на скріншоті) */
                   <button
                     type="submit"
                     disabled={isBusy || balance === null}
-                    className="h-11 rounded-lg bg-emerald-600 px-6 font-mono text-xs font-bold uppercase tracking-wider text-white shadow transition hover:bg-emerald-500 disabled:opacity-50"
+                    className="h-16 shrink-0 rounded-2xl bg-gradient-to-b from-emerald-500 to-emerald-700 border-b-8 border-emerald-900 px-10 font-sans text-2xl font-black uppercase tracking-wider text-white shadow-[0_10px_30px_rgba(16,185,129,0.6)] active:translate-y-1 active:border-b-4 transition disabled:opacity-50"
                   >
-                    {isBusy ? "Роздача..." : "Зробити ставку"}
+                    {isBusy ? "DEALING..." : "PLAY"}
                   </button>
                 )}
               </form>
             )}
 
             {errorMessage && (
-              <p className="mt-3 font-mono text-xs text-rose-400">{errorMessage}</p>
+              <p role="alert" className="mt-4 rounded-xl border border-red-800 bg-red-950/40 p-3 text-center text-xs text-red-300 font-bold">
+                {errorMessage}
+              </p>
             )}
           </div>
         </div>
 
-        {/* Таблиця лідерів */}
-        <section className="rounded-2xl border border-slate-800 bg-[#0f1217] p-5 sm:p-6">
-          <h2 className="mb-4 text-xs font-bold font-mono tracking-wider uppercase text-slate-400">
-            Таблиця гравців клубу
-          </h2>
-          {leaderboardError ? (
-            <p className="text-xs text-rose-400">{leaderboardError}</p>
-          ) : leaderboard.length === 0 ? (
-            <p className="text-xs text-slate-500">Поки що немає зіграних партій.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-mono">
-                <thead className="border-b border-slate-800 text-slate-500">
-                  <tr>
-                    <th className="py-2">Гравець</th>
-                    <th className="py-2">Партії</th>
-                    <th className="py-2">Перемоги</th>
-                    <th className="py-2">Баланс</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-850">
-                  {leaderboard.map((entry, idx) => (
-                    <tr key={idx} className="hover:bg-slate-800/40 transition">
-                      <td className="py-2.5 font-bold text-slate-200">{entry.username}</td>
-                      <td className="py-2.5 text-slate-400">{entry.games}</td>
-                      <td className="py-2.5 text-slate-400">{entry.wins}</td>
-                      <td className={`py-2.5 font-bold ${entry.net >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                        {entry.net >= 0 ? `+${entry.net}` : entry.net}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+        {/* Quick Links */}
+        <div className="mt-8 text-center text-xs text-slate-500">
+          Matchday Vegas Casino Edition · Bet limits up to 1,000,000 coins
+        </div>
       </div>
     </main>
   );

@@ -237,6 +237,18 @@ export default function LeaguesPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
+              href="/dice"
+              className="rounded-lg border border-red-600/60 bg-red-950/20 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:bg-red-900/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+            >
+              🎲 КОСТІ (DICE)
+            </Link>
+            <Link
+              href="/cases"
+              className="rounded-lg border border-purple-600/60 bg-purple-950/20 px-3 py-1.5 text-xs font-bold text-purple-300 transition hover:bg-purple-900/40 hover:shadow-[0_0_15px_rgba(168,85,247,0.2)]"
+            >
+              🎁 КЕЙСИ ТА КВЕСТИ
+            </Link>
+            <Link
               href="/wheel"
               className="rounded-lg border border-yellow-600/60 bg-yellow-950/20 px-3 py-1.5 text-xs font-bold text-yellow-400 transition hover:bg-yellow-900/40 hover:shadow-[0_0_15px_rgba(234,179,8,0.2)]"
             >
