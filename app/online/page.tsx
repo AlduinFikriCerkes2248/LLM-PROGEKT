@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   getSupabaseClient,
   PROFILE_UPDATED_EVENT,
@@ -54,6 +54,21 @@ function renderPvpCard(card: number, key: string) {
       <div className="flex justify-between items-end font-mono text-sm font-black leading-none rotate-180">
         <span>{rank}</span>
         <span className="text-xs">{suit}</span>
+      </div>
+    </div>
+  );
+}
+
+function renderPvpCardBack(key: string) {
+  return (
+    <div
+      key={key}
+      className="relative flex h-24 w-18 shrink-0 items-center justify-center rounded-xl border-2 border-amber-600/70 bg-gradient-to-br from-red-950 via-[#180a0a] to-slate-950 p-2 shadow-2xl transition-all sm:h-28 sm:w-20"
+      title="Карта суперника закрита сорочкою"
+    >
+      <div className="h-full w-full rounded-lg border border-amber-500/30 bg-[radial-gradient(#d97706_1px,transparent_1px)] [background-size:6px_6px] flex flex-col items-center justify-center text-center shadow-inner">
+        <span className="font-mono text-xl text-amber-400 select-none font-black">🂠</span>
+        <span className="text-[8px] text-amber-500/80 uppercase font-black tracking-widest mt-0.5">ТАЄМНИЦЯ</span>
       </div>
     </div>
   );
@@ -157,6 +172,19 @@ export default function OnlinePage() {
   const [incomingInvites, setIncomingInvites] = useState<DuelInvite[]>([]);
   const [outgoingInvites, setOutgoingInvites] = useState<DuelInvite[]>([]);
   const [liveBjMatch, setLiveBjMatch] = useState<LiveBjMatch | null>(null);
+  const [closedDuelIds, setClosedDuelIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem("matchday:closed_duels");
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const closedDuelIdsRef = useRef<string[]>([]);
+  useEffect(() => {
+    closedDuelIdsRef.current = closedDuelIds;
+  }, [closedDuelIds]);
   const [activeDiceDuel, setActiveDiceDuel] = useState<DiceDuelResult | null>(null);
   const [isChallenging, setIsChallenging] = useState<Player | null>(null);
   const [acceptingDuelId, setAcceptingDuelId] = useState<string | null>(null);
@@ -328,6 +356,15 @@ export default function OnlinePage() {
             .maybeSingle();
 
           if (activeBj) {
+            // Якщо користувач вже закрив цей матч, не показувати його знову
+            if (closedDuelIdsRef.current.includes(activeBj.id)) {
+              return;
+            }
+            // Якщо матч уже завершений і зараз не відкритий на екрані, не виринати
+            if (activeBj.status === "completed" && !liveBjMatch) {
+              return;
+            }
+
             const isChallenger = currentUser.id === activeBj.challenger_id;
             const chName = activeBj.challenger?.username || (isChallenger ? currentUser.username : "Гравець 1");
             const oppName = activeBj.opponent?.username || (!isChallenger ? currentUser.username : "Гравець 2");
@@ -781,6 +818,21 @@ export default function OnlinePage() {
     }
   }
 
+  function handleCloseLiveBj() {
+    if (liveBjMatch) {
+      const dId = liveBjMatch.duel_id;
+      closedDuelIdsRef.current = [...closedDuelIdsRef.current, dId].slice(-50);
+      setClosedDuelIds((prev) => {
+        const next = [...new Set([...prev, dId])].slice(-50);
+        try {
+          localStorage.setItem("matchday:closed_duels", JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    }
+    setLiveBjMatch(null);
+  }
+
   const isMyTurn =
     liveBjMatch &&
     liveBjMatch.status === "playing" &&
@@ -891,13 +943,13 @@ export default function OnlinePage() {
                     ? `Сума: ${oppScore}`
                     : liveBjMatch.current_turn === (amIChallenger ? liveBjMatch.opponent_id : liveBjMatch.challenger_id)
                     ? "⏳ Робить хід..."
-                    : "✓ Чекає вашого ходу"}
+                    : "✓ Чекає вашого ходу (карти закриті 🂠)"}
                 </span>
               </div>
 
               {/* Карти суперника */}
               <div className="flex flex-wrap justify-center gap-3 min-h-28 items-center">
-                {oppCards.map((c, i) => renderPvpCard(c, `opp-${i}`))}
+                {liveBjMatch.status === "completed" ? oppCards.map((c, i) => renderPvpCard(c, `opp-${i}`)) : oppCards.map((_, i) => renderPvpCardBack(`opp-back-${i}`))}
               </div>
             </div>
 
@@ -930,7 +982,7 @@ export default function OnlinePage() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => setLiveBjMatch(null)}
+                    onClick={handleCloseLiveBj}
                     className="mt-5 rounded-xl bg-amber-500 px-8 py-2.5 font-sans text-xs font-black uppercase text-black hover:bg-amber-400 transition"
                   >
                     Повернутися до лобі
