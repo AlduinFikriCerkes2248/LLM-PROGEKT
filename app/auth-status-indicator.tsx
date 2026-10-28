@@ -24,7 +24,6 @@ export default function AuthStatusIndicator() {
   const [hohlyantsi, setHohlyantsi] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const client = getSupabaseClient();

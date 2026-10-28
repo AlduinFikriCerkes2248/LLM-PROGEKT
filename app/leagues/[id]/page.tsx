@@ -77,9 +77,6 @@ type LeagueDetails = {
 const backLinkClassName =
   "text-xs font-bold uppercase tracking-wider text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1.5";
 const fieldClassName =
-  "h-12 w-full rounded-xl border-2 border-slate-700 bg-slate-900/90 px-3.5 font-mono text-sm font-semibold text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50";
-const buttonClassName =
-  "h-12 shrink-0 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-500 px-6 font-sans text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-cyan-900/30 transition hover:from-cyan-500 hover:to-teal-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50";
 
 function getErrorCode(error: unknown) {
   if (
@@ -135,18 +132,6 @@ function formatMatchTime(value: string) {
   }).format(date);
 }
 
-function toDateTimeLocalValue(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (num: number) => String(num).padStart(2, "0");
-  const year = date.getFullYear();
-  const month = pad(date.getMonth() + 1);
-  const day = pad(date.getDate());
-  const hours = pad(date.getHours());
-  const minutes = pad(date.getMinutes());
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
 function getBetPickLabel(pick: BetPick, match: Match) {
   if (pick === "home") return `Перемога: ${match.team_home}`;
   if (pick === "draw") return "Нічия";
@@ -170,7 +155,6 @@ export default function LeagueDetailsPage() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [betError, setBetError] = useState<{
     matchId: string;
     message: string;
@@ -239,12 +223,12 @@ export default function LeagueDetailsPage() {
             p_match: match.id,
           });
           if (error) return { matchId: match.id, pools: { home: 0, draw: 0, away: 0 } };
-          const p = (data ?? []).reduce(
-            (acc: any, row: any) => {
-              if (row.pick in acc) acc[row.pick] = row.total;
+          const p = ((data ?? []) as Array<{ pick: string; total: number }>).reduce(
+            (acc, row) => {
+              if (row.pick in acc) acc[row.pick as BetPick] = row.total;
               return acc;
             },
-            { home: 0, draw: 0, away: 0 },
+            { home: 0, draw: 0, away: 0 } as Record<BetPick, number>,
           );
           return { matchId: match.id, pools: p };
         }),
@@ -346,7 +330,7 @@ export default function LeagueDetailsPage() {
         pools: poolsByMatch,
         currentBalance: myProf?.coins ?? null,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setLoadError("Не вдалося завантажити лігу.");
     } finally {
@@ -356,10 +340,7 @@ export default function LeagueDetailsPage() {
 
   useEffect(() => {
     const client = getSupabaseClient();
-    if (!client) {
-      setIsAuthResolved(true);
-      return;
-    }
+    if (!client) return;
 
     client.auth.getUser().then(({ data }) => {
       setCurrentUserId(data.user?.id ?? null);
@@ -369,6 +350,7 @@ export default function LeagueDetailsPage() {
 
   useEffect(() => {
     if (isAuthResolved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       void reload();
     }
   }, [isAuthResolved, reload]);
@@ -412,7 +394,7 @@ export default function LeagueDetailsPage() {
       if (error) throw error;
       setActionMessage("Ваш прогноз збережено!");
       reload();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setActionError(getActionError(err, "Не вдалося зберегти прогноз."));
     } finally {
       setBusyAction(null);
@@ -458,7 +440,7 @@ export default function LeagueDetailsPage() {
       setActionMessage("Ставку на матч прийнято!");
       window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
       reload();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setBetError({ matchId: match.id, message: getBetErrorMessage(err) });
     } finally {
       setBusyAction(null);
@@ -611,7 +593,7 @@ export default function LeagueDetailsPage() {
       ),
   );
 
-  const now = Date.now();
+  const [now] = useState(() => Date.now());
 
   return (
     <main className="min-h-screen flex-1 bg-[#07090d] px-4 py-8 font-mono text-slate-100 sm:px-8 sm:py-12">

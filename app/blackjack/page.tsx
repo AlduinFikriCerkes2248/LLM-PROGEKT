@@ -254,30 +254,34 @@ export default function BlackjackPage() {
   const [game, setGame] = useState<BlackjackGame | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
+  const [, setIsLoading] = useState(isSupabaseConfigured);
   const [isBusy, setIsBusy] = useState(false);
   const [betInput, setBetInput] = useState("100");
   const [colaLevel, setColaLevel] = useState(100);
-  const [xp, setXp] = useState(0);
-  const [winStreak, setWinStreak] = useState(0);
+  const [xp, setXp] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    try {
+      const savedXp = localStorage.getItem("matchday:bj_xp");
+      return savedXp ? Math.max(0, parseInt(savedXp, 10) || 0) : 0;
+    } catch {
+      return 0;
+    }
+  });
+  const [winStreak, setWinStreak] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    try {
+      const savedStreak = localStorage.getItem("matchday:streak");
+      return savedStreak ? Math.max(0, parseInt(savedStreak, 10) || 0) : 0;
+    } catch {
+      return 0;
+    }
+  });
   const [agentSpeech, setAgentSpeech] = useState(
     "Beat the dealer without busting 21. Place your bet and enjoy cold cola!"
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const currentLevelInfo = getLevelInfo(xp);
-
-  useEffect(() => {
-    try {
-      const savedXp = localStorage.getItem("matchday:bj_xp");
-      if (savedXp) setXp(Math.max(0, parseInt(savedXp, 10) || 0));
-
-      const savedStreak = localStorage.getItem("matchday:streak");
-      if (savedStreak) setWinStreak(Math.max(0, parseInt(savedStreak, 10) || 0));
-    } catch {
-      // ignore
-    }
-  }, []);
 
   function saveXp(newXp: number) {
     const clamped = Math.max(0, newXp);
@@ -516,8 +520,6 @@ export default function BlackjackPage() {
   }
 
   const isActiveGame = game?.status === "active";
-  const levelRange = currentLevelInfo.maxXp - currentLevelInfo.minXp;
-  const currentProgress = Math.min(levelRange, Math.max(0, xp - currentLevelInfo.minXp));
 
   return (
     <main className="min-h-screen flex-1 bg-[#07090c] px-3 py-6 font-mono text-slate-100 sm:px-8 sm:py-10">
@@ -603,7 +605,7 @@ export default function BlackjackPage() {
             <div className="mb-4 flex flex-col items-center">
               <CasinoDealer3D />
               <div className="mt-3 rounded-full border border-emerald-600/40 bg-black/60 px-5 py-1.5 text-xs text-emerald-300 font-serif italic shadow-md">
-                "{agentSpeech}"
+                &quot;{agentSpeech}&quot;
               </div>
             </div>
 

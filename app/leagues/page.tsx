@@ -59,7 +59,6 @@ function getMemberInsertError(error: unknown, context: "create" | "join") {
 
 export default function LeaguesPage() {
   const [leagues, setLeagues] = useState<League[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [loadError, setLoadError] = useState<string | null>(
     isSupabaseConfigured
@@ -84,11 +83,9 @@ export default function LeaguesPage() {
 
     async function loadLeagues() {
       try {
-        const { data: authData, error: authError } = await supabase.auth.getUser();
+        const { error: authError } = await supabase.auth.getUser();
         if (cancelled) return;
         if (authError) throw authError;
-
-        setCurrentUserId(authData.user?.id ?? null);
 
         const { data, error } = await supabase
           .from("leagues")

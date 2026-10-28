@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   getSupabaseClient,
-  isSupabaseConfigured,
   PROFILE_UPDATED_EVENT,
 } from "../../lib/supabase/client";
 
@@ -77,15 +76,17 @@ export default function CasesPage() {
     costMessage?: string;
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [dailyClaimed, setDailyClaimed] = useState(false);
+  const [dailyClaimed, setDailyClaimed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      return localStorage.getItem("matchday:last_daily_case") === today;
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const lastClaim = localStorage.getItem("matchday:last_daily_case");
-    if (lastClaim === today) {
-      setDailyClaimed(true);
-    }
-
     async function loadBalances() {
       const client = getSupabaseClient();
       if (!client) return;

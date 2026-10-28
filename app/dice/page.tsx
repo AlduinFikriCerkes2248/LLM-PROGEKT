@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   getSupabaseClient,
-  isSupabaseConfigured,
   PROFILE_UPDATED_EVENT,
 } from "../../lib/supabase/client";
 
@@ -176,11 +175,9 @@ export default function DicePage() {
     setGameResult(null);
     setDealerSpeech("Кубики летять по сукну столу...");
 
-    let rolls = 0;
     const interval = setInterval(() => {
       setDice1(Math.floor(Math.random() * 6) + 1);
       setDice2(Math.floor(Math.random() * 6) + 1);
-      rolls++;
     }, 80);
 
     try {
@@ -300,7 +297,7 @@ export default function DicePage() {
             <div className="mb-4 flex flex-col items-center">
               <CasinoDealer3D />
               <div className="mt-3 rounded-full border border-red-500/40 bg-black/60 px-5 py-1.5 text-xs text-red-300 font-serif italic shadow-md">
-                "{dealerSpeech}"
+                &quot;{dealerSpeech}&quot;
               </div>
             </div>
 

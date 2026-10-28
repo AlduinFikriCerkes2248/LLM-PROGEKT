@@ -96,6 +96,19 @@ type DuelInvite = {
   created_at: string;
 };
 
+type SupabaseDuelRecord = {
+  id: string;
+  challenger_id: string;
+  opponent_id: string;
+  game_type: DuelGame;
+  stake: number;
+  currency: DuelCurrency;
+  status: "pending" | "accepted" | "playing" | "declined" | "completed";
+  created_at: string;
+  challenger?: { username?: string } | null;
+  opponent?: { username?: string } | null;
+};
+
 type LiveBjMatch = {
   duel_id: string;
   challenger_id: string;
@@ -117,6 +130,7 @@ type LiveBjMatch = {
   winner_name: string | null;
   pot: number;
   isBotMatch?: boolean;
+  last_move_at?: string;
 };
 
 type DiceDuelResult = {
@@ -189,6 +203,7 @@ export default function OnlinePage() {
   const [isChallenging, setIsChallenging] = useState<Player | null>(null);
   const [acceptingDuelId, setAcceptingDuelId] = useState<string | null>(null);
   const [isActing, setIsActing] = useState(false);
+  const [isClaimingTimeout, setIsClaimingTimeout] = useState(false);
 
   // Форма виклику
   const [duelGame, setDuelGame] = useState<DuelGame>("blackjack");
@@ -274,7 +289,7 @@ export default function OnlinePage() {
           .limit(3);
 
         if (incoming) {
-          const formatted: DuelInvite[] = (incoming as any[]).map((d) => ({
+          const formatted: DuelInvite[] = (incoming as unknown as SupabaseDuelRecord[]).map((d) => ({
             id: d.id,
             challenger_id: d.challenger_id,
             challenger_name: d.challenger?.username || "Невідомий гравець",
@@ -309,7 +324,7 @@ export default function OnlinePage() {
 
         if (sent) {
           setOutgoingInvites(
-            (sent as any[]).map((p) => ({
+            (sent as unknown as SupabaseDuelRecord[]).map((p) => ({
               id: p.id,
               challenger_id: currentUser.id,
               challenger_name: currentUser.username,
@@ -324,83 +339,55 @@ export default function OnlinePage() {
           );
         }
 
-        // 3. Активна покрокова сесія Блекджеку в базі
+        // 3. Активна покрокова сесія Блекджеку в базі через безпечний RPC pvp_view
         if (!liveBjMatch?.isBotMatch) {
-          const { data: activeBj } = await client
-            .from("pvp_duels")
-            .select(`
-              id,
-              challenger_id,
-              opponent_id,
-              game_type,
-              stake,
-              currency,
-              status,
-              deck,
-              challenger_cards,
-              opponent_cards,
-              challenger_score,
-              opponent_score,
-              current_turn,
-              challenger_finished,
-              opponent_finished,
-              winner_id,
-              challenger:challenger_id(username),
-              opponent:opponent_id(username)
-            `)
-            .or(`challenger_id.eq.${currentUser.id},opponent_id.eq.${currentUser.id}`)
-            .eq("game_type", "blackjack")
-            .in("status", ["playing", "completed"])
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
+          const { data: viewData, error: viewError } = await client.rpc("pvp_view");
 
-          if (activeBj) {
+          if (viewData && !viewError) {
             // Якщо користувач вже закрив цей матч, не показувати його знову
-            if (closedDuelIdsRef.current.includes(activeBj.id)) {
+            if (closedDuelIdsRef.current.includes(viewData.duel_id)) {
               return;
             }
             // Якщо матч уже завершений і зараз не відкритий на екрані, не виринати
-            if (activeBj.status === "completed" && !liveBjMatch) {
+            if (viewData.status === "completed" && !liveBjMatch) {
               return;
             }
 
-            const isChallenger = currentUser.id === activeBj.challenger_id;
-            const chName = activeBj.challenger?.username || (isChallenger ? currentUser.username : "Гравець 1");
-            const oppName = activeBj.opponent?.username || (!isChallenger ? currentUser.username : "Гравець 2");
-
-            const pot = activeBj.stake * 2;
-            const winName =
-              activeBj.winner_id === activeBj.challenger_id
-                ? chName
-                : activeBj.winner_id === activeBj.opponent_id
-                ? oppName
-                : null;
+            const isChallenger = currentUser.id === viewData.challenger_id;
+            const chCards = isChallenger ? (viewData.my_cards || []) : (viewData.opponent_cards || []);
+            const oppCards = !isChallenger ? (viewData.my_cards || []) : (viewData.opponent_cards || []);
 
             setLiveBjMatch((prev) => {
-              if (prev?.duel_id === activeBj.id && prev.status === activeBj.status && prev.current_turn === activeBj.current_turn && prev.challenger_cards.length === (activeBj.challenger_cards || []).length && prev.opponent_cards.length === (activeBj.opponent_cards || []).length) {
+              if (
+                prev?.duel_id === viewData.duel_id &&
+                prev.status === viewData.status &&
+                prev.current_turn === viewData.current_turn &&
+                prev.challenger_cards.length === chCards.length &&
+                prev.opponent_cards.length === oppCards.length
+              ) {
                 return prev;
               }
               return {
-                duel_id: activeBj.id,
-                challenger_id: activeBj.challenger_id,
-                opponent_id: activeBj.opponent_id,
-                challenger_name: chName,
-                opponent_name: oppName,
-                stake: activeBj.stake,
-                currency: activeBj.currency,
-                deck: activeBj.deck || [],
-                challenger_cards: activeBj.challenger_cards || [],
-                opponent_cards: activeBj.opponent_cards || [],
-                challenger_score: activeBj.challenger_score || 0,
-                opponent_score: activeBj.opponent_score || 0,
-                current_turn: activeBj.current_turn,
-                challenger_finished: activeBj.challenger_finished || false,
-                opponent_finished: activeBj.opponent_finished || false,
-                status: activeBj.status,
-                winner_id: activeBj.winner_id,
-                winner_name: winName,
-                pot,
+                duel_id: viewData.duel_id,
+                challenger_id: viewData.challenger_id,
+                opponent_id: viewData.opponent_id,
+                challenger_name: viewData.challenger_name,
+                opponent_name: viewData.opponent_name,
+                stake: viewData.stake,
+                currency: viewData.currency,
+                deck: viewData.deck || [],
+                challenger_cards: chCards,
+                opponent_cards: oppCards,
+                challenger_score: isChallenger ? (viewData.my_score || 0) : (viewData.opponent_score || 0),
+                opponent_score: !isChallenger ? (viewData.my_score || 0) : (viewData.opponent_score || 0),
+                current_turn: viewData.current_turn,
+                challenger_finished: viewData.challenger_finished || false,
+                opponent_finished: viewData.opponent_finished || false,
+                status: viewData.status,
+                winner_id: viewData.winner_id,
+                winner_name: viewData.winner_name,
+                pot: viewData.pot,
+                last_move_at: viewData.last_move_at,
               };
             });
           }
@@ -456,7 +443,7 @@ export default function OnlinePage() {
     }
 
     try {
-      const { data, error } = await client.rpc("send_duel_invite", {
+      const { error } = await client.rpc("send_duel_invite", {
         p_opponent: isChallenging.id,
         p_game: duelGame,
         p_stake: stake,
@@ -468,9 +455,9 @@ export default function OnlinePage() {
       setMessage(`Приглос надіслано гравцю ${isChallenging.username}! Очікуйте його відповіді.`);
       setIsChallenging(null);
       window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setErrorMsg(err?.message || "Не вдалося надіслати виклик.");
+      setErrorMsg((err as { message?: string })?.message || "Не вдалося надіслати виклик.");
     } finally {
       setIsSubmitting(false);
     }
@@ -569,14 +556,34 @@ export default function OnlinePage() {
         p_action: "hit",
       });
       if (error) throw error;
-      if (data) {
-        setLiveBjMatch((prev) => (prev ? { ...prev, ...data } : null));
+      if (data && currentUser) {
+        const isChallenger = currentUser.id === data.challenger_id;
+        setLiveBjMatch((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: data.status,
+                current_turn: data.current_turn,
+                challenger_finished: data.challenger_finished,
+                opponent_finished: data.opponent_finished,
+                winner_id: data.winner_id,
+                winner_name: data.winner_name,
+                pot: data.pot,
+                deck: data.deck || [],
+                challenger_cards: isChallenger ? (data.my_cards || []) : (data.opponent_cards || []),
+                opponent_cards: !isChallenger ? (data.my_cards || []) : (data.opponent_cards || []),
+                challenger_score: isChallenger ? (data.my_score || 0) : (data.opponent_score || 0),
+                opponent_score: !isChallenger ? (data.my_score || 0) : (data.opponent_score || 0),
+                last_move_at: data.last_move_at,
+              }
+            : null
+        );
         if (data.status === "completed") {
           window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
         }
       }
-    } catch (err: any) {
-      setErrorMsg(err?.message || "Помилка ходу.");
+    } catch (err: unknown) {
+      setErrorMsg((err as { message?: string })?.message || "Помилка ходу.");
     } finally {
       setIsActing(false);
     }
@@ -615,14 +622,34 @@ export default function OnlinePage() {
         p_action: "stand",
       });
       if (error) throw error;
-      if (data) {
-        setLiveBjMatch((prev) => (prev ? { ...prev, ...data } : null));
+      if (data && currentUser) {
+        const isChallenger = currentUser.id === data.challenger_id;
+        setLiveBjMatch((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: data.status,
+                current_turn: data.current_turn,
+                challenger_finished: data.challenger_finished,
+                opponent_finished: data.opponent_finished,
+                winner_id: data.winner_id,
+                winner_name: data.winner_name,
+                pot: data.pot,
+                deck: data.deck || [],
+                challenger_cards: isChallenger ? (data.my_cards || []) : (data.opponent_cards || []),
+                opponent_cards: !isChallenger ? (data.my_cards || []) : (data.opponent_cards || []),
+                challenger_score: isChallenger ? (data.my_score || 0) : (data.opponent_score || 0),
+                opponent_score: !isChallenger ? (data.my_score || 0) : (data.opponent_score || 0),
+                last_move_at: data.last_move_at,
+              }
+            : null
+        );
         if (data.status === "completed") {
           window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
         }
       }
-    } catch (err: any) {
-      setErrorMsg(err?.message || "Помилка ходу.");
+    } catch (err: unknown) {
+      setErrorMsg((err as { message?: string })?.message || "Помилка ходу.");
     } finally {
       setIsActing(false);
     }
@@ -630,8 +657,8 @@ export default function OnlinePage() {
 
   // ПОКРОКОВИЙ ШІ-ХІД БОТА
   function runBotTurn(playerScore: number, currentDeck: number[], currentBotHand: number[]) {
-    let botHand = [...currentBotHand];
-    let deck = [...currentDeck];
+    const botHand = [...currentBotHand];
+    const deck = [...currentDeck];
     let botScore = calculateHandValue(botHand);
 
     // Бот добирає карти, поки менше 17
@@ -765,26 +792,28 @@ export default function OnlinePage() {
       if (action === "accept" && data) {
         if (invite.game_type === "blackjack") {
           // Заходимо в інтерактивну кімнату Блекджеку!
+          const isCh = currentUser?.id === data.challenger_id;
           setLiveBjMatch({
-            duel_id: invite.id,
-            challenger_id: invite.challenger_id,
-            opponent_id: invite.opponent_id,
-            challenger_name: invite.challenger_name,
-            opponent_name: currentUser?.username || "Ви",
-            stake: invite.stake,
-            currency: invite.currency,
-            deck: [],
-            challenger_cards: data.challenger_cards || [],
-            opponent_cards: data.opponent_cards || [],
-            challenger_score: data.challenger_score || 0,
-            opponent_score: data.opponent_score || 0,
+            duel_id: data.duel_id || invite.id,
+            challenger_id: data.challenger_id || invite.challenger_id,
+            opponent_id: data.opponent_id || invite.opponent_id,
+            challenger_name: data.challenger_name || invite.challenger_name,
+            opponent_name: data.opponent_name || currentUser?.username || "Ви",
+            stake: data.stake ?? invite.stake,
+            currency: data.currency || invite.currency,
+            deck: data.deck || [],
+            challenger_cards: isCh ? (data.my_cards || data.challenger_cards || []) : (data.opponent_cards || []),
+            opponent_cards: !isCh ? (data.my_cards || data.opponent_cards || []) : (data.opponent_cards || []),
+            challenger_score: isCh ? (data.my_score ?? data.challenger_score ?? 0) : (data.opponent_score ?? 0),
+            opponent_score: !isCh ? (data.my_score ?? data.opponent_score ?? 0) : (data.opponent_score ?? 0),
             current_turn: data.current_turn,
-            challenger_finished: false,
-            opponent_finished: false,
-            status: "playing",
-            winner_id: null,
-            winner_name: null,
+            challenger_finished: data.challenger_finished || false,
+            opponent_finished: data.opponent_finished || false,
+            status: data.status || "playing",
+            winner_id: data.winner_id || null,
+            winner_name: data.winner_name || null,
             pot: data.pot,
+            last_move_at: data.last_move_at,
           });
         } else {
           // Кості
@@ -810,11 +839,63 @@ export default function OnlinePage() {
       } else if (action === "decline") {
         setMessage("Виклик відхилено.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setErrorMsg(err?.message || "Не вдалося прийняти виклик.");
+      setErrorMsg((err as { message?: string })?.message || "Не вдалося прийняти виклик.");
     } finally {
       setAcceptingDuelId(null);
+    }
+  }
+
+  async function handleClaimTimeout() {
+    if (!liveBjMatch || isClaimingTimeout || liveBjMatch.isBotMatch) return;
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    setIsClaimingTimeout(true);
+    setErrorMsg(null);
+    setMessage(null);
+
+    try {
+      const { error } = await client.rpc("claim_duel_timeout", {
+        p_duel_id: liveBjMatch.duel_id,
+      });
+
+      if (error) throw error;
+      setMessage("⚡ Суперник не зробив хід вчасно (60 сек). Зараховано технічну перемогу, банк виплачено!");
+      window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
+
+      const { data: viewData } = await client.rpc("pvp_view", { p_duel_id: liveBjMatch.duel_id });
+      if (viewData && currentUser) {
+        const isChallenger = currentUser.id === viewData.challenger_id;
+        setLiveBjMatch({
+          duel_id: viewData.duel_id,
+          challenger_id: viewData.challenger_id,
+          opponent_id: viewData.opponent_id,
+          challenger_name: viewData.challenger_name,
+          opponent_name: viewData.opponent_name,
+          stake: viewData.stake,
+          currency: viewData.currency,
+          deck: viewData.deck || [],
+          challenger_cards: isChallenger ? (viewData.my_cards || []) : (viewData.opponent_cards || []),
+          opponent_cards: !isChallenger ? (viewData.my_cards || []) : (viewData.opponent_cards || []),
+          challenger_score: isChallenger ? (viewData.my_score || 0) : (viewData.opponent_score || 0),
+          opponent_score: !isChallenger ? (viewData.my_score || 0) : (viewData.opponent_score || 0),
+          current_turn: viewData.current_turn,
+          challenger_finished: viewData.challenger_finished || false,
+          opponent_finished: viewData.opponent_finished || false,
+          status: viewData.status,
+          winner_id: viewData.winner_id,
+          winner_name: viewData.winner_name,
+          pot: viewData.pot,
+          last_move_at: viewData.last_move_at,
+        });
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      setErrorMsg((err as { message?: string })?.message || "Таймаут ще не настав (потрібно 60 сек бездіяльності суперника).");
+    } finally {
+      setIsClaimingTimeout(false);
     }
   }
 
@@ -961,8 +1042,23 @@ export default function OnlinePage() {
                     ⚡ ВАШ ХІД! Оберіть: взяти ще карту чи зупинитися
                   </div>
                 ) : (
-                  <div className="inline-block rounded-2xl border border-slate-700 bg-black/60 px-6 py-2.5 text-xs font-bold text-slate-400 uppercase">
-                    ⏳ Хід опонента ({oppName}) · Очікуємо його рішення...
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="inline-block rounded-2xl border border-slate-700 bg-black/60 px-6 py-2.5 text-xs font-bold text-slate-400 uppercase">
+                      ⏳ Хід опонента ({oppName}) · Очікуємо його рішення...
+                    </div>
+                    {!liveBjMatch.isBotMatch && (
+                      <button
+                        type="button"
+                        disabled={isClaimingTimeout}
+                        onClick={handleClaimTimeout}
+                        className="rounded-xl border border-rose-600/70 bg-rose-950/50 px-4 py-2 text-xs font-bold text-rose-300 hover:bg-rose-900/60 hover:border-rose-400 transition shadow-lg cursor-pointer disabled:opacity-50"
+                        title="Якщо опонент бездіє або закрив вкладку понад 60 секунд"
+                      >
+                        {isClaimingTimeout
+                          ? "⏳ Перевірка таймауту..."
+                          : "⏱️ Опонент не ходить? Зарахувати технічну перемогу (60с)"}
+                      </button>
+                    )}
                   </div>
                 )
               ) : (
