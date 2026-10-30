@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DemoNoticeBadge } from "../demo-banner";
 import { useEffect, useState } from "react";
 import {
   getSupabaseClient,
@@ -262,13 +263,14 @@ export default function DicePage() {
             </div>
             {hohlyantsi !== null && (
               <div className="flex items-center gap-1 rounded-lg border border-slate-600 bg-slate-800/80 px-2 py-1 text-xs font-bold text-slate-200">
-                <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-400 text-[9px] font-black text-slate-950">Х</span>
+                <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-400 text-[9px] font-black text-slate-950">Б</span>
                 <span>{hohlyantsi}</span>
               </div>
             )}
           </div>
         </div>
 
+        <DemoNoticeBadge />
         {/* 3D DICE TABLE CONTAINER */}
         <div className="relative overflow-hidden rounded-3xl border-4 border-red-900/60 bg-gradient-to-b from-[#18131d] via-[#100d14] to-[#0a070e] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.9)] sm:p-8">
           
@@ -433,7 +435,7 @@ export default function DicePage() {
         {/* ТАБЛИЦЯ ЛІДЕРІВ / РЕЙТИНГ */}
         <section className="mt-8 rounded-3xl border-2 border-slate-800 bg-gradient-to-b from-[#0f1217] to-black p-6 shadow-xl">
           <h2 className="mb-4 text-xs font-bold font-mono tracking-wider uppercase text-amber-400 flex items-center gap-2">
-            <span>🏆</span> ТОП ГРАВЦІВ КАЗИНО ТА КОСТЕЙ
+            <span>🏆</span> ТОП ГРАВЦІВ У ГРІ
           </h2>
           {leaderboard.length === 0 ? (
             <p className="text-xs text-slate-500">Завантаження рейтингу...</p>
