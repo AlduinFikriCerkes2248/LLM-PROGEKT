@@ -1,4 +1,5 @@
 "use client";
+import { DemoNoticeBadge } from "../../demo-banner";
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -598,6 +599,7 @@ export default function LeagueDetailsPage() {
   return (
     <main className="min-h-screen flex-1 bg-[#07090d] px-4 py-8 font-mono text-slate-100 sm:px-8 sm:py-12">
       <div className="mx-auto max-w-5xl">
+        <DemoNoticeBadge />
         {/* Navigation Bar */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
           <Link href="/leagues" className={backLinkClassName}>

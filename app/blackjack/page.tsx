@@ -1,4 +1,5 @@
 "use client";
+import { DemoNoticeBadge } from "../demo-banner";
 
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
@@ -524,6 +525,7 @@ export default function BlackjackPage() {
   return (
     <main className="min-h-screen flex-1 bg-[#07090c] px-3 py-6 font-mono text-slate-100 sm:px-8 sm:py-10">
       <div className="mx-auto max-w-5xl">
+        <DemoNoticeBadge />
         {/* Top Bar */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
           <Link

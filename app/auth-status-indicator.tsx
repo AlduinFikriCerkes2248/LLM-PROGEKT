@@ -147,13 +147,13 @@ export default function AuthStatusIndicator() {
               🪙 {coins === null ? "—" : coins.toLocaleString()}
             </span>
 
-            {/* Друга валюта: Хохлянці (сіра металева монета) */}
+            {/* Друга валюта: Бонуси (валюта для кейсів та онлайн дуелей) */}
             <span
               className="flex items-center gap-1 rounded-md border border-slate-600 bg-slate-800/80 px-2 py-0.5 font-bold text-slate-200 shadow-inner"
-              title="Хохлянці (сіра валюта для кейсів та онлайн дуелей)"
+              title="Бонуси (валюта для кейсів та онлайн дуелей)"
             >
               <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 via-slate-400 to-slate-600 text-[9px] font-black text-slate-950 shadow-sm">
-                Х
+                Б
               </span>
               <span>{hohlyantsi === null ? "25" : hohlyantsi.toLocaleString()}</span>
             </span>

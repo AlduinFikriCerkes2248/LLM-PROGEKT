@@ -445,7 +445,7 @@ export default function DicePage() {
                     <th className="pb-2">#</th>
                     <th className="pb-2">Гравець</th>
                     <th className="pb-2 text-right">Золоті монети</th>
-                    <th className="pb-2 text-right">Хохлянці</th>
+                    <th className="pb-2 text-right">Бонуси</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">

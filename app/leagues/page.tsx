@@ -1,4 +1,5 @@
 "use client";
+import { DemoNoticeBadge } from "../demo-banner";
 
 import Link from "next/link";
 import {
@@ -266,6 +267,7 @@ export default function LeaguesPage() {
           </div>
         </div>
 
+        <DemoNoticeBadge />
         {/* ASCII Header */}
         <header className="mb-10 text-center">
           <pre className="mx-auto hidden overflow-x-auto text-[0.45rem] font-bold leading-tight text-cyan-400 sm:block sm:text-[0.55rem] md:text-xs" aria-hidden="true">
