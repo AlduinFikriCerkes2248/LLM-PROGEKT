@@ -1,5 +1,6 @@
 "use client";
 import { DemoNoticeBadge } from "../demo-banner";
+import { HeraldicCelebrationModal } from "../heraldic-coat-of-arms";
 
 import Link from "next/link";
 import {
@@ -72,6 +73,7 @@ export default function LeaguesPage() {
   const [createdInviteCode, setCreatedInviteCode] = useState<string | null>(null);
   const [inviteCodeInput, setInviteCodeInput] = useState("");
   const [isJoining, setIsJoining] = useState(false);
+  const [newlyCreatedLeague, setNewlyCreatedLeague] = useState<{ title: string; inviteCode: string } | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joinStatus, setJoinStatus] = useState<string | null>(null);
 
@@ -145,6 +147,7 @@ export default function LeaguesPage() {
 
       const newLeague = leagueData as League & { invite_code: string };
       setCreatedInviteCode(newLeague.invite_code);
+      setNewlyCreatedLeague({ title: newLeague.title, inviteCode: newLeague.invite_code });
       setLeagues((prev) => [...prev, { id: newLeague.id, title: newLeague.title }]);
       setLeagueTitle("");
 
@@ -267,6 +270,12 @@ export default function LeaguesPage() {
           </div>
         </div>
 
+        <HeraldicCelebrationModal
+        show={newlyCreatedLeague !== null}
+        onClose={() => setNewlyCreatedLeague(null)}
+        leagueTitle={newlyCreatedLeague?.title}
+        inviteCode={newlyCreatedLeague?.inviteCode}
+      />
         <DemoNoticeBadge />
         {/* ASCII Header */}
         <header className="mb-10 text-center">

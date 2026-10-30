@@ -5,33 +5,19 @@ import {
   isSupabaseConfigured,
 } from "../../lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 
 type AuthMode = "login" | "signup";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [showSplash, setShowSplash] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  });
+  const [showSplash, setShowSplash] = useState(false);
   const [isFading, setIsFading] = useState(false);
 
-  useEffect(() => {
-    if (!showSplash) return;
-    const timerFade = setTimeout(() => {
-      setIsFading(true);
-    }, 1600);
-
-    const timerDone = setTimeout(() => {
-      setShowSplash(false);
-    }, 2100);
-
-    return () => {
-      clearTimeout(timerFade);
-      clearTimeout(timerDone);
-    };
-  }, [showSplash]);
+  function handleSkipSplash() {
+    setShowSplash(false);
+    router.replace("/leagues");
+  }
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,13 +56,19 @@ export default function LoginPage() {
       }
 
       if (result.data.session) {
-        router.replace("/leagues");
+        // Запуск анімації успішного входу
+        setShowSplash(true);
+        setTimeout(() => setIsFading(true), 1600);
+        setTimeout(() => router.replace("/leagues"), 2100);
         return;
       }
 
       setStatusMessage(
         "Акаунт створено. Перевірте пошту та підтвердьте email, щоб увійти.",
       );
+      setShowSplash(true);
+      setTimeout(() => setIsFading(true), 1600);
+      setTimeout(() => setShowSplash(false), 2100);
     } catch {
       setErrorMessage("Не вдалося з’єднатися із Supabase. Спробуйте ще раз.");
     } finally {
@@ -97,9 +89,9 @@ export default function LoginPage() {
           role="button"
           tabIndex={0}
           aria-label="Пропустити заставку"
-          onClick={() => setShowSplash(false)}
+          onClick={handleSkipSplash}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") setShowSplash(false);
+            if (e.key === "Enter" || e.key === " ") handleSkipSplash();
           }}
           className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#07090e] px-4 text-center cursor-pointer select-none transition-all duration-500 ${
             isFading ? "opacity-0 scale-105 pointer-events-none" : "opacity-100 scale-100"
