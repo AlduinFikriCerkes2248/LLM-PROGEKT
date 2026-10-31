@@ -406,6 +406,7 @@ export default function OnlinePage() {
 
   // НАДСИЛАННЯ ПРИГЛОСУ
   async function handleSendChallenge() {
+    if (isDemoMode) return;
     if (!isChallenging || !currentUser) return;
     const stake = Number(duelStake);
     if (!Number.isInteger(stake) || stake < 1) {
@@ -513,6 +514,7 @@ export default function OnlinePage() {
 
   // ДІЯ ГРАВЦЯ В БЛЕКДЖЕКУ: HIT (Взяти карту)
   async function handleBjHit() {
+    if (isDemoMode) return;
     if (!liveBjMatch || isActing || !currentUser) return;
     setIsActing(true);
 
@@ -595,6 +597,7 @@ export default function OnlinePage() {
 
   // ДІЯ ГРАВЦЯ В БЛЕКДЖЕКУ: STAND (Зупинитися)
   async function handleBjStand() {
+    if (isDemoMode) return;
     if (!liveBjMatch || isActing || !currentUser) return;
     setIsActing(true);
 
@@ -776,6 +779,7 @@ export default function OnlinePage() {
 
   // ПРИЙНЯТИ ВИКЛИК ЖИВОГО ГРАВЦЯ
   async function handleRespondInvite(invite: DuelInvite, action: "accept" | "decline") {
+    if (isDemoMode) return;
     const client = getSupabaseClient();
     if (!client) return;
 
@@ -852,6 +856,7 @@ export default function OnlinePage() {
   }
 
   async function handleClaimTimeout() {
+    if (isDemoMode) return;
     if (!liveBjMatch || isClaimingTimeout || liveBjMatch.isBotMatch) return;
     const client = getSupabaseClient();
     if (!client) return;

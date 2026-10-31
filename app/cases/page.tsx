@@ -174,7 +174,7 @@ export default function CasesPage() {
   }
 
   async function handleOpenDailyCase() {
-    if (isOpening) return;
+    if (isDemoMode || isOpening) return;
     const client = getSupabaseClient();
     if (!client) {
       setErrorMessage("Підключення до Supabase відсутнє.");
@@ -235,7 +235,7 @@ export default function CasesPage() {
   }
 
   async function handleBuyWithHohlyantsi(caseItem: CaseItem) {
-    if (isOpening) return;
+    if (isDemoMode || isOpening) return;
     const client = getSupabaseClient();
     if (!client) {
       setErrorMessage("Підключення до Supabase відсутнє.");
