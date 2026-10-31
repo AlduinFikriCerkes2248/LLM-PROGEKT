@@ -1,4 +1,6 @@
 "use client";
+import { DemoNoticeBadge } from "../demo-banner";
+import { HeraldicCelebrationModal } from "../heraldic-coat-of-arms";
 
 import Link from "next/link";
 import {
@@ -71,6 +73,7 @@ export default function LeaguesPage() {
   const [createdInviteCode, setCreatedInviteCode] = useState<string | null>(null);
   const [inviteCodeInput, setInviteCodeInput] = useState("");
   const [isJoining, setIsJoining] = useState(false);
+  const [newlyCreatedLeague, setNewlyCreatedLeague] = useState<{ title: string; inviteCode: string } | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joinStatus, setJoinStatus] = useState<string | null>(null);
 
@@ -134,9 +137,19 @@ export default function LeaguesPage() {
         return;
       }
 
+      const inviteCode = crypto
+        .randomUUID()
+        .replaceAll("-", "")
+        .slice(0, 12)
+        .toUpperCase();
+
       const { data: leagueData, error: leagueError } = await client
         .from("leagues")
-        .insert({ title, created_by: authData.user.id })
+        .insert({
+          title,
+          invite_code: inviteCode,
+          owner_id: authData.user.id,
+        })
         .select("id, title, invite_code")
         .single();
 
@@ -144,12 +157,14 @@ export default function LeaguesPage() {
 
       const newLeague = leagueData as League & { invite_code: string };
       setCreatedInviteCode(newLeague.invite_code);
+      setNewlyCreatedLeague({ title: newLeague.title, inviteCode: newLeague.invite_code });
       setLeagues((prev) => [...prev, { id: newLeague.id, title: newLeague.title }]);
       setLeagueTitle("");
 
       const { error: memberError } = await client.from("league_members").insert({
         league_id: newLeague.id,
         user_id: authData.user.id,
+        role: "owner",
       });
 
       if (memberError) {
@@ -158,7 +173,21 @@ export default function LeaguesPage() {
       }
     } catch (error) {
       console.error("Не вдалося створити лігу:", error);
-      setFormError("Не вдалося створити лігу. Спробуйте ще раз.");
+      const code = getErrorCode(error);
+      if (code === "23503") {
+        setFormError(
+          "Ваш профіль не знайдено. Переконайтеся, що в profiles заповнено обов’язкове поле username.",
+        );
+      } else if (code === "23505") {
+        setFormError(
+          "Не вдалося створити лігу через дубльований запис. Спробуйте ще раз.",
+        );
+      } else if (code === "42501") {
+        setFormError("Недостатньо прав для створення ліги. Перевірте RLS політики.");
+      } else {
+        const msg = error instanceof Error ? error.message : (error && typeof error === "object" && "message" in error) ? String(error.message) : "Не вдалося створити лігу. Спробуйте ще раз.";
+        setFormError(msg);
+      }
     } finally {
       setIsCreating(false);
     }
@@ -266,6 +295,13 @@ export default function LeaguesPage() {
           </div>
         </div>
 
+        <HeraldicCelebrationModal
+        show={newlyCreatedLeague !== null}
+        onClose={() => setNewlyCreatedLeague(null)}
+        leagueTitle={newlyCreatedLeague?.title}
+        inviteCode={newlyCreatedLeague?.inviteCode}
+      />
+        <DemoNoticeBadge />
         {/* ASCII Header */}
         <header className="mb-10 text-center">
           <pre className="mx-auto hidden overflow-x-auto text-[0.45rem] font-bold leading-tight text-cyan-400 sm:block sm:text-[0.55rem] md:text-xs" aria-hidden="true">

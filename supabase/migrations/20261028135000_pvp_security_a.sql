@@ -251,7 +251,7 @@ BEGIN
     ELSE
       SELECT hohlyantsi INTO opp_val FROM public.profiles WHERE id = uid FOR UPDATE;
       IF opp_val IS NULL OR opp_val < d.stake THEN
-        RAISE EXCEPTION 'Недостатньо Хохлянців для ставки!';
+        RAISE EXCEPTION 'Недостатньо Бонусів для ставки!';
       END IF;
       UPDATE public.profiles SET hohlyantsi = hohlyantsi - d.stake WHERE id = uid;
     END IF;
@@ -611,15 +611,15 @@ BEGIN
   END IF;
 
   IF p_box_type = 'khokhlov' THEN
-    box_title := 'Хохловська заначка';
+    box_title := 'Кейс 1';
     coins_reward := 500 + floor(random() * 300)::int;
     xp_reward := 60;
   ELSIF p_box_type = 'marchenko' THEN
-    box_title := 'Світ Марченка';
+    box_title := 'Кейс 2';
     coins_reward := 20000 + floor(random() * 5000)::int;
     xp_reward := 400;
   ELSIF p_box_type = 'admin' THEN
-    box_title := 'Адміновська долина';
+    box_title := 'Кейс 3';
     coins_reward := 1000000;
     xp_reward := 5000;
   ELSE

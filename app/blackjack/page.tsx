@@ -1,4 +1,5 @@
 "use client";
+import { DemoNoticeBadge } from "../demo-banner";
 
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
@@ -38,7 +39,7 @@ const LEVELS = [
   { level: 4, title: "Професійний гравець", minXp: 1400, maxXp: 3000, maxBet: 15000 },
   { level: 5, title: "Хайролер", minXp: 3000, maxXp: 7000, maxBet: 50000 },
   { level: 6, title: "Тіньовий дилер", minXp: 7000, maxXp: 15000, maxBet: 120000 },
-  { level: 7, title: "VIP-Гість казино", minXp: 15000, maxXp: 30000, maxBet: 250000 },
+  { level: 7, title: "VIP-Гравець клубу", minXp: 15000, maxXp: 30000, maxBet: 250000 },
   { level: 8, title: "Магнат азарту", minXp: 30000, maxXp: 60000, maxBet: 500000 },
   { level: 9, title: "Сіндикат", minXp: 60000, maxXp: 120000, maxBet: 750000 },
   { level: 10, title: "Олігарх / Власник клубу", minXp: 120000, maxXp: 250000, maxBet: 1000000 },
@@ -524,6 +525,7 @@ export default function BlackjackPage() {
   return (
     <main className="min-h-screen flex-1 bg-[#07090c] px-3 py-6 font-mono text-slate-100 sm:px-8 sm:py-10">
       <div className="mx-auto max-w-5xl">
+        <DemoNoticeBadge />
         {/* Top Bar */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
           <Link

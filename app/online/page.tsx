@@ -147,18 +147,20 @@ type DiceDuelResult = {
   pot: number;
 };
 
+const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
 const BOT_PLAYERS: Player[] = [
   {
-    id: "bot-marchenko-01",
-    username: "Марченко [PRO-BOT]",
+    id: "bot-pro-01",
+    username: "PRO-бот",
     coins: 75400,
     hohlyantsi: 50,
     isBot: true,
     status: "online",
   },
   {
-    id: "bot-admin-khohlov-02",
-    username: "Адмін_Хохлов [VIP]",
+    id: "bot-vip-02",
+    username: "VIP-бот",
     coins: 1500000,
     hohlyantsi: 200,
     isBot: true,
@@ -166,7 +168,7 @@ const BOT_PLAYERS: Player[] = [
   },
   {
     id: "bot-syoma-03",
-    username: "Одесит_Сьома [Блефує]",
+    username: "Бот 1",
     coins: 14200,
     hohlyantsi: 30,
     isBot: true,
@@ -214,6 +216,7 @@ export default function OnlinePage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isDemoMode) return;
     async function init() {
       const client = getSupabaseClient();
       if (!client) return;
@@ -359,7 +362,8 @@ export default function OnlinePage() {
 
             setLiveBjMatch((prev) => {
               if (
-                prev?.duel_id === viewData.duel_id &&
+                prev &&
+                prev.duel_id === viewData.duel_id &&
                 prev.status === viewData.status &&
                 prev.current_turn === viewData.current_turn &&
                 prev.challenger_cards.length === chCards.length &&
@@ -402,6 +406,7 @@ export default function OnlinePage() {
 
   // НАДСИЛАННЯ ПРИГЛОСУ
   async function handleSendChallenge() {
+    if (isDemoMode) return;
     if (!isChallenging || !currentUser) return;
     const stake = Number(duelStake);
     if (!Number.isInteger(stake) || stake < 1) {
@@ -414,7 +419,7 @@ export default function OnlinePage() {
       return;
     }
     if (duelCurrency === "hohlyantsi" && currentUser.hohlyantsi < stake) {
-      setErrorMsg(`Недостатньо Хохлянців! Баланс: ${currentUser.hohlyantsi}`);
+      setErrorMsg(`Недостатньо Бонусів! Баланс: ${currentUser.hohlyantsi}`);
       return;
     }
 
@@ -509,6 +514,7 @@ export default function OnlinePage() {
 
   // ДІЯ ГРАВЦЯ В БЛЕКДЖЕКУ: HIT (Взяти карту)
   async function handleBjHit() {
+    if (isDemoMode) return;
     if (!liveBjMatch || isActing || !currentUser) return;
     setIsActing(true);
 
@@ -591,6 +597,7 @@ export default function OnlinePage() {
 
   // ДІЯ ГРАВЦЯ В БЛЕКДЖЕКУ: STAND (Зупинитися)
   async function handleBjStand() {
+    if (isDemoMode) return;
     if (!liveBjMatch || isActing || !currentUser) return;
     setIsActing(true);
 
@@ -772,6 +779,7 @@ export default function OnlinePage() {
 
   // ПРИЙНЯТИ ВИКЛИК ЖИВОГО ГРАВЦЯ
   async function handleRespondInvite(invite: DuelInvite, action: "accept" | "decline") {
+    if (isDemoMode) return;
     const client = getSupabaseClient();
     if (!client) return;
 
@@ -848,6 +856,7 @@ export default function OnlinePage() {
   }
 
   async function handleClaimTimeout() {
+    if (isDemoMode) return;
     if (!liveBjMatch || isClaimingTimeout || liveBjMatch.isBotMatch) return;
     const client = getSupabaseClient();
     if (!client) return;
@@ -897,6 +906,66 @@ export default function OnlinePage() {
     } finally {
       setIsClaimingTimeout(false);
     }
+  }
+
+  if (isDemoMode) {
+    return (
+      <main className="min-h-screen flex-1 bg-[#07090d] px-4 py-8 font-mono text-slate-100 sm:px-8 sm:py-12">
+        <div className="mx-auto max-w-4xl">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+            <Link
+              href="/leagues"
+              className="text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-100 transition"
+            >
+              ← Назад до списку ліг
+            </Link>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Link
+                href="/blackjack"
+                className="rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition"
+              >
+                🃏 Блекджек
+              </Link>
+              <Link
+                href="/wheel"
+                className="rounded-lg border border-purple-800 bg-purple-950/30 px-3 py-1.5 text-xs font-bold text-purple-300 hover:bg-purple-900/40 transition"
+              >
+                🎡 Колесо
+              </Link>
+            </div>
+          </div>
+
+          <div className="my-16 text-center">
+            <div className="mx-auto inline-flex h-20 w-20 items-center justify-center rounded-2xl border border-indigo-500/40 bg-indigo-950/30 text-4xl shadow-xl shadow-indigo-950/50 mb-6">
+              🌐
+            </div>
+            <div className="inline-block rounded-full border border-indigo-500/50 bg-indigo-950/40 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-indigo-300 mb-4">
+              Демо-режим
+            </div>
+            <h1 className="text-3xl font-extrabold text-white sm:text-4xl">
+              Недоступно в демо-версії
+            </h1>
+            <p className="mx-auto mt-4 max-w-md text-sm text-slate-400 leading-relaxed">
+              Мережеві PvP-дуелі між реальними гравцями вимкнено для показу освітнім партнерам. Ознайомтеся з одиночними режимами гри (Блекджек, Колесо фортуни) та лігами прогнозів.
+            </p>
+            <div className="mt-8 flex justify-center gap-3">
+              <Link
+                href="/leagues"
+                className="rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-500 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-indigo-900/40 transition hover:from-indigo-500 hover:to-cyan-400"
+              >
+                Перейти до ліг
+              </Link>
+              <Link
+                href="/blackjack"
+                className="rounded-xl border border-slate-700 bg-slate-800/80 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-200 transition hover:bg-slate-700"
+              >
+                Грати в Блекджек
+              </Link>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   function handleCloseLiveBj() {
@@ -963,7 +1032,7 @@ export default function OnlinePage() {
               <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 via-slate-400 to-slate-600 text-[10px] font-black text-slate-950">
                 Х
               </span>
-              <span>{currentUser ? currentUser.hohlyantsi : 25} Хохлянців</span>
+              <span>{currentUser ? currentUser.hohlyantsi : 25} Бонусів</span>
             </div>
           </div>
         </div>
@@ -1008,7 +1077,7 @@ export default function OnlinePage() {
               </div>
               <div className="rounded-xl border border-amber-500/50 bg-amber-950/40 px-4 py-1.5 text-xs font-black text-amber-300">
                 💰 БАНК ДУЕЛІ: {liveBjMatch.pot.toLocaleString()}{" "}
-                {liveBjMatch.currency === "coins" ? "🪙 Монет" : "🔘 Хохлянців"}
+                {liveBjMatch.currency === "coins" ? "🪙 Монет" : "🔘 Бонусів"}
               </div>
             </div>
 
@@ -1183,7 +1252,7 @@ export default function OnlinePage() {
                     Гравець <span className="text-amber-400 font-black">{inv.challenger_name}</span> кличе вас грати!
                   </div>
                   <div className="text-xs text-slate-300 mt-1">
-                    Ставка: <span className="font-black text-white">{inv.stake} {inv.currency === "coins" ? "🪙 Монет" : "🔘 Хохлянців"}</span>
+                    Ставка: <span className="font-black text-white">{inv.stake} {inv.currency === "coins" ? "🪙 Монет" : "🔘 Бонусів"}</span>
                   </div>
                 </div>
 
@@ -1223,7 +1292,7 @@ export default function OnlinePage() {
                 <div>
                   Ви викликали гравця <span className="font-bold text-indigo-400">{out.opponent_name}</span> у{" "}
                   {out.game_type === "blackjack" ? "Блекджек" : "Кості"} на {out.stake}{" "}
-                  {out.currency === "coins" ? "монет" : "хохлянців"}.
+                  {out.currency === "coins" ? "монет" : "бонусів"}.
                 </div>
                 <button
                   type="button"
@@ -1269,7 +1338,7 @@ export default function OnlinePage() {
                     <div className="flex items-center gap-2 mt-1 text-xs">
                       <span className="text-amber-400 font-bold">🪙 {player.coins.toLocaleString()}</span>
                       <span className="text-slate-400">·</span>
-                      <span className="text-slate-300 font-bold">🔘 {player.hohlyantsi} Х</span>
+                      <span className="text-slate-300 font-bold">🔘 {player.hohlyantsi} Б</span>
                     </div>
                   </div>
                 </div>
@@ -1366,7 +1435,7 @@ export default function OnlinePage() {
                         : "border-slate-800 bg-slate-900 text-slate-400"
                     }`}
                   >
-                    🔘 Хохлянці
+                    🔘 Бонуси
                   </button>
                 </div>
               </div>

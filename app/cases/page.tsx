@@ -7,7 +7,7 @@ import {
   PROFILE_UPDATED_EVENT,
 } from "../../lib/supabase/client";
 
-type CaseType = "khokhlov" | "marchenko" | "admin";
+type CaseType = "starter" | "pro";
 
 type CaseItem = {
   id: CaseType;
@@ -23,45 +23,36 @@ type CaseItem = {
   icon: string;
 };
 
+
+
+const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
 const CASES: CaseItem[] = [
   {
-    id: "khokhlov",
-    title: "Хохловська заначка",
-    tagline: "Класична народна схованка під подушкою на чорний день.",
+    id: "starter",
+    title: "Кейс 1",
+    tagline: "Швидкий стартовий набір монет та очок досвіду.",
     coinsDisplay: "500 - 800 монет",
     xpDisplay: "+60 XP",
     hohlyantsiPrice: 5,
-    badge: "СТАРТОВИЙ КЕЙС",
+    badge: "СТАРТОВИЙ",
     badgeColor: "border-emerald-600/50 bg-emerald-950/40 text-emerald-300",
     boxColor: "from-emerald-950 via-slate-900 to-black border-emerald-700/60",
     glowColor: "rgba(16,185,129,0.15)",
     icon: "📦",
   },
   {
-    id: "marchenko",
-    title: "Світ Марченка",
-    tagline: "Солідний дипломат із цінними паперами та готівкою.",
+    id: "pro",
+    title: "Кейс 2",
+    tagline: "Солідний запас монет для великої гри.",
     coinsDisplay: "20 000 - 25 000 монет",
     xpDisplay: "+400 XP",
     hohlyantsiPrice: 25,
-    badge: "РІДКІСНИЙ КЕЙС",
+    badge: "ПРОФЕСІЙНИЙ",
     badgeColor: "border-cyan-600/50 bg-cyan-950/40 text-cyan-300",
     boxColor: "from-cyan-950 via-slate-900 to-black border-cyan-500/60",
     glowColor: "rgba(6,182,212,0.25)",
     icon: "💼",
-  },
-  {
-    id: "admin",
-    title: "Адміновська долина",
-    tagline: "Справжній джекпот сервера. Доступ до скарбниці адміністратора.",
-    coinsDisplay: "1 000 000 МОНЕТ",
-    xpDisplay: "+5 000 XP",
-    hohlyantsiPrice: 100,
-    badge: "ЛЕГЕНДАРНИЙ ДЖЕКПОТ",
-    badgeColor: "border-amber-500 bg-amber-950/50 text-amber-300 animate-pulse",
-    boxColor: "from-amber-950 via-yellow-950/40 to-black border-yellow-500",
-    glowColor: "rgba(245,158,11,0.35)",
-    icon: "👑",
   },
 ];
 
@@ -86,8 +77,10 @@ export default function CasesPage() {
     }
   });
 
+
   useEffect(() => {
     async function loadBalances() {
+      if (isDemoMode) return;
       const client = getSupabaseClient();
       if (!client) return;
       const { data: authData } = await client.auth.getUser();
@@ -107,8 +100,68 @@ export default function CasesPage() {
     void loadBalances();
   }, []);
 
+  if (isDemoMode) {
+    return (
+      <main className="min-h-screen flex-1 bg-[#090b0e] px-4 py-8 font-mono text-slate-100 sm:px-8 sm:py-12">
+        <div className="mx-auto max-w-3xl">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+            <Link
+              href="/leagues"
+              className="text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-100 transition"
+            >
+              ← До ліг
+            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/blackjack"
+                className="rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-1 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition"
+              >
+                🃏 Блекджек
+              </Link>
+              <Link
+                href="/wheel"
+                className="rounded-lg border border-purple-800 bg-purple-950/30 px-3 py-1 text-xs font-bold text-purple-300 hover:bg-purple-900/40 transition"
+              >
+                🎡 Колесо
+              </Link>
+            </div>
+          </div>
+
+          <div className="my-16 text-center">
+            <div className="mx-auto inline-flex h-20 w-20 items-center justify-center rounded-2xl border border-amber-500/40 bg-amber-950/30 text-4xl shadow-xl shadow-amber-950/50 mb-6">
+              🔒
+            </div>
+            <div className="inline-block rounded-full border border-amber-500/50 bg-amber-950/40 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-amber-300 mb-4">
+              Демо-режим
+            </div>
+            <h1 className="text-3xl font-extrabold text-white sm:text-4xl">
+              Недоступно в демо-версії
+            </h1>
+            <p className="mx-auto mt-4 max-w-md text-sm text-slate-400 leading-relaxed">
+              Відкриття кейсів вимкнено для показу освітнім партнерам. Інші розділи платформи (ліги прогнозів, блекджек, колесо) доступні з віртуальними монетами.
+            </p>
+            <div className="mt-8 flex justify-center gap-3">
+              <Link
+                href="/leagues"
+                className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-emerald-900/40 transition hover:from-emerald-500 hover:to-teal-400"
+              >
+                Перейти до ліг прогнозів
+              </Link>
+              <Link
+                href="/blackjack"
+                className="rounded-xl border border-slate-700 bg-slate-800/80 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-200 transition hover:bg-slate-700"
+              >
+                Грати в Блекджек
+              </Link>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   async function handleOpenDailyCase() {
-    if (isOpening) return;
+    if (isDemoMode || isOpening) return;
     const client = getSupabaseClient();
     if (!client) {
       setErrorMessage("Підключення до Supabase відсутнє.");
@@ -121,14 +174,14 @@ export default function CasesPage() {
 
     try {
       const { data, error } = await client.rpc("open_loot_box", {
-        p_box_type: "khokhlov",
+        p_box_type: "starter",
       });
 
       if (error) throw error;
 
       if (data && data.success) {
         setOpenedReward({
-          box: data.box,
+          box: "Кейс 1",
           coins: data.coins,
           xp: data.xp,
           costMessage: "Безкоштовний щоденний бонус",
@@ -169,7 +222,7 @@ export default function CasesPage() {
   }
 
   async function handleBuyWithHohlyantsi(caseItem: CaseItem) {
-    if (isOpening) return;
+    if (isDemoMode || isOpening) return;
     const client = getSupabaseClient();
     if (!client) {
       setErrorMessage("Підключення до Supabase відсутнє.");
@@ -177,7 +230,7 @@ export default function CasesPage() {
     }
 
     if (hohlyantsi !== null && hohlyantsi < caseItem.hohlyantsiPrice) {
-      setErrorMessage(`Недостатньо Хохлянців! Потрібно: ${caseItem.hohlyantsiPrice} 🔘`);
+      setErrorMessage(`Недостатньо Бонусів! Потрібно: ${caseItem.hohlyantsiPrice} 🔘`);
       return;
     }
 
@@ -192,17 +245,17 @@ export default function CasesPage() {
 
       if (error) {
         if (error.message.includes("insufficient_hohlyantsi")) {
-          throw new Error("Недостатньо хохлянців на вашому рахунку.");
+          throw new Error("Недостатньо Бонусів на вашому рахунку.");
         }
         throw error;
       }
 
       if (data && data.success) {
         setOpenedReward({
-          box: data.box,
+          box: "Кейс 1",
           coins: data.coins_reward,
           xp: data.xp_reward,
-          costMessage: `Куплено за ${data.cost} Хохлянців`,
+          costMessage: `Куплено за ${data.cost} Бонусів`,
         });
 
         try {
@@ -222,7 +275,7 @@ export default function CasesPage() {
       setErrorMessage(
         err instanceof Error
           ? err.message
-          : "Помилка при купівлі кейсу за Хохлянці. Перевірте базу даних."
+          : "Помилка при купівлі кейсу за Бонуси. Перевірте базу даних."
       );
     } finally {
       setIsOpening(false);
@@ -263,12 +316,12 @@ export default function CasesPage() {
             <div className="font-mono text-xs text-amber-400 font-semibold">
               🪙 {balance === null ? "—" : `${balance.toLocaleString()} монет`}
             </div>
-            {/* Баланс Хохлянців */}
+            {/* Баланс Бонусів */}
             <div className="flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/80 px-2.5 py-1 text-xs font-bold text-slate-200 shadow-inner">
               <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 via-slate-400 to-slate-600 text-[10px] font-black text-slate-950">
-                Х
+                Б
               </span>
-              <span>{hohlyantsi === null ? "25" : hohlyantsi.toLocaleString()} Хохлянців</span>
+              <span>{hohlyantsi === null ? "25" : hohlyantsi.toLocaleString()} Бонусів</span>
             </div>
           </div>
         </div>
@@ -276,13 +329,13 @@ export default function CasesPage() {
         {/* Header */}
         <header className="mb-10 text-center">
           <div className="inline-block rounded-full border border-amber-600/40 bg-amber-950/20 px-4 py-1 text-xs text-amber-300 font-bold mb-3">
-            🎁 СЕКРЕТНІ КЕЙСИ ТА ВАЛЮТА «ХОХЛЯНЦІ»
+            🎁 СЕКРЕТНІ КЕЙСИ ТА ВАЛЮТА «БОНУСИ»
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
             КЕЙСИ ТА КВЕСТИ
           </h1>
           <p className="mx-auto mt-2 max-w-xl text-xs text-slate-400 sm:text-sm">
-            Забирай щоденний бонус або купуй кейси за срібні Хохлянці, вибивай до 1 000 000 монет і прокачуй рівень агента!
+            Забирай щоденний бонус або купуй кейси за Бонуси, вибивай до 1 000 000 монет і прокачуй рівень агента!
           </p>
         </header>
 
@@ -294,7 +347,7 @@ export default function CasesPage() {
                 ⚡ БЕЗКОШТОВНИЙ ЩОДЕННИЙ БОНУС (1 РАЗ НА ДОБУ)
               </span>
               <h2 className="text-xl font-bold text-white mt-1">
-                Безкоштовна «Хохловська заначка»
+                Безкоштовний «Кейс 1»
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
                 Заходь щодня та отримуй 500-800 монет і +60 XP безкоштовно.
@@ -378,8 +431,8 @@ export default function CasesPage() {
                   <div className="text-[11px] text-slate-300 pt-1 border-t border-slate-800 flex items-center justify-center gap-1 font-bold">
                     <span>Ціна:</span>
                     <span className="text-slate-100">{c.hohlyantsiPrice}</span>
-                    <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-slate-400 text-[8px] font-black text-slate-950">Х</span>
-                    <span>Хохлянців</span>
+                    <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-slate-400 text-[8px] font-black text-slate-950">Б</span>
+                    <span>Бонусів</span>
                   </div>
                 </div>
               </div>
@@ -393,7 +446,7 @@ export default function CasesPage() {
                 >
                   {isOpening
                     ? "Відкриття..."
-                    : `Купити за ${c.hohlyantsiPrice} Хохлянців`}
+                    : `Купити за ${c.hohlyantsiPrice} Бонусів`}
                 </button>
               </div>
             </div>
@@ -402,7 +455,7 @@ export default function CasesPage() {
 
         {/* Footer */}
         <p className="mt-12 text-center text-xs text-slate-600">
-          Matchday Lootbox & Currency System · Хохлянці та монети віртуальні · 2026
+          Matchday Lootbox & Currency System · Бонуси та монети віртуальні · 2026
         </p>
       </div>
     </main>

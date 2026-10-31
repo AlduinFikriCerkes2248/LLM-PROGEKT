@@ -1,4 +1,5 @@
 "use client";
+import { DemoNoticeBadge } from "../demo-banner";
 
 import Link from "next/link";
 import { useEffect, useState, type TransitionEvent } from "react";
@@ -177,6 +178,7 @@ export default function WheelPage() {
           ← До ліг
         </Link>
 
+        <DemoNoticeBadge />
         {/* ASCII Header */}
         <header className="mb-8 text-center">
           <pre className="mx-auto hidden overflow-x-auto text-[0.45rem] font-bold leading-tight text-yellow-400 sm:block sm:text-[0.55rem] md:text-xs" aria-hidden="true">
