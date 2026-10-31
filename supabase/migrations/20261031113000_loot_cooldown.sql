@@ -61,15 +61,15 @@ BEGIN
 
   -- Визначення нагороди та нейтральної назви кейсу
   IF p_box_type = 'khokhlov' OR p_box_type = 'starter' THEN
-    box_title := 'Стартовий кейс';
+    box_title := 'Кейс 1';
     coins_reward := 500 + floor(random() * 300)::int;
     xp_reward := 60;
   ELSIF p_box_type = 'marchenko' OR p_box_type = 'pro' THEN
-    box_title := 'PRO-кейс';
+    box_title := 'Кейс 2';
     coins_reward := 20000 + floor(random() * 5000)::int;
     xp_reward := 400;
   ELSIF p_box_type = 'admin' OR p_box_type = 'vip' THEN
-    box_title := 'VIP-кейс';
+    box_title := 'Кейс 3';
     coins_reward := 1000000;
     xp_reward := 5000;
   ELSE

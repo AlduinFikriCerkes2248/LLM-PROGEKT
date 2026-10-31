@@ -122,7 +122,7 @@ begin
     else
       select hohlyantsi into opp_val from public.profiles where id = uid;
       if opp_val is null or opp_val < d.stake then
-        raise exception 'Недостатньо Хохлянців для ставки!';
+        raise exception 'Недостатньо Бонусів для ставки!';
       end if;
       update public.profiles set hohlyantsi = hohlyantsi - d.stake where id = uid;
     end if;

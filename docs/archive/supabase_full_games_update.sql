@@ -1,9 +1,9 @@
 -- ====================================================================
--- MATCHDAY · ПОВНЕ ОНОВЛЕННЯ БАЗИ ДАНИХ (КАЗИНО, КЕЙСИ, ХОХЛЯНЦІ, ОНЛАЙН)
+-- MATCHDAY · ПОВНЕ ОНОВЛЕННЯ БАЗИ ДАНИХ (ІГРИ, КЕЙСИ, БОНУСИ, ОНЛАЙН)
 -- Виконайте цей SQL у Supabase SQL Editor
 -- ====================================================================
 
--- 1. Додавання другої валюти "hohlyantsi" (Хохлянці) до таблиці profiles
+-- 1. Додавання другої валюти "hohlyantsi" (Бонуси) до таблиці profiles
 alter table public.profiles 
 add column if not exists hohlyantsi integer not null default 25 check (hohlyantsi >= 0);
 
@@ -145,15 +145,15 @@ begin
   end if;
 
   if p_box_type = 'khokhlov' then
-    box_title := 'Хохловська заначка';
+    box_title := 'Кейс 1';
     coins_reward := 500 + floor(random() * 300)::int;
     xp_reward := 60;
   elsif p_box_type = 'marchenko' then
-    box_title := 'Світ Марченка';
+    box_title := 'Кейс 2';
     coins_reward := 20000 + floor(random() * 5000)::int;
     xp_reward := 400;
   elsif p_box_type = 'admin' then
-    box_title := 'Адміновська долина';
+    box_title := 'Кейс 3';
     coins_reward := 1000000;
     xp_reward := 5000;
   else
@@ -171,7 +171,7 @@ begin
 end;
 $$;
 
--- 5. Функція купівлі кейсів за Хохлянці (друга сіра валюта)
+-- 5. Функція купівлі кейсів за Бонуси (друга сіра валюта)
 create or replace function public.buy_case_with_hohlyantsi(p_box_type text)
 returns jsonb
 language plpgsql
@@ -193,17 +193,17 @@ begin
 
   if p_box_type = 'khokhlov' then
     cost := 5;
-    box_title := 'Хохловська заначка';
+    box_title := 'Кейс 1';
     coins_reward := 500 + floor(random() * 300)::int;
     xp_reward := 60;
   elsif p_box_type = 'marchenko' then
     cost := 25;
-    box_title := 'Світ Марченка';
+    box_title := 'Кейс 2';
     coins_reward := 20000 + floor(random() * 5000)::int;
     xp_reward := 400;
   elsif p_box_type = 'admin' then
     cost := 100;
-    box_title := 'Адміновська долина';
+    box_title := 'Кейс 3';
     coins_reward := 1000000;
     xp_reward := 5000;
   else
@@ -215,7 +215,7 @@ begin
     raise exception 'insufficient_hohlyantsi';
   end if;
 
-  -- Списуємо хохлянці і додаємо монети
+  -- Списуємо бонуси і додаємо монети
   update public.profiles 
   set hohlyantsi = hohlyantsi - cost,
       coins = coins + coins_reward 

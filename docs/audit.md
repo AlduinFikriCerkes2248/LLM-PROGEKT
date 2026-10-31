@@ -24,13 +24,13 @@
 ### 🔴 Пункт 1.1: Прямий `SELECT` колоди та карт суперника з таблиці `pvp_duels`
 * **Файл і рядки:** 
   * `app/online/page.tsx:326-343` (клієнтське опитування через Supabase SDK)
-  * `supabase_full_games_update.sql:267-273` (RLS-політика на таблицю)
+  * `docs/archive/supabase_full_games_update.sql:267-273` (RLS-політика на таблицю)
 * **Ризик (Критичний):**
   * У файлі `app/online/page.tsx` клієнт кожні 2 секунди виконує прямий запит:
     ```typescript
     .select(`id, challenger_id, opponent_id, deck, challenger_cards, opponent_cards, challenger_score, opponent_score...`)
     ```
-  * У файлі `supabase_full_games_update.sql:269-273` діє політика:
+  * У файлі `docs/archive/supabase_full_games_update.sql:269-273` діє політика:
     ```sql
     CREATE POLICY "Authenticated users can view duels"
     ON public.pvp_duels FOR ALL TO authenticated USING (true) WITH CHECK (true);
@@ -85,8 +85,8 @@
 
 ### 🔴 Пункт 1.2: Витік карт суперника у відповідях RPC-функцій
 * **Файл і рядки:**
-  * `supabase_pvp_blackjack_turn_based.sql:204-214` (функція `respond_duel_invite`)
-  * `supabase_pvp_blackjack_turn_based.sql:381-390` (функція `pvp_bj_action`)
+  * `docs/archive/supabase_pvp_blackjack_turn_based.sql:204-214` (функція `respond_duel_invite`)
+  * `docs/archive/supabase_pvp_blackjack_turn_based.sql:381-390` (функція `pvp_bj_action`)
 * **Ризик (Високий):**
   * Навіть закривши інтерфейсно карти плашкою "Таємниця", серверні функції повертають повні масиви обох гравців:
     ```sql
@@ -106,7 +106,7 @@
 
 ### 🔴 Пункт 1.3: Закрита карта дилера та колода в Соло-Блекджеку
 * **Файл і рядки:**
-  * `supabase_full_games_update.sql:52-56` (функція `bj_start`)
+  * `docs/archive/supabase_full_games_update.sql:52-56` (функція `bj_start`)
   * `app/blackjack/page.tsx:373-378`
 * **Ризик (Середній/Високий):**
   * Гра записується в таблицю `public.blackjack_games` із колонками `dealer_cards` (2 карти, де 1 має бути схована) та `deck`. Якщо на таблицю є доступ `SELECT` для власника гри, гравець через `supabase.from('blackjack_games').select('dealer_cards, deck')` бачить другу карту дилера та всі наступні карти колоди.
@@ -118,7 +118,7 @@
 ## 2. Безпека таблиці profiles: пряма зміна монет і бонусів
 
 * **Файл і рядки:**
-  * `supabase_full_games_update.sql:7-8`
+  * `docs/archive/supabase_full_games_update.sql:7-8`
   * `app/auth-status-indicator.tsx:42`
 * **Ризик (Критичний):**
   * За замовчуванням у Supabase політика для профілів часто створюється як `CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);` або RLS взагалі не забороняє зміну окремих колонок.
@@ -174,7 +174,7 @@
 
 ### Деталі знайдених дефектів у функціях:
 
-#### 1. `open_loot_box` (`supabase_full_games_update.sql:132-172` та `app/cases/page.tsx:84`)
+#### 1. `open_loot_box` (`docs/archive/supabase_full_games_update.sql:132-172` та `app/cases/page.tsx:84`)
 * **Ризик:** Функція взагалі не містить перевірки дати або кулдауну в базі даних. Обмеження перевіряється виключно в клієнтському коді через `localStorage.getItem("matchday:last_daily_case")`. Користувач може викликати `supabase.rpc('open_loot_box', { p_box_type: 'admin' })` у циклі 1000 разів і отримати 1 000 000 000 монет за хвилину.
 * **Фікс:** Додати до таблиці `profiles` колонку `last_case_opened_at timestamptz`. У функції перевіряти:
   ```sql
@@ -184,7 +184,7 @@
   UPDATE public.profiles SET coins = coins + coins_reward, last_case_opened_at = now() WHERE id = uid;
   ```
 
-#### 2. `respond_duel_invite` (`supabase_pvp_blackjack_turn_based.sql:84-128`)
+#### 2. `respond_duel_invite` (`docs/archive/supabase_pvp_blackjack_turn_based.sql:84-128`)
 * **Ризик:** Рядок дуелі вибирається без блокування:
   ```sql
   select * into d from public.pvp_duels where id = p_duel_id;
@@ -202,7 +202,7 @@
   SELECT coins INTO opp_val FROM public.profiles WHERE id = uid FOR UPDATE;
   ```
 
-#### 3. `pvp_bj_action` (`supabase_pvp_blackjack_turn_based.sql:248-260`)
+#### 3. `pvp_bj_action` (`docs/archive/supabase_pvp_blackjack_turn_based.sql:248-260`)
 * **Ризик:** Відсутність `FOR UPDATE` на `pvp_duels`. Якщо гравець робить подвійний клік на кнопку `HIT`:
   Обидва потоки зчитують однаковий `deck[1]`, додають гравцю дві однакові карти і списують лише одну з колоди, або подвоюють виплату банку, якщо обидва потоки одночасно фіксують кінець матчу.
 * **Фікс:** Додати `FOR UPDATE` до `SELECT * INTO d FROM public.pvp_duels WHERE id = p_duel_id FOR UPDATE;`.
@@ -232,8 +232,8 @@
 ## 5. Заморожені ставки при закритті вкладки
 
 * **Файл і рядки:**
-  * `supabase_pvp_blackjack_turn_based.sql:185-215` (статус гри стає `'playing'`)
-  * `supabase_full_games_update.sql:317, 400` (ставки списані з обох гравців)
+  * `docs/archive/supabase_pvp_blackjack_turn_based.sql:185-215` (статус гри стає `'playing'`)
+  * `docs/archive/supabase_full_games_update.sql:317, 400` (ставки списані з обох гравців)
   * `app/online/page.tsx:338-344` (вибірка активної гри)
 * **Ризик (Критичний для UX):**
   * Якщо Гравець А надіслав виклик, Гравець Б прийняв (ставки по 100 монет списалися в банк), гра перейшла в статус `playing`.
@@ -302,9 +302,9 @@
 Нижче наведено повний вичерпний перелік місць, де використовуються прізвища викладачів/персон:
 
 ### 1. Прізвище "[Нейтралізовано]" / "[Нейтралізовано]ська":
-* `supabase_full_games_update.sql:147-148` (`box_title := '[Нейтралізовано]ська заначка'`)
-* `supabase_full_games_update.sql:194-196` (`box_title := '[Нейтралізовано]ська заначка'`)
-* `supabase_update_cases_bj.sql:71-72` (`box_title := '[Нейтралізовано]ська заначка'`)
+* `docs/archive/supabase_full_games_update.sql:147-148` (`box_title := '[Нейтралізовано]ська заначка'`)
+* `docs/archive/supabase_full_games_update.sql:194-196` (`box_title := '[Нейтралізовано]ська заначка'`)
+* `docs/archive/supabase_update_cases_bj.sql:71-72` (`box_title := '[Нейтралізовано]ська заначка'`)
 * `app/cases/page.tsx:11` (`type CaseType = "khokhlov" | ...`)
 * `app/cases/page.tsx:29-30` (`id: "khokhlov", title: "[Нейтралізовано]ська заначка"`)
 * `app/cases/page.tsx:123` (`p_box_type: "khokhlov"`)
@@ -312,8 +312,8 @@
 * `app/online/page.tsx:147` (`username: "Адмін_[Нейтралізовано] [VIP]"`)
 
 ### 2. Прізвище "[Нейтралізовано]":
-* `supabase_full_games_update.sql:151, 199` (`p_box_type = 'marchenko'`, `Світ [Нейтралізовано]`)
-* `supabase_update_cases_bj.sql:75` (`Світ [Нейтралізовано]`)
+* `docs/archive/supabase_full_games_update.sql:151, 199` (`p_box_type = 'marchenko'`, `Світ [Нейтралізовано]`)
+* `docs/archive/supabase_update_cases_bj.sql:75` (`Світ [Нейтралізовано]`)
 * `app/cases/page.tsx:11, 42, 43` (`id: "marchenko", title: "Світ [Нейтралізовано]"`)
 * `app/online/page.tsx:138, 139` (`id: "bot-marchenko-01", username: "[Нейтралізовано] [PRO-BOT]"`)
 

@@ -69,15 +69,15 @@ begin
   end if;
 
   if p_box_type = 'khokhlov' then
-    box_title := 'Хохловська заначка';
+    box_title := 'Кейс 1';
     coins_reward := 500 + floor(random() * 200)::int; -- 500-700 монет
     xp_reward := 60;
   elsif p_box_type = 'marchenko' then
-    box_title := 'Світ Марченка';
+    box_title := 'Кейс 2';
     coins_reward := 20000 + floor(random() * 5000)::int; -- 20000-25000 монет
     xp_reward := 400;
   elsif p_box_type = 'admin' then
-    box_title := 'Адміновська долина';
+    box_title := 'Кейс 3';
     coins_reward := 1000000; -- Рівно 1 000 000 монет
     xp_reward := 5000;
   else
