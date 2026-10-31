@@ -151,7 +151,7 @@ const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 const BOT_PLAYERS: Player[] = [
   {
-    id: "bot-marchenko-01",
+    id: "bot-pro-01",
     username: "PRO-бот",
     coins: 75400,
     hohlyantsi: 50,
@@ -159,7 +159,7 @@ const BOT_PLAYERS: Player[] = [
     status: "online",
   },
   {
-    id: "bot-admin-khohlov-02",
+    id: "bot-vip-02",
     username: "VIP-бот",
     coins: 1500000,
     hohlyantsi: 200,
@@ -1338,7 +1338,7 @@ export default function OnlinePage() {
                     <div className="flex items-center gap-2 mt-1 text-xs">
                       <span className="text-amber-400 font-bold">🪙 {player.coins.toLocaleString()}</span>
                       <span className="text-slate-400">·</span>
-                      <span className="text-slate-300 font-bold">🔘 {player.hohlyantsi} Х</span>
+                      <span className="text-slate-300 font-bold">🔘 {player.hohlyantsi} Б</span>
                     </div>
                   </div>
                 </div>

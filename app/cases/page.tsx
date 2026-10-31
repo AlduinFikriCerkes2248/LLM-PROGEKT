@@ -7,7 +7,7 @@ import {
   PROFILE_UPDATED_EVENT,
 } from "../../lib/supabase/client";
 
-type CaseType = "khokhlov" | "marchenko" | "admin";
+type CaseType = "starter" | "pro";
 
 type CaseItem = {
   id: CaseType;
@@ -29,43 +29,30 @@ const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 const CASES: CaseItem[] = [
   {
-    id: "khokhlov",
+    id: "starter",
     title: "Кейс 1",
-    tagline: "Класична стартова схованка на кожен день.",
+    tagline: "Швидкий стартовий набір монет та очок досвіду.",
     coinsDisplay: "500 - 800 монет",
     xpDisplay: "+60 XP",
     hohlyantsiPrice: 5,
-    badge: "СТАРТОВИЙ КЕЙС",
+    badge: "СТАРТОВИЙ",
     badgeColor: "border-emerald-600/50 bg-emerald-950/40 text-emerald-300",
     boxColor: "from-emerald-950 via-slate-900 to-black border-emerald-700/60",
     glowColor: "rgba(16,185,129,0.15)",
     icon: "📦",
   },
   {
-    id: "marchenko",
+    id: "pro",
     title: "Кейс 2",
-    tagline: "Солідний дипломат із цінними ресурсами.",
+    tagline: "Солідний запас монет для великої гри.",
     coinsDisplay: "20 000 - 25 000 монет",
     xpDisplay: "+400 XP",
     hohlyantsiPrice: 25,
-    badge: "РІДКІСНИЙ КЕЙС",
+    badge: "ПРОФЕСІЙНИЙ",
     badgeColor: "border-cyan-600/50 bg-cyan-950/40 text-cyan-300",
     boxColor: "from-cyan-950 via-slate-900 to-black border-cyan-500/60",
     glowColor: "rgba(6,182,212,0.25)",
     icon: "💼",
-  },
-  {
-    id: "admin",
-    title: "Кейс 3",
-    tagline: "Справжній джекпот. Доступ до скарбниці.",
-    coinsDisplay: "1 000 000 МОНЕТ",
-    xpDisplay: "+5 000 XP",
-    hohlyantsiPrice: 100,
-    badge: "ЛЕГЕНДАРНИЙ ДЖЕКПОТ",
-    badgeColor: "border-amber-500 bg-amber-950/50 text-amber-300 animate-pulse",
-    boxColor: "from-amber-950 via-yellow-950/40 to-black border-yellow-500",
-    glowColor: "rgba(245,158,11,0.35)",
-    icon: "👑",
   },
 ];
 
@@ -187,7 +174,7 @@ export default function CasesPage() {
 
     try {
       const { data, error } = await client.rpc("open_loot_box", {
-        p_box_type: "khokhlov",
+        p_box_type: "starter",
       });
 
       if (error) throw error;
