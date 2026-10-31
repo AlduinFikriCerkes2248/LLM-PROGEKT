@@ -362,7 +362,8 @@ export default function OnlinePage() {
 
             setLiveBjMatch((prev) => {
               if (
-                prev?.duel_id === viewData.duel_id &&
+                prev &&
+                prev.duel_id === viewData.duel_id &&
                 prev.status === viewData.status &&
                 prev.current_turn === viewData.current_turn &&
                 prev.challenger_cards.length === chCards.length &&

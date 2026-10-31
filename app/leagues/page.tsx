@@ -137,9 +137,19 @@ export default function LeaguesPage() {
         return;
       }
 
+      const inviteCode = crypto
+        .randomUUID()
+        .replaceAll("-", "")
+        .slice(0, 12)
+        .toUpperCase();
+
       const { data: leagueData, error: leagueError } = await client
         .from("leagues")
-        .insert({ title, created_by: authData.user.id })
+        .insert({
+          title,
+          invite_code: inviteCode,
+          owner_id: authData.user.id,
+        })
         .select("id, title, invite_code")
         .single();
 
@@ -154,6 +164,7 @@ export default function LeaguesPage() {
       const { error: memberError } = await client.from("league_members").insert({
         league_id: newLeague.id,
         user_id: authData.user.id,
+        role: "owner",
       });
 
       if (memberError) {
@@ -162,7 +173,21 @@ export default function LeaguesPage() {
       }
     } catch (error) {
       console.error("Не вдалося створити лігу:", error);
-      setFormError("Не вдалося створити лігу. Спробуйте ще раз.");
+      const code = getErrorCode(error);
+      if (code === "23503") {
+        setFormError(
+          "Ваш профіль не знайдено. Переконайтеся, що в profiles заповнено обов’язкове поле username.",
+        );
+      } else if (code === "23505") {
+        setFormError(
+          "Не вдалося створити лігу через дубльований запис. Спробуйте ще раз.",
+        );
+      } else if (code === "42501") {
+        setFormError("Недостатньо прав для створення ліги. Перевірте RLS політики.");
+      } else {
+        const msg = error instanceof Error ? error.message : (error && typeof error === "object" && "message" in error) ? String(error.message) : "Не вдалося створити лігу. Спробуйте ще раз.";
+        setFormError(msg);
+      }
     } finally {
       setIsCreating(false);
     }
