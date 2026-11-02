@@ -1,5 +1,5 @@
 // Supabase Edge Function: sync-results
-// Syncs football match results from external sports API using apply_auto_result RPC.
+// Syncs football match results from football-data.org v4 using apply_auto_result RPC.
 // Protected by x-cron-secret header against CRON_SECRET. API keys are strictly read from secrets.
 
 declare const Deno: {
@@ -24,7 +24,7 @@ interface ExternalMatchResult {
   awayScore: number | null;
 }
 
-// Fetch single match result from external sports API with rate limit safety
+// Fetch single match result from football-data.org v4 with rate limit safety
 async function fetchExternalMatch(
   externalId: string,
   apiKey: string,
@@ -40,20 +40,14 @@ async function fetchExternalMatch(
   });
 
   if (!response.ok) {
-    throw new Error(`External API returned status ${response.status} for match ${externalId}`);
+    throw new Error(`football-data.org v4 returned status ${response.status} for match ${externalId}`);
   }
 
   const data = await response.json();
+  const statusRaw = String(data.status || "").toUpperCase();
 
-  const statusRaw = String(
-    data.match?.status ||
-    data.status ||
-    data.fixture?.status?.short ||
-    "",
-  ).toUpperCase();
-
-  // 1. Статуси CANCELLED / CANCELED -> cancelled
-  if (statusRaw === "CANCELLED" || statusRaw === "CANCELED") {
+  // 1. Скасовані матчі (CANCELLED)
+  if (statusRaw === "CANCELLED") {
     return {
       status: "cancelled",
       homeScore: null,
@@ -61,27 +55,16 @@ async function fetchExternalMatch(
     };
   }
 
-  // 2. POSTPONED / SUSPENDED / ABANDONED -> пропускаємо з логом
+  // 2. Перенесені чи перервані матчі (POSTPONED, SUSPENDED, ABANDONED) -> пропускаємо з логом
   if (["POSTPONED", "SUSPENDED", "ABANDONED"].includes(statusRaw)) {
-    console.log(`[sync-results] Skipping match external_id ${externalId}: status is ${statusRaw}`);
+    console.log(`[sync-results] Skipping match ${externalId}: status is ${statusRaw}`);
     return null;
   }
 
-  // 3. Статуси наживо (live)
-  if (["IN_PLAY", "LIVE", "PAUSED", "HT", "HALF_TIME", "1H", "2H", "BREAK"].includes(statusRaw)) {
-    const liveHome =
-      data.score?.fullTime?.home ??
-      data.score?.current?.home ??
-      data.goals?.home ??
-      data.homeScore ??
-      null;
-
-    const liveAway =
-      data.score?.fullTime?.away ??
-      data.score?.current?.away ??
-      data.goals?.away ??
-      data.awayScore ??
-      null;
+  // 3. Матчі наживо (IN_PLAY, PAUSED)
+  if (["IN_PLAY", "PAUSED"].includes(statusRaw)) {
+    const liveHome = data.score?.fullTime?.home;
+    const liveAway = data.score?.fullTime?.away;
 
     return {
       status: "live",
@@ -90,8 +73,8 @@ async function fetchExternalMatch(
     };
   }
 
-  // 4. Статуси завершених матчів (finished)
-  if (["FINISHED", "FT", "AET", "PEN", "FULL_TIME", "ENDED"].includes(statusRaw)) {
+  // 4. Завершені матчі (FINISHED)
+  if (statusRaw === "FINISHED") {
     const duration = String(data.score?.duration || "REGULAR").toUpperCase();
 
     // Якщо duration не REGULAR, беремо score.regularTime, а без нього пропускаємо з логом
@@ -101,7 +84,7 @@ async function fetchExternalMatch(
 
       if (regHome === null || regHome === undefined || regAway === null || regAway === undefined) {
         console.warn(
-          `[sync-results] Skipping finished match external_id ${externalId}: duration is ${duration} but score.regularTime is missing`,
+          `[sync-results] Skipping match ${externalId}: duration is ${duration} but score.regularTime is missing`,
         );
         return null;
       }
@@ -113,26 +96,13 @@ async function fetchExternalMatch(
       };
     }
 
-    // Для регулярного часу
-    const homeScoreRaw =
-      data.score?.regularTime?.home ??
-      data.score?.fullTime?.home ??
-      data.score?.current?.home ??
-      data.goals?.home ??
-      data.homeScore ??
-      null;
-
-    const awayScoreRaw =
-      data.score?.regularTime?.away ??
-      data.score?.fullTime?.away ??
-      data.score?.current?.away ??
-      data.goals?.away ??
-      data.awayScore ??
-      null;
+    // Для регулярного часу: беремо fullTime
+    const homeScoreRaw = data.score?.fullTime?.home;
+    const awayScoreRaw = data.score?.fullTime?.away;
 
     if (homeScoreRaw === null || awayScoreRaw === null || homeScoreRaw === undefined || awayScoreRaw === undefined) {
       console.warn(
-        `[sync-results] Skipping finished match external_id ${externalId}: missing scores in API response`,
+        `[sync-results] Skipping finished match ${externalId}: missing fullTime scores in API response`,
       );
       return null;
     }
@@ -144,8 +114,8 @@ async function fetchExternalMatch(
     };
   }
 
-  // 5. Заплановані статуси
-  if (["TIMED", "SCHEDULED", "PLANNED", "NOT_STARTED", "NS"].includes(statusRaw)) {
+  // 5. Заплановані матчі (SCHEDULED, TIMED)
+  if (["SCHEDULED", "TIMED"].includes(statusRaw)) {
     return {
       status: "planned",
       homeScore: null,
@@ -154,12 +124,12 @@ async function fetchExternalMatch(
   }
 
   // 6. Невідомі статуси -> пропускаємо з логом
-  console.log(`[sync-results] Skipping match external_id ${externalId}: unknown status '${statusRaw}'`);
+  console.log(`[sync-results] Skipping match ${externalId}: unhandled status '${statusRaw}'`);
   return null;
 }
 
 Deno.serve(async (req: Request) => {
-  // Дозволено лише POST
+  // Лише POST-запити
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed. Use POST." }), {
       status: 405,
@@ -184,7 +154,7 @@ Deno.serve(async (req: Request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const footballApiKey = Deno.env.get("FOOTBALL_API_KEY") || Deno.env.get("SPORTS_API_KEY");
+  const footballApiKey = Deno.env.get("FOOTBALL_API_KEY");
   const footballApiUrl =
     Deno.env.get("FOOTBALL_API_URL") || "https://api.football-data.org/v4/matches";
 
@@ -208,9 +178,9 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Отримуємо матчі з external_id, які вже розпочалися або заплановані, і ще не finished / cancelled
+    // Пачка з 8 матчів, які вже почалися або тривають, і ще не finished / cancelled
     const nowIso = new Date().toISOString();
-    const queryUrl = `${supabaseUrl}/rest/v1/matches?external_id=not.is.null&status=not.in.(finished,cancelled)&match_time=lte.${nowIso}&select=id,external_id,match_time,status,home_score,away_score&order=match_time.asc&limit=30`;
+    const queryUrl = `${supabaseUrl}/rest/v1/matches?external_id=not.is.null&status=not.in.(finished,cancelled)&match_time=lte.${nowIso}&select=id,external_id,match_time,status,home_score,away_score&order=match_time.asc&limit=8`;
 
     const matchesRes = await fetch(queryUrl, {
       headers: {
@@ -225,7 +195,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const matches: MatchRow[] = await matchesRes.json();
-    console.log(`[sync-results] Found ${matches.length} active match(es) with external_id to sync`);
+    console.log(`[sync-results] Found ${matches.length} active match(es) with external_id (batch limit 8)`);
 
     const results = {
       totalFound: matches.length,
@@ -239,8 +209,10 @@ Deno.serve(async (req: Request) => {
     for (const match of matches) {
       results.processed++;
       try {
-        // Затримка для дотримання лімітів зовнішнього API (250ms)
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        // Затримка 7 секунд між запитами для суворого дотримання rate limits (football-data.org free tier: 10 req/min)
+        if (results.processed > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 7000));
+        }
 
         const externalResult = await fetchExternalMatch(
           match.external_id,
@@ -256,7 +228,7 @@ Deno.serve(async (req: Request) => {
         // Заборона переводити у finished без обох рахунків
         if (externalResult.status === "finished" && (externalResult.homeScore === null || externalResult.awayScore === null)) {
           console.warn(
-            `[sync-results] Match ${match.id} has status finished but missing score (${externalResult.homeScore}:${externalResult.awayScore}). Skipping.`,
+            `[sync-results] Match ${match.id} is finished but scores are missing. Skipping.`,
           );
           results.skipped++;
           continue;

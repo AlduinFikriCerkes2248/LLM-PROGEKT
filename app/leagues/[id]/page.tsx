@@ -496,6 +496,7 @@ export default function LeagueDetailsPage() {
     }
   }
 
+  // Додавання матчу власником (включаючи external_id)
   async function handleAddMatch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const client = getSupabaseClient();
@@ -505,19 +506,25 @@ export default function LeagueDetailsPage() {
     const teamHome = String(form.get("team-home")).trim();
     const teamAway = String(form.get("team-away")).trim();
     const matchTime = String(form.get("match-time"));
+    const externalId = String(form.get("external-id") || "").trim() || null;
 
     setBusyAction("add-match");
     setActionError(null);
     setActionMessage(null);
 
     try {
-      const { error } = await client.from("matches").insert({
+      const insertPayload: Record<string, unknown> = {
         league_id: details.league.id,
         team_home: teamHome,
         team_away: teamAway,
         match_time: new Date(matchTime).toISOString(),
         status: "planned",
-      });
+      };
+      if (externalId) {
+        insertPayload.external_id = externalId;
+      }
+
+      const { error } = await client.from("matches").insert(insertPayload);
 
       if (error) throw error;
       setActionMessage("Матч успішно додано у розклад!");
@@ -530,6 +537,36 @@ export default function LeagueDetailsPage() {
     }
   }
 
+  // Швидке редагування для існуючого матчу (update лише колонки external_id)
+  async function handleUpdateExternalId(event: FormEvent<HTMLFormElement>, match: Match) {
+    event.preventDefault();
+    const client = getSupabaseClient();
+    if (!client || !details) return;
+
+    const form = new FormData(event.currentTarget);
+    const externalId = String(form.get("external-id") || "").trim() || null;
+
+    setBusyAction(`ext-${match.id}`);
+    setActionError(null);
+    setActionMessage(null);
+
+    try {
+      const { error } = await client
+        .from("matches")
+        .update({ external_id: externalId })
+        .eq("id", match.id);
+
+      if (error) throw error;
+      setActionMessage("API ID матчу оновлено!");
+      reload();
+    } catch (err) {
+      setActionError(getActionError(err, "Не вдалося оновити API ID матчу."));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  // Ручне внесення результату (result_source = 'manual')
   async function handleSaveResult(event: FormEvent<HTMLFormElement>, match: Match) {
     event.preventDefault();
     const client = getSupabaseClient();
@@ -550,6 +587,7 @@ export default function LeagueDetailsPage() {
           home_score: homeScore,
           away_score: awayScore,
           status: "finished",
+          result_source: "manual",
         })
         .eq("id", match.id)
         .eq("league_id", details.league.id)
@@ -744,7 +782,7 @@ export default function LeagueDetailsPage() {
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">
                     🔑 КОД ДЛЯ ЗАПРОШЕННЯ ДРУЗІВ:
                   </span>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-[11px] text-slate-400 mt-0.5">
                     Поділіться цим кодом, щоб друзі могли вступити у вашу лігу
                   </p>
                 </div>
@@ -793,11 +831,11 @@ export default function LeagueDetailsPage() {
               </div>
 
               {details.members.length === 0 ? (
-                <p className="py-6 text-center text-xs text-slate-500">У цій лізі поки немає учасників.</p>
+                <p className="py-6 text-center text-xs text-slate-400">У цій лізі поки немає учасників.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs font-mono">
-                    <thead className="border-b border-slate-800 text-slate-500">
+                    <thead className="border-b border-slate-800 text-slate-400">
                       <tr>
                         <th className="pb-2.5">#</th>
                         <th className="pb-2.5">Учасник</th>
@@ -809,7 +847,7 @@ export default function LeagueDetailsPage() {
                     <tbody className="divide-y divide-slate-800/60">
                       {details.members.map((member, idx) => (
                         <tr key={member.user_id} className="hover:bg-slate-800/30 transition">
-                          <td className="py-3 font-bold text-slate-500">{idx + 1}</td>
+                          <td className="py-3 font-bold text-slate-400">{idx + 1}</td>
                           <td className="py-3 font-bold text-white flex items-center gap-1.5">
                             <span>{idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "👤"}</span>
                             <span>{member.profile?.username ?? "Гравець"}</span>
@@ -851,7 +889,7 @@ export default function LeagueDetailsPage() {
                   <h2 className="text-xl font-black text-white">Додати матч у розклад</h2>
                 </div>
 
-                <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" onSubmit={handleAddMatch}>
+                <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5" onSubmit={handleAddMatch}>
                   <div>
                     <label htmlFor="team-home" className="mb-1.5 block text-xs font-bold text-slate-300">
                       Господарі (Команда 1)
@@ -892,6 +930,19 @@ export default function LeagueDetailsPage() {
                       className={fieldClassName}
                     />
                   </div>
+                  <div>
+                    <label htmlFor="external-id" className="mb-1.5 block text-xs font-bold text-slate-300">
+                      API ID (external_id, опц.)
+                    </label>
+                    <input
+                      id="external-id"
+                      name="external-id"
+                      type="text"
+                      placeholder="Напр. 493321"
+                      maxLength={50}
+                      className={fieldClassName}
+                    />
+                  </div>
                   <div className="flex items-end">
                     <button
                       type="submit"
@@ -918,7 +969,7 @@ export default function LeagueDetailsPage() {
                 <div className="rounded-3xl border-2 border-dashed border-slate-800 bg-[#0d1017] p-12 text-center text-slate-400">
                   <span className="text-4xl">⚽</span>
                   <h3 className="mt-3 text-base font-bold text-white">У цій лізі поки немає матчів</h3>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-slate-400">
                     {isOwner ? "Створіть перший матч у панелі організатора вище!" : "Організатор ліги незабаром додасть матчі."}
                   </p>
                 </div>
@@ -972,7 +1023,7 @@ export default function LeagueDetailsPage() {
                                 </span>
                               )}
                               {match.last_synced_at && (
-                                <span className="text-[10px] text-slate-500">
+                                <span className="text-[10px] text-slate-400">
                                   (синхр: {formatMatchTime(match.last_synced_at)})
                                 </span>
                               )}
@@ -1004,12 +1055,35 @@ export default function LeagueDetailsPage() {
                         {/* Кнопки модерації організатора */}
                         {isOwner && (
                           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/60 pb-4">
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-3">
                               {started && !isFinished && !isCancelled && (
                                 <span className="text-xs font-bold text-amber-400">
                                   Матч розпочався! Внесіть результат після фінального свистка:
                                 </span>
                               )}
+                              {/* Швидке редагування external_id (update лише колонки external_id) */}
+                              <form
+                                className="flex flex-wrap items-center gap-2"
+                                onSubmit={(e) => void handleUpdateExternalId(e, match)}
+                              >
+                                <label className="text-[10px] text-slate-400 font-bold uppercase">
+                                  API ID:
+                                </label>
+                                <input
+                                  name="external-id"
+                                  type="text"
+                                  placeholder="ID у провайдера"
+                                  defaultValue={match.external_id ?? ""}
+                                  className="h-9 w-32 rounded-lg border border-slate-700 bg-slate-900 px-2.5 text-xs text-white"
+                                />
+                                <button
+                                  type="submit"
+                                  disabled={busyAction === `ext-${match.id}`}
+                                  className="min-h-[44px] rounded-lg border border-cyan-700 bg-cyan-950/40 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-900/60 transition"
+                                >
+                                  {busyAction === `ext-${match.id}` ? "..." : "Зберегти ID"}
+                                </button>
+                              </form>
                             </div>
                             <div className="flex items-center gap-2">
                               <button
@@ -1024,7 +1098,7 @@ export default function LeagueDetailsPage() {
                           </div>
                         )}
 
-                        {/* Внесення результату (Організатор вручну) */}
+                        {/* Внесення результату (Організатор вручну, result_source = 'manual') */}
                         {isOwner && started && !isCancelled && (
                           <form
                             className="mt-5 rounded-2xl border border-amber-600/50 bg-amber-950/20 p-4"
@@ -1103,7 +1177,7 @@ export default function LeagueDetailsPage() {
                                   className={fieldClassName}
                                 />
                               </div>
-                              <span className="pb-3 text-xl font-bold text-slate-500">:</span>
+                              <span className="pb-3 text-xl font-bold text-slate-400">:</span>
                               <div className="w-24">
                                 <label className="mb-1 block text-[10px] text-slate-400 truncate">
                                   {match.team_away}
@@ -1222,7 +1296,7 @@ export default function LeagueDetailsPage() {
                                 Прогнози на гру:
                               </span>
                               {visiblePredictions.length === 0 ? (
-                                <p className="text-slate-600">Прогнозів немає</p>
+                                <p className="text-slate-400">Прогнозів немає</p>
                               ) : (
                                 <ul className="space-y-1">
                                   {visiblePredictions.map((pred) => (
@@ -1248,7 +1322,7 @@ export default function LeagueDetailsPage() {
                                 Ставки монет:
                               </span>
                               {visibleBets.length === 0 ? (
-                                <p className="text-slate-600">Ставок немає</p>
+                                <p className="text-slate-400">Ставок немає</p>
                               ) : (
                                 <ul className="space-y-1">
                                   {visibleBets.map((bet) => (

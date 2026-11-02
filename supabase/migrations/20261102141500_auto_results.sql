@@ -8,6 +8,11 @@ ALTER TABLE public.matches
   ADD COLUMN IF NOT EXISTS result_source TEXT DEFAULT 'manual',
   ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMPTZ;
 
+-- Обмеження на джерело результату: manual або auto
+ALTER TABLE public.matches DROP CONSTRAINT IF EXISTS matches_result_source_check;
+ALTER TABLE public.matches ADD CONSTRAINT matches_result_source_check
+  CHECK (result_source IN ('manual', 'auto'));
+
 -- Оновлення обмеження на статус: planned, live, finished, cancelled
 ALTER TABLE public.matches DROP CONSTRAINT IF EXISTS matches_status_check;
 ALTER TABLE public.matches ADD CONSTRAINT matches_status_check
@@ -18,7 +23,7 @@ ALTER TABLE public.matches ALTER COLUMN status SET DEFAULT 'planned';
 -- 2. Створення функції apply_auto_result
 -- Приймає: p_match_id (UUID), p_home (INT), p_away (INT), p_status (TEXT)
 -- Виконується виключно service_role.
--- Без розрахунку виплат або нарахування очок прогнозистам (лише фіксація результату та повернення при скасуванні).
+-- Без виплат чи підрахунку очок (лише фіксація результату та повернення ставок при скасуванні).
 CREATE OR REPLACE FUNCTION public.apply_auto_result(
     p_match_id UUID,
     p_home INT DEFAULT NULL,
@@ -53,6 +58,14 @@ BEGIN
 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'match_not_found: %', p_match_id;
+    END IF;
+
+    -- Ранній вихід, якщо матч уже завершено або скасовано
+    IF v_match.status IN ('finished', 'cancelled') THEN
+        RETURN jsonb_build_object(
+            'success', TRUE,
+            'skipped', 'already_' || v_match.status
+        );
     END IF;
 
     -- Логіка для статусу CANCELLED: повернення ставок (refund)
@@ -159,8 +172,9 @@ COMMENT ON FUNCTION public.apply_auto_result(UUID, INT, INT, TEXT) IS 'Applies a
 -- ============================================================================
 -- 4. Приклад налаштування розкладу через pg_cron (закоментовано за вимогами)
 -- ============================================================================
--- Для автоматичного оновлення результатів матчів кожні 2 хвилини через pg_cron
--- та pg_net із заголовком x-cron-secret:
+-- Для автоматичного оновлення результатів матчів через pg_cron та pg_net.
+-- Безпека: ключі та токени рекомендується зберігати у Supabase Vault (vault.decrypted_secrets)
+-- замість відкритого тексту або current_setting.
 --
 -- CREATE EXTENSION IF NOT EXISTS pg_cron;
 -- CREATE EXTENSION IF NOT EXISTS pg_net;
@@ -174,8 +188,8 @@ COMMENT ON FUNCTION public.apply_auto_result(UUID, INT, INT, TEXT) IS 'Applies a
 --       url := 'https://<PROJECT-REF>.supabase.co/functions/v1/sync-results',
 --       headers := jsonb_build_object(
 --         'Content-Type', 'application/json',
---         'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key', true),
---         'x-cron-secret', '<YOUR_CRON_SECRET>'
+--         'Authorization', 'Bearer <SERVICE_ROLE_KEY_OR_FROM_VAULT>',
+--         'x-cron-secret', '<CRON_SECRET_OR_FROM_VAULT>'
 --       ),
 --       body := '{}'::jsonb
 --     ) AS request_id;
