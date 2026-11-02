@@ -3,7 +3,7 @@ import { DemoNoticeBadge } from "../../demo-banner";
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   getSupabaseClient,
   isSupabaseConfigured,
@@ -75,8 +75,10 @@ type LeagueDetails = {
   currentBalance: number | null;
 };
 
+type TabType = "schedule" | "leaderboard" | "my-history";
+
 const backLinkClassName =
-  "text-xs font-bold uppercase tracking-wider text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1.5";
+  "min-h-[44px] text-xs font-bold uppercase tracking-wider text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1.5";
 const fieldClassName =
   "h-12 w-full rounded-xl border-2 border-slate-700 bg-slate-900/90 px-3.5 font-mono text-sm font-semibold text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -161,6 +163,7 @@ export default function LeagueDetailsPage() {
     matchId: string;
     message: string;
   } | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>("schedule");
 
   const reload = useCallback(async () => {
     const client = getSupabaseClient();
@@ -597,6 +600,114 @@ export default function LeagueDetailsPage() {
 
   const [now] = useState(() => Date.now());
 
+  // Список прогнозів поточного користувача з розрахунком очок та статусу
+  const myPredictions = useMemo(() => {
+    if (!details || !currentUserId) return [];
+    const matchMap = new Map(details.matches.map((m) => [m.id, m]));
+
+    return details.predictions
+      .filter((p) => p.user_id === currentUserId)
+      .map((pred) => {
+        const match = matchMap.get(pred.match_id);
+        let points: number | null = null;
+        let outcomeStatus: "exact" | "outcome" | "miss" | "live" | "scheduled" = "scheduled";
+
+        if (match) {
+          const isFinished = match.status === "finished";
+          const hasScores = match.home_score !== null && match.away_score !== null;
+          const started = isFinished || now >= new Date(match.match_time).getTime();
+
+          if (isFinished && hasScores) {
+            const actualDiff = match.home_score! - match.away_score!;
+            const predDiff = pred.predicted_home_score - pred.predicted_away_score;
+
+            if (
+              match.home_score === pred.predicted_home_score &&
+              match.away_score === pred.predicted_away_score
+            ) {
+              points = 3;
+              outcomeStatus = "exact";
+            } else if (
+              (actualDiff > 0 && predDiff > 0) ||
+              (actualDiff < 0 && predDiff < 0) ||
+              (actualDiff === 0 && predDiff === 0)
+            ) {
+              points = 1;
+              outcomeStatus = "outcome";
+            } else {
+              points = 0;
+              outcomeStatus = "miss";
+            }
+          } else if (started) {
+            outcomeStatus = "live";
+          } else {
+            outcomeStatus = "scheduled";
+          }
+        }
+
+        return {
+          ...pred,
+          match,
+          points,
+          outcomeStatus,
+        };
+      })
+      .sort((a, b) => {
+        const timeA = a.match ? new Date(a.match.match_time).getTime() : 0;
+        const timeB = b.match ? new Date(b.match.match_time).getTime() : 0;
+        return timeB - timeA;
+      });
+  }, [details, currentUserId, now]);
+
+  // Статистика гравця в лізі
+  const userStats = useMemo(() => {
+    if (!myPredictions.length) {
+      return {
+        exactScores: 0,
+        correctOutcomes: 0,
+        totalFinished: 0,
+        accuracyPct: 0,
+        currentStreak: 0,
+      };
+    }
+
+    const finished = myPredictions.filter(
+      (p) => p.match?.status === "finished" && p.points !== null,
+    );
+
+    let exactScores = 0;
+    let correctOutcomes = 0;
+
+    for (const p of finished) {
+      if (p.points === 3) exactScores++;
+      else if (p.points === 1) correctOutcomes++;
+    }
+
+    const totalFinished = finished.length;
+    const accuracyPct =
+      totalFinished > 0
+        ? Math.round(((exactScores + correctOutcomes) / totalFinished) * 100)
+        : 0;
+
+    // Поточна серія влучань (іде підряд від найновішого завершеного матчу, де очок > 0)
+    let currentStreak = 0;
+    for (const p of finished) {
+      if (p.points !== null && p.points > 0) {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
+
+    return {
+      exactScores,
+      correctOutcomes,
+      totalFinished,
+      accuracyPct,
+      currentStreak,
+    };
+  }, [myPredictions]);
+
   return (
     <main className="min-h-screen flex-1 bg-[#07090d] px-4 py-8 font-mono text-slate-100 sm:px-8 sm:py-12">
       <div className="mx-auto max-w-5xl">
@@ -609,25 +720,25 @@ export default function LeagueDetailsPage() {
           <div className="flex flex-wrap items-center gap-2.5">
             <Link
               href="/online"
-              className="rounded-lg border border-indigo-500/80 bg-indigo-950/40 px-3 py-1.5 text-xs font-bold text-indigo-300 hover:bg-indigo-900/60 transition shadow-sm"
+              className="min-h-[44px] flex items-center rounded-lg border border-indigo-500/80 bg-indigo-950/40 px-3 py-1.5 text-xs font-bold text-indigo-300 hover:bg-indigo-900/60 transition shadow-sm"
             >
               🌐 Онлайн Дуелі
             </Link>
             <Link
               href="/dice"
-              className="rounded-lg border border-red-600/60 bg-red-950/30 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-900/40 transition"
+              className="min-h-[44px] flex items-center rounded-lg border border-red-600/60 bg-red-950/30 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-900/40 transition"
             >
               🎲 Кості
             </Link>
             <Link
               href="/blackjack"
-              className="rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition"
+              className="min-h-[44px] flex items-center rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition"
             >
               🃏 Блекджек
             </Link>
             <Link
               href="/cases"
-              className="rounded-lg border border-purple-800 bg-purple-950/30 px-3 py-1.5 text-xs font-bold text-purple-300 hover:bg-purple-900/40 transition"
+              className="min-h-[44px] flex items-center rounded-lg border border-purple-800 bg-purple-950/30 px-3 py-1.5 text-xs font-bold text-purple-300 hover:bg-purple-900/40 transition"
             >
               🎁 Кейси
             </Link>
@@ -645,7 +756,10 @@ export default function LeagueDetailsPage() {
             <span className="text-4xl">🔍</span>
             <h1 className="mt-3 text-2xl font-black text-white">ЛІГУ НЕ ЗНАЙДЕНО</h1>
             <p className="mt-1 text-xs text-slate-400">Можливо її було видалено або код невірний.</p>
-            <Link href="/leagues" className="mt-5 inline-block rounded-xl bg-cyan-600 px-6 py-2.5 text-xs font-bold uppercase text-black hover:bg-cyan-500 transition">
+            <Link
+              href="/leagues"
+              className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-xl bg-cyan-600 px-6 py-2.5 text-xs font-bold uppercase text-black hover:bg-cyan-500 transition"
+            >
               До списку ліг
             </Link>
           </section>
@@ -685,6 +799,36 @@ export default function LeagueDetailsPage() {
                   </div>
                 )}
               </div>
+
+              {/* Швидка стрічка персональної статистики гравця */}
+              {currentUserId && (
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80 pt-4 text-xs">
+                  <div className="flex flex-wrap items-center gap-3 text-slate-300">
+                    <span className="font-bold text-white">Ваша статистика:</span>
+                    <span className="rounded-lg bg-emerald-950/60 border border-emerald-600/50 px-2.5 py-1 text-emerald-300 font-bold">
+                      🎯 Точні: {userStats.exactScores}
+                    </span>
+                    <span className="rounded-lg bg-cyan-950/60 border border-cyan-600/50 px-2.5 py-1 text-cyan-300 font-bold">
+                      ⚽ Результати: {userStats.correctOutcomes}
+                    </span>
+                    <span className="rounded-lg bg-indigo-950/60 border border-indigo-600/50 px-2.5 py-1 text-indigo-300 font-bold">
+                      📊 Точність: {userStats.accuracyPct}%
+                    </span>
+                    <span className="rounded-lg bg-amber-950/60 border border-amber-600/50 px-2.5 py-1 text-amber-300 font-bold">
+                      🔥 Серія: {userStats.currentStreak}
+                    </span>
+                  </div>
+                  {activeTab !== "my-history" && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("my-history")}
+                      className="min-h-[44px] text-xs font-bold text-cyan-400 hover:text-cyan-300 underline underline-offset-4 transition"
+                    >
+                      Відкрити мою історію →
+                    </button>
+                  )}
+                </div>
+              )}
             </header>
 
             {/* Інвайт-код блок */}
@@ -705,7 +849,7 @@ export default function LeagueDetailsPage() {
                   <button
                     type="button"
                     onClick={handleCopyInviteCode}
-                    className="rounded-xl bg-gradient-to-r from-cyan-600 to-teal-500 px-5 py-2.5 text-xs font-black uppercase text-black hover:from-cyan-400 hover:to-teal-300 transition shadow-md"
+                    className="min-h-[44px] rounded-xl bg-gradient-to-r from-cyan-600 to-teal-500 px-5 py-2.5 text-xs font-black uppercase text-black hover:from-cyan-400 hover:to-teal-300 transition shadow-md"
                   >
                     📋 Копіювати
                   </button>
@@ -731,478 +875,858 @@ export default function LeagueDetailsPage() {
               </div>
             )}
 
-            {/* ТАБЛИЦЯ ЛІДЕРІВ / УЧАСНИКИ ЛІГИ */}
-            <section className="mb-10 rounded-3xl border-2 border-slate-800 bg-[#0c1017] p-6 shadow-xl">
-              <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
-                <h2 className="text-base font-black text-amber-300 uppercase tracking-wider flex items-center gap-2">
-                  <span>🏆</span> ТАБЛИЦЯ ЛІДЕРІВ ЛІГИ ({details.members.length})
-                </h2>
-                <span className="text-xs text-slate-400 font-bold">
-                  Правила: +3 за точний рахунок, +1 за вгаданий результат
-                </span>
-              </div>
+            {/* ВКЛАДКИ НАВІГАЦІЇ */}
+            <div className="mb-8 flex flex-wrap items-center gap-2 border-b border-slate-800 pb-4">
+              <button
+                type="button"
+                onClick={() => setActiveTab("schedule")}
+                className={`min-h-[44px] rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-wider transition ${
+                  activeTab === "schedule"
+                    ? "bg-gradient-to-r from-cyan-500 to-teal-400 text-black shadow-md shadow-cyan-500/20"
+                    : "border border-slate-700 bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                ⚽ Розклад матчів ({details.matches.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("leaderboard")}
+                className={`min-h-[44px] rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-wider transition ${
+                  activeTab === "leaderboard"
+                    ? "bg-gradient-to-r from-amber-500 to-amber-400 text-black shadow-md shadow-amber-500/20"
+                    : "border border-slate-700 bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                🏆 Таблиця лідерів ({details.members.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("my-history")}
+                className={`min-h-[44px] rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-wider transition ${
+                  activeTab === "my-history"
+                    ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md shadow-purple-500/20"
+                    : "border border-slate-700 bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                📊 Моя історія ({myPredictions.length})
+              </button>
+            </div>
 
-              {details.members.length === 0 ? (
-                <p className="py-6 text-center text-xs text-slate-500">У цій лізі поки немає учасників.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs font-mono">
-                    <thead className="border-b border-slate-800 text-slate-500">
-                      <tr>
-                        <th className="pb-2.5">#</th>
-                        <th className="pb-2.5">Учасник</th>
-                        <th className="pb-2.5">Роль</th>
-                        <th className="pb-2.5 text-center">Точні рахунки</th>
-                        <th className="pb-2.5 text-right">Бали ліги</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/60">
-                      {details.members.map((member, idx) => (
-                        <tr key={member.user_id} className="hover:bg-slate-800/30 transition">
-                          <td className="py-3 font-bold text-slate-500">{idx + 1}</td>
-                          <td className="py-3 font-bold text-white flex items-center gap-1.5">
-                            <span>{idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "👤"}</span>
-                            <span>{member.profile?.username ?? "Гравець"}</span>
-                          </td>
-                          <td className="py-3">
-                            <span
-                              className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase ${
-                                member.role === "owner"
-                                  ? "border border-amber-600/50 bg-amber-950/30 text-amber-300"
-                                  : "border border-slate-700 bg-slate-800 text-slate-300"
-                              }`}
+            {/* ВКЛАДКА 1: МОЯ ІСТОРІЯ ТА СТАТИСТИКА */}
+            {activeTab === "my-history" && (
+              <section className="mb-10 space-y-8">
+                {/* 1. Блок статистики гравця в лізі */}
+                <div>
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="text-xl font-black text-white uppercase tracking-wider flex items-center gap-2">
+                      <span>📊</span> ВАША СТАТИСТИКА В ЛІЗІ
+                    </h2>
+                    <span className="text-xs text-slate-400">
+                      На основі {userStats.totalFinished} зіграних матчів
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+                    {/* Точні рахунки */}
+                    <div className="rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-950/40 to-[#0c1418] p-4 sm:p-5 shadow-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase text-emerald-400">Точні рахунки</span>
+                        <span className="text-xl">🎯</span>
+                      </div>
+                      <div className="mt-3 text-3xl sm:text-4xl font-black text-emerald-300">
+                        {userStats.exactScores}
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        +3 очки за кожен вгаданий рахунок
+                      </p>
+                    </div>
+
+                    {/* Вгадані результати */}
+                    <div className="rounded-2xl border-2 border-cyan-500/40 bg-gradient-to-br from-cyan-950/40 to-[#0c131a] p-4 sm:p-5 shadow-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase text-cyan-400">Результати</span>
+                        <span className="text-xl">⚽</span>
+                      </div>
+                      <div className="mt-3 text-3xl sm:text-4xl font-black text-cyan-300">
+                        {userStats.correctOutcomes}
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        +1 очко за переможця або нічию
+                      </p>
+                    </div>
+
+                    {/* Точність */}
+                    <div className="rounded-2xl border-2 border-indigo-500/40 bg-gradient-to-br from-indigo-950/40 to-[#0f121e] p-4 sm:p-5 shadow-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase text-indigo-400">Точність</span>
+                        <span className="text-xl">📈</span>
+                      </div>
+                      <div className="mt-3 text-3xl sm:text-4xl font-black text-indigo-300">
+                        {userStats.accuracyPct}%
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        {userStats.totalFinished > 0
+                          ? `${userStats.exactScores + userStats.correctOutcomes} з ${userStats.totalFinished} влучних`
+                          : "Очікує результатів"}
+                      </p>
+                    </div>
+
+                    {/* Поточна серія */}
+                    <div className="rounded-2xl border-2 border-amber-500/40 bg-gradient-to-br from-amber-950/40 to-[#18130c] p-4 sm:p-5 shadow-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase text-amber-400">Поточна серія</span>
+                        <span className="text-xl">🔥</span>
+                      </div>
+                      <div className="mt-3 text-3xl sm:text-4xl font-black text-amber-300">
+                        {userStats.currentStreak}
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        {userStats.currentStreak > 0
+                          ? "Матчів поспіль з набраними очками"
+                          : "Зробіть точний прогноз!"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Список моїх прогнозів */}
+                <div className="rounded-3xl border-2 border-slate-800 bg-[#0c1017] p-5 sm:p-6 shadow-xl">
+                  <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <h3 className="text-base font-black text-white uppercase tracking-wider flex items-center gap-2">
+                      <span>📜</span> МОЇ ПРОГНОЗИ ПО МАТЧАХ ({myPredictions.length})
+                    </h3>
+                    <span className="text-xs text-slate-400 font-bold">
+                      Всього набрано: +{userStats.exactScores * 3 + userStats.correctOutcomes} оч.
+                    </span>
+                  </div>
+
+                  {myPredictions.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400">
+                      <span className="text-4xl">📝</span>
+                      <h4 className="mt-3 text-base font-bold text-white">
+                        Ви ще не зробили жодного прогнозу в цій лізі
+                      </h4>
+                      <p className="mt-1 text-xs text-slate-400 max-w-md mx-auto">
+                        Оберіть матч у розкладі, вкажіть очікуваний рахунок та змагайтеся з друзями за перше місце в таблиці!
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("schedule")}
+                        className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 px-6 py-2.5 text-xs font-black uppercase text-black hover:brightness-110 transition shadow-md"
+                      >
+                        ⚽ Перейти до розкладу матчів
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Мобільна версія (<640px): картки */}
+                      <div className="space-y-4 sm:hidden">
+                        {myPredictions.map((pred) => {
+                          const m = pred.match;
+                          return (
+                            <div
+                              key={pred.id}
+                              className="rounded-2xl border border-slate-800 bg-[#0e1422] p-4 shadow-sm"
                             >
-                              {member.role === "owner" ? "👑 Організатор" : "⚽ Гравець"}
-                            </span>
-                          </td>
-                          <td className="py-3 text-center text-slate-300 font-bold">
-                            {member.exactScores}
-                          </td>
-                          <td className="py-3 text-right">
-                            <span className="rounded-lg bg-emerald-950/60 border border-emerald-500/50 px-3 py-1 font-black text-emerald-300 text-sm">
-                              +{member.points} оч.
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
+                              <div className="flex items-start justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+                                <div>
+                                  <div className="font-bold text-white text-sm">
+                                    {m ? `${m.team_home} — ${m.team_away}` : "Матч"}
+                                  </div>
+                                  <div className="text-[11px] text-slate-400 mt-0.5">
+                                    {m ? formatMatchTime(m.match_time) : "—"}
+                                  </div>
+                                </div>
+                                <div>
+                                  {pred.outcomeStatus === "exact" && (
+                                    <span className="inline-block rounded-lg border border-emerald-500/60 bg-emerald-950/60 px-2 py-0.5 text-[10px] font-black text-emerald-300">
+                                      🎯 Точний (+3)
+                                    </span>
+                                  )}
+                                  {pred.outcomeStatus === "outcome" && (
+                                    <span className="inline-block rounded-lg border border-cyan-500/60 bg-cyan-950/60 px-2 py-0.5 text-[10px] font-black text-cyan-300">
+                                      ⚽ Вгадано (+1)
+                                    </span>
+                                  )}
+                                  {pred.outcomeStatus === "miss" && (
+                                    <span className="inline-block rounded-lg border border-rose-500/40 bg-rose-950/40 px-2 py-0.5 text-[10px] font-bold text-rose-300">
+                                      ✕ Не вгадано (0)
+                                    </span>
+                                  )}
+                                  {pred.outcomeStatus === "live" && (
+                                    <span className="inline-block rounded-lg border border-amber-500/60 bg-amber-950/60 px-2 py-0.5 text-[10px] font-bold text-amber-300 animate-pulse">
+                                      ⚡ Наживо
+                                    </span>
+                                  )}
+                                  {pred.outcomeStatus === "scheduled" && (
+                                    <span className="inline-block rounded-lg border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-400">
+                                      🟢 Очікується
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
 
-            {/* ПАНЕЛЬ ОРГАНІЗАТОРА (ДОДАТИ МАТЧ) */}
-            {isOwner && (
-              <section className="mb-10 rounded-3xl border-2 border-cyan-800/60 bg-gradient-to-r from-cyan-950/30 via-[#0d121c] to-[#0a0d14] p-6 shadow-2xl">
-                <div className="mb-4">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-cyan-400 block">
-                    ⚙️ ПАНЕЛЬ ОРГАНІЗАТОРА
-                  </span>
-                  <h2 className="text-xl font-black text-white">Додати матч у розклад</h2>
-                </div>
+                              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                                <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-2.5">
+                                  <span className="text-[10px] text-slate-400 uppercase block mb-1">
+                                    Мій прогноз:
+                                  </span>
+                                  <span className="font-mono text-base font-black text-cyan-300">
+                                    {pred.predicted_home_score} : {pred.predicted_away_score}
+                                  </span>
+                                </div>
+                                <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-2.5">
+                                  <span className="text-[10px] text-slate-400 uppercase block mb-1">
+                                    Рахунок матчу:
+                                  </span>
+                                  <span className="font-mono text-base font-black text-white">
+                                    {m?.status === "finished" && m.home_score !== null && m.away_score !== null
+                                      ? `${m.home_score} : ${m.away_score}`
+                                      : "—"}
+                                  </span>
+                                </div>
+                              </div>
 
-                <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" onSubmit={handleAddMatch}>
-                  <div>
-                    <label htmlFor="team-home" className="mb-1.5 block text-xs font-bold text-slate-300">
-                      Господарі (Команда 1)
-                    </label>
-                    <input
-                      id="team-home"
-                      name="team-home"
-                      type="text"
-                      placeholder="Напр. Динамо Київ"
-                      required
-                      maxLength={100}
-                      className={fieldClassName}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="team-away" className="mb-1.5 block text-xs font-bold text-slate-300">
-                      Гості (Команда 2)
-                    </label>
-                    <input
-                      id="team-away"
-                      name="team-away"
-                      type="text"
-                      placeholder="Напр. Шахтар Донецьк"
-                      required
-                      maxLength={100}
-                      className={fieldClassName}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="match-time" className="mb-1.5 block text-xs font-bold text-slate-300">
-                      Дата й час матчу
-                    </label>
-                    <input
-                      id="match-time"
-                      name="match-time"
-                      type="datetime-local"
-                      required
-                      className={fieldClassName}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <button
-                      type="submit"
-                      disabled={busyAction === "add-match"}
-                      className="h-12 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 font-sans text-xs font-black uppercase text-black hover:brightness-110 active:scale-95 transition disabled:opacity-50"
-                    >
-                      {busyAction === "add-match" ? "Додаємо..." : "⚽ Додати матч"}
-                    </button>
-                  </div>
-                </form>
+                              <div className="mt-3 flex items-center justify-between border-t border-slate-800/60 pt-2 text-xs">
+                                <span className="text-slate-400">Нараховано очок:</span>
+                                <span
+                                  className={`font-black ${
+                                    pred.points === 3
+                                      ? "text-emerald-400 text-sm"
+                                      : pred.points === 1
+                                      ? "text-cyan-400 text-sm"
+                                      : pred.points === 0
+                                      ? "text-slate-400"
+                                      : "text-slate-500"
+                                  }`}
+                                >
+                                  {pred.points !== null ? `+${pred.points} оч.` : "Очікується"}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Десктоп версія (>=640px): таблиця */}
+                      <div className="hidden sm:block overflow-x-auto">
+                        <table className="w-full text-left text-xs font-mono">
+                          <thead className="border-b border-slate-800 text-slate-400">
+                            <tr>
+                              <th className="pb-3">Матч</th>
+                              <th className="pb-3">Час</th>
+                              <th className="pb-3 text-center">Мій прогноз</th>
+                              <th className="pb-3 text-center">Рахунок</th>
+                              <th className="pb-3 text-center">Статус</th>
+                              <th className="pb-3 text-right">Очки</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/60">
+                            {myPredictions.map((pred) => {
+                              const m = pred.match;
+                              return (
+                                <tr key={pred.id} className="hover:bg-slate-800/30 transition">
+                                  <td className="py-3.5 font-bold text-white">
+                                    {m ? `${m.team_home} — ${m.team_away}` : "Матч"}
+                                  </td>
+                                  <td className="py-3.5 text-slate-400 text-[11px]">
+                                    {m ? formatMatchTime(m.match_time) : "—"}
+                                  </td>
+                                  <td className="py-3.5 text-center">
+                                    <span className="rounded-lg bg-cyan-950/60 border border-cyan-700/50 px-2.5 py-1 font-black text-cyan-300">
+                                      {pred.predicted_home_score} : {pred.predicted_away_score}
+                                    </span>
+                                  </td>
+                                  <td className="py-3.5 text-center font-bold text-white">
+                                    {m?.status === "finished" && m.home_score !== null && m.away_score !== null ? (
+                                      <span className="rounded-lg bg-slate-800 px-2 py-0.5">
+                                        {m.home_score} : {m.away_score}
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-500">—</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3.5 text-center">
+                                    {pred.outcomeStatus === "exact" && (
+                                      <span className="rounded-md border border-emerald-500/60 bg-emerald-950/60 px-2 py-0.5 text-[10px] font-black text-emerald-300">
+                                        🎯 Точний
+                                      </span>
+                                    )}
+                                    {pred.outcomeStatus === "outcome" && (
+                                      <span className="rounded-md border border-cyan-500/60 bg-cyan-950/60 px-2 py-0.5 text-[10px] font-black text-cyan-300">
+                                        ⚽ Результат
+                                      </span>
+                                    )}
+                                    {pred.outcomeStatus === "miss" && (
+                                      <span className="rounded-md border border-rose-500/40 bg-rose-950/40 px-2 py-0.5 text-[10px] font-bold text-rose-300">
+                                        ✕ Не вгадано
+                                      </span>
+                                    )}
+                                    {pred.outcomeStatus === "live" && (
+                                      <span className="rounded-md border border-amber-500/60 bg-amber-950/60 px-2 py-0.5 text-[10px] font-bold text-amber-300 animate-pulse">
+                                        ⚡ Наживо
+                                      </span>
+                                    )}
+                                    {pred.outcomeStatus === "scheduled" && (
+                                      <span className="rounded-md border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-400">
+                                        🟢 Заплановано
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-3.5 text-right font-mono">
+                                    {pred.points === 3 && (
+                                      <span className="rounded-lg bg-emerald-950/80 border border-emerald-500/60 px-2.5 py-1 text-xs font-black text-emerald-300">
+                                        +3 оч.
+                                      </span>
+                                    )}
+                                    {pred.points === 1 && (
+                                      <span className="rounded-lg bg-cyan-950/80 border border-cyan-500/60 px-2.5 py-1 text-xs font-black text-cyan-300">
+                                        +1 оч.
+                                      </span>
+                                    )}
+                                    {pred.points === 0 && (
+                                      <span className="rounded-lg bg-slate-800/80 border border-slate-700 px-2 py-0.5 text-xs font-bold text-slate-400">
+                                        0 оч.
+                                      </span>
+                                    )}
+                                    {pred.points === null && (
+                                      <span className="text-slate-500 text-xs">—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </div>
               </section>
             )}
 
-            {/* СПИСОК МАТЧІВ */}
-            <section>
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-                <h2 className="text-xl font-black text-white uppercase tracking-wider flex items-center gap-2">
-                  <span>⚽</span> РОЗКЛАД МАТЧІВ ({details.matches.length})
-                </h2>
-                <span className="text-xs text-slate-400">Роби прогнози та ставки до початку гри</span>
-              </div>
-
-              {details.matches.length === 0 ? (
-                <div className="rounded-3xl border-2 border-dashed border-slate-800 bg-[#0d1017] p-12 text-center text-slate-400">
-                  <span className="text-4xl">⚽</span>
-                  <h3 className="mt-3 text-base font-bold text-white">У цій лізі поки немає матчів</h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {isOwner ? "Створіть перший матч у панелі організатора вище!" : "Організатор ліги незабаром додасть матчі."}
-                  </p>
+            {/* ВКЛАДКА 2: ТАБЛИЦЯ ЛІДЕРІВ / УЧАСНИКИ ЛІГИ */}
+            {activeTab === "leaderboard" && (
+              <section className="mb-10 rounded-3xl border-2 border-slate-800 bg-[#0c1017] p-5 sm:p-6 shadow-xl">
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+                  <h2 className="text-base font-black text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                    <span>🏆</span> ТАБЛИЦЯ ЛІДЕРІВ ЛІГИ ({details.members.length})
+                  </h2>
+                  <span className="text-xs text-slate-400 font-bold">
+                    Правила: +3 за точний рахунок, +1 за вгаданий результат
+                  </span>
                 </div>
-              ) : (
-                <ul className="space-y-6">
-                  {details.matches.map((match) => {
-                    const isFinished = match.status === "finished";
-                    const started = isFinished || now >= new Date(match.match_time).getTime();
-                    const ownPrediction = details.predictions.find(
-                      (p) => p.match_id === match.id && p.user_id === currentUserId,
-                    );
-                    const ownBet = details.bets.find(
-                      (b) => b.match_id === match.id && b.user_id === currentUserId,
-                    );
-                    const visibleBets = details.bets.filter((b) => b.match_id === match.id);
-                    const matchPools = details.pools[match.id] ?? { home: 0, draw: 0, away: 0 };
-                    const totalPool = matchPools.home + matchPools.draw + matchPools.away;
-                    const visiblePredictions = details.predictions.filter(
-                      (p) => p.match_id === match.id && (started || p.user_id === currentUserId),
-                    );
 
-                    return (
-                      <li
-                        key={match.id}
-                        className="rounded-3xl border-2 border-slate-800 bg-gradient-to-b from-[#111724] via-[#0d111a] to-[#080a0f] p-6 shadow-2xl hover:border-slate-700 transition"
-                      >
-                        {/* Команди та рахунок */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
-                          <div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-xl sm:text-2xl font-black text-white">
-                                {match.team_home}
-                              </span>
-                              <span className="rounded-md border border-cyan-800/80 bg-cyan-950/60 px-2 py-0.5 text-xs font-black text-cyan-300">
-                                VS
-                              </span>
-                              <span className="text-xl sm:text-2xl font-black text-white">
-                                {match.team_away}
-                              </span>
-                            </div>
-                            <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1.5 font-sans">
-                              <span>🕒 {formatMatchTime(match.match_time)}</span>
-                            </p>
-                          </div>
-
-                          <div className="text-right shrink-0">
-                            <span
-                              className={`inline-block rounded-full px-3 py-1 text-xs font-black uppercase tracking-wider ${
-                                isFinished
-                                  ? "border border-emerald-500/50 bg-emerald-950/40 text-emerald-300"
-                                  : started
-                                  ? "border border-amber-500/50 bg-amber-950/40 text-amber-300 animate-pulse"
-                                  : "border border-cyan-500/50 bg-cyan-950/40 text-cyan-300"
-                              }`}
-                            >
-                              {isFinished ? "🏁 Завершено" : started ? "⚡ Наживо" : "🟢 Заплановано"}
+                {details.members.length === 0 ? (
+                  <p className="py-8 text-center text-xs text-slate-400">У цій лізі поки немає учасників.</p>
+                ) : (
+                  <>
+                    {/* Мобільна версія (<640px): картки учасників */}
+                    <div className="space-y-3 sm:hidden">
+                      {details.members.map((member, idx) => (
+                        <div
+                          key={member.user_id}
+                          className="rounded-2xl border border-slate-800 bg-[#0e1422] p-4 flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-xl font-bold text-slate-400">
+                              {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`}
                             </span>
-                            {isFinished && (
-                              <div className="mt-2 text-3xl font-black text-amber-400">
-                                {match.home_score} : {match.away_score}
+                            <div>
+                              <div className="font-bold text-white text-sm">
+                                {member.profile?.username ?? "Гравець"}
                               </div>
-                            )}
+                              <div className="flex items-center gap-2 mt-1">
+                                <span
+                                  className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase ${
+                                    member.role === "owner"
+                                      ? "border border-amber-600/50 bg-amber-950/30 text-amber-300"
+                                      : "border border-slate-700 bg-slate-800 text-slate-300"
+                                  }`}
+                                >
+                                  {member.role === "owner" ? "👑 Організатор" : "⚽ Гравець"}
+                                </span>
+                                <span className="text-[10px] text-slate-400">
+                                  Точних: {member.exactScores}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="rounded-lg bg-emerald-950/60 border border-emerald-500/50 px-3 py-1 font-black text-emerald-300 text-sm">
+                              +{member.points} оч.
+                            </span>
                           </div>
                         </div>
+                      ))}
+                    </div>
 
-                        {/* Кнопки модерації організатора */}
-                        {isOwner && (
-                          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/60 pb-4">
-                            <div className="flex flex-wrap items-center gap-2">
-                              {started && !isFinished && (
-                                <span className="text-xs font-bold text-amber-400">
-                                  Матч розпочався! Внесіть результат після фінального свистка:
+                    {/* Десктоп версія (>=640px): таблиця */}
+                    <div className="hidden sm:block overflow-x-auto">
+                      <table className="w-full text-left text-xs font-mono">
+                        <thead className="border-b border-slate-800 text-slate-400">
+                          <tr>
+                            <th className="pb-2.5">#</th>
+                            <th className="pb-2.5">Учасник</th>
+                            <th className="pb-2.5">Роль</th>
+                            <th className="pb-2.5 text-center">Точні рахунки</th>
+                            <th className="pb-2.5 text-right">Бали ліги</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60">
+                          {details.members.map((member, idx) => (
+                            <tr key={member.user_id} className="hover:bg-slate-800/30 transition">
+                              <td className="py-3 font-bold text-slate-400">{idx + 1}</td>
+                              <td className="py-3 font-bold text-white flex items-center gap-1.5">
+                                <span>{idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "👤"}</span>
+                                <span>{member.profile?.username ?? "Гравець"}</span>
+                              </td>
+                              <td className="py-3">
+                                <span
+                                  className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase ${
+                                    member.role === "owner"
+                                      ? "border border-amber-600/50 bg-amber-950/30 text-amber-300"
+                                      : "border border-slate-700 bg-slate-800 text-slate-300"
+                                  }`}
+                                >
+                                  {member.role === "owner" ? "👑 Організатор" : "⚽ Гравець"}
                                 </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                disabled={busyAction !== null}
-                                onClick={() => void handleDeleteMatch(match)}
-                                className="rounded-lg border border-rose-800/80 bg-rose-950/30 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-900/50 transition"
-                              >
-                                ✕ Видалити матч
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Внесення результату (Організатор) */}
-                        {isOwner && started && (
-                          <form
-                            className="mt-5 rounded-2xl border border-amber-600/50 bg-amber-950/20 p-4"
-                            onSubmit={(e) => void handleSaveResult(e, match)}
-                          >
-                            <span className="text-xs font-black uppercase text-amber-300 block mb-2">
-                              {isFinished ? "Виправити підсумковий рахунок:" : "Внести фінальний результат:"}
-                            </span>
-                            <div className="flex flex-wrap items-end gap-3">
-                              <div className="w-24">
-                                <label className="text-[10px] text-slate-400 block mb-1">
-                                  {match.team_home}
-                                </label>
-                                <input
-                                  name="home-score"
-                                  type="number"
-                                  min="0"
-                                  required
-                                  defaultValue={match.home_score ?? 0}
-                                  className={fieldClassName}
-                                />
-                              </div>
-                              <span className="pb-3 text-xl font-bold text-amber-400">:</span>
-                              <div className="w-24">
-                                <label className="text-[10px] text-slate-400 block mb-1">
-                                  {match.team_away}
-                                </label>
-                                <input
-                                  name="away-score"
-                                  type="number"
-                                  min="0"
-                                  required
-                                  defaultValue={match.away_score ?? 0}
-                                  className={fieldClassName}
-                                />
-                              </div>
-                              <button
-                                type="submit"
-                                disabled={busyAction === `result-${match.id}`}
-                                className="h-12 rounded-xl bg-amber-500 px-6 font-sans text-xs font-black uppercase text-black hover:bg-amber-400 transition"
-                              >
-                                {busyAction === `result-${match.id}` ? "Збереження..." : "🏁 Завершити матч"}
-                              </button>
-                            </div>
-                          </form>
-                        )}
-
-                        {/* ФОРМА ПРОГНОЗУ НА МАТЧ */}
-                        {!isFinished && !started && (
-                          <form
-                            className="mt-6 rounded-2xl border border-slate-800 bg-[#0c1017] p-4 sm:p-5"
-                            onSubmit={(e) => void handleSavePrediction(e, match)}
-                          >
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                                <span>🎯</span> ВАШ ПРОГНОЗ НА РАХУНОК
-                              </span>
-                              {ownPrediction && (
-                                <span className="rounded bg-emerald-950/60 border border-emerald-600/60 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                                  Поточний: {ownPrediction.predicted_home_score} : {ownPrediction.predicted_away_score}
+                              </td>
+                              <td className="py-3 text-center text-slate-300 font-bold">
+                                {member.exactScores}
+                              </td>
+                              <td className="py-3 text-right">
+                                <span className="rounded-lg bg-emerald-950/60 border border-emerald-500/50 px-3 py-1 font-black text-emerald-300 text-sm">
+                                  +{member.points} оч.
                                 </span>
-                              )}
-                            </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
 
-                            <div className="flex flex-wrap items-end gap-3">
-                              <div className="w-24">
-                                <label className="mb-1 block text-[10px] text-slate-400 truncate">
-                                  {match.team_home}
-                                </label>
-                                <input
-                                  name="home-score"
-                                  type="number"
-                                  min="0"
-                                  required
-                                  defaultValue={ownPrediction?.predicted_home_score ?? 0}
-                                  className={fieldClassName}
-                                />
-                              </div>
-                              <span className="pb-3 text-xl font-bold text-slate-500">:</span>
-                              <div className="w-24">
-                                <label className="mb-1 block text-[10px] text-slate-400 truncate">
-                                  {match.team_away}
-                                </label>
-                                <input
-                                  name="away-score"
-                                  type="number"
-                                  min="0"
-                                  required
-                                  defaultValue={ownPrediction?.predicted_away_score ?? 0}
-                                  className={fieldClassName}
-                                />
-                              </div>
-                              <button
-                                type="submit"
-                                disabled={busyAction === `prediction-${match.id}` || !currentUserId}
-                                className="h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 font-sans text-xs font-black uppercase tracking-wider text-white shadow-lg hover:from-emerald-500 hover:to-teal-400 transition"
-                              >
-                                {busyAction === `prediction-${match.id}` ? "Збереження..." : "✓ Зберегти прогноз"}
-                              </button>
-                            </div>
-                          </form>
-                        )}
+            {/* ВКЛАДКА 3: РОЗКЛАД МАТЧІВ */}
+            {activeTab === "schedule" && (
+              <>
+                {/* ПАНЕЛЬ ОРГАНІЗАТОРА (ДОДАТИ МАТЧ) */}
+                {isOwner && (
+                  <section className="mb-10 rounded-3xl border-2 border-cyan-800/60 bg-gradient-to-r from-cyan-950/30 via-[#0d121c] to-[#0a0d14] p-6 shadow-2xl">
+                    <div className="mb-4">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-cyan-400 block">
+                        ⚙️ ПАНЕЛЬ ОРГАНІЗАТОРА
+                      </span>
+                      <h2 className="text-xl font-black text-white">Додати матч у розклад</h2>
+                    </div>
 
-                        {/* СТАВКА НА РЕЗУЛЬТАТ (КОЇНИ) */}
-                        {!isFinished && !started && (
-                          <section className="mt-5 rounded-2xl border border-slate-800 bg-[#0c1017] p-4 sm:p-5">
-                            <span className="text-xs font-black uppercase tracking-wider text-amber-400 block mb-3">
-                              💰 СТАВКА НА ПЕРЕМОЖЦЯ (ПУЛ МОНЕТ)
-                            </span>
+                    <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" onSubmit={handleAddMatch}>
+                      <div>
+                        <label htmlFor="team-home" className="mb-1.5 block text-xs font-bold text-slate-300">
+                          Господарі (Команда 1)
+                        </label>
+                        <input
+                          id="team-home"
+                          name="team-home"
+                          type="text"
+                          placeholder="Напр. Динамо Київ"
+                          required
+                          maxLength={100}
+                          className={fieldClassName}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="team-away" className="mb-1.5 block text-xs font-bold text-slate-300">
+                          Гості (Команда 2)
+                        </label>
+                        <input
+                          id="team-away"
+                          name="team-away"
+                          type="text"
+                          placeholder="Напр. Шахтар Донецьк"
+                          required
+                          maxLength={100}
+                          className={fieldClassName}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="match-time" className="mb-1.5 block text-xs font-bold text-slate-300">
+                          Дата й час матчу
+                        </label>
+                        <input
+                          id="match-time"
+                          name="match-time"
+                          type="datetime-local"
+                          required
+                          className={fieldClassName}
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <button
+                          type="submit"
+                          disabled={busyAction === "add-match"}
+                          className="min-h-[44px] h-12 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 font-sans text-xs font-black uppercase text-black hover:brightness-110 active:scale-95 transition disabled:opacity-50"
+                        >
+                          {busyAction === "add-match" ? "Додаємо..." : "⚽ Додати матч"}
+                        </button>
+                      </div>
+                    </form>
+                  </section>
+                )}
 
-                            {ownBet ? (
-                              <div className="rounded-xl border border-amber-600/50 bg-amber-950/30 p-3 text-xs font-bold text-amber-300">
-                                Ваша ставка: {getBetPickLabel(ownBet.pick, match)} — {ownBet.stake} монет.
-                              </div>
-                            ) : (
-                              <form onSubmit={(e) => void handlePlaceBet(e, match)}>
-                                <div className="grid gap-3 sm:grid-cols-3">
-                                  {(
-                                    [
-                                      ["home", match.team_home],
-                                      ["draw", "Нічия"],
-                                      ["away", match.team_away],
-                                    ] as const
-                                  ).map(([pick, label], idx) => {
-                                    const pickPool = matchPools[pick];
-                                    const multiplier =
-                                      pickPool > 0 && totalPool > 0
-                                        ? `${(totalPool / pickPool).toFixed(2)}x`
-                                        : "—";
+                {/* СПИСОК МАТЧІВ */}
+                <section>
+                  <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <h2 className="text-xl font-black text-white uppercase tracking-wider flex items-center gap-2">
+                      <span>⚽</span> РОЗКЛАД МАТЧІВ ({details.matches.length})
+                    </h2>
+                    <span className="text-xs text-slate-400">Роби прогнози та ставки до початку гри</span>
+                  </div>
 
-                                    return (
-                                      <label
-                                        key={pick}
-                                        className="cursor-pointer rounded-xl border border-slate-700/80 bg-slate-900/60 p-3.5 hover:border-amber-500 transition block text-xs"
-                                      >
-                                        <div className="flex items-center gap-2 font-bold text-white">
-                                          <input
-                                            type="radio"
-                                            name="bet-pick"
-                                            value={pick}
-                                            required
-                                            defaultChecked={idx === 0}
-                                            className="accent-amber-400"
-                                          />
-                                          <span>{label}</span>
-                                        </div>
-                                        <div className="mt-2 text-[11px] text-slate-400">
-                                          Пул: <span className="text-amber-400 font-bold">{pickPool}</span> 🪙
-                                        </div>
-                                        <div className="text-[10px] text-cyan-400 font-bold">
-                                          Множник: {multiplier}
-                                        </div>
-                                      </label>
-                                    );
-                                  })}
+                  {details.matches.length === 0 ? (
+                    <div className="rounded-3xl border-2 border-dashed border-slate-800 bg-[#0d1017] p-12 text-center text-slate-400">
+                      <span className="text-4xl">⚽</span>
+                      <h3 className="mt-3 text-base font-bold text-white">У цій лізі поки немає матчів</h3>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {isOwner ? "Створіть перший матч у панелі організатора вище!" : "Організатор ліги незабаром додасть матчі."}
+                      </p>
+                    </div>
+                  ) : (
+                    <ul className="space-y-6">
+                      {details.matches.map((match) => {
+                        const isFinished = match.status === "finished";
+                        const started = isFinished || now >= new Date(match.match_time).getTime();
+                        const ownPrediction = details.predictions.find(
+                          (p) => p.match_id === match.id && p.user_id === currentUserId,
+                        );
+                        const ownBet = details.bets.find(
+                          (b) => b.match_id === match.id && b.user_id === currentUserId,
+                        );
+                        const visibleBets = details.bets.filter((b) => b.match_id === match.id);
+                        const matchPools = details.pools[match.id] ?? { home: 0, draw: 0, away: 0 };
+                        const totalPool = matchPools.home + matchPools.draw + matchPools.away;
+                        const visiblePredictions = details.predictions.filter(
+                          (p) => p.match_id === match.id && (started || p.user_id === currentUserId),
+                        );
+
+                        return (
+                          <li
+                            key={match.id}
+                            className="rounded-3xl border-2 border-slate-800 bg-gradient-to-b from-[#111724] via-[#0d111a] to-[#080a0f] p-6 shadow-2xl hover:border-slate-700 transition"
+                          >
+                            {/* Команди та рахунок */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+                              <div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xl sm:text-2xl font-black text-white">
+                                    {match.team_home}
+                                  </span>
+                                  <span className="rounded-md border border-cyan-800/80 bg-cyan-950/60 px-2 py-0.5 text-xs font-black text-cyan-300">
+                                    VS
+                                  </span>
+                                  <span className="text-xl sm:text-2xl font-black text-white">
+                                    {match.team_away}
+                                  </span>
                                 </div>
+                                <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1.5 font-sans">
+                                  <span>🕒 {formatMatchTime(match.match_time)}</span>
+                                </p>
+                              </div>
 
-                                <div className="mt-4 flex flex-wrap items-end gap-3">
-                                  <div className="w-40">
+                              <div className="text-right shrink-0">
+                                <span
+                                  className={`inline-block rounded-full px-3 py-1 text-xs font-black uppercase tracking-wider ${
+                                    isFinished
+                                      ? "border border-emerald-500/50 bg-emerald-950/40 text-emerald-300"
+                                      : started
+                                      ? "border border-amber-500/50 bg-amber-950/40 text-amber-300 animate-pulse"
+                                      : "border border-cyan-500/50 bg-cyan-950/40 text-cyan-300"
+                                  }`}
+                                >
+                                  {isFinished ? "🏁 Завершено" : started ? "⚡ Наживо" : "🟢 Заплановано"}
+                                </span>
+                                {isFinished && (
+                                  <div className="mt-2 text-3xl font-black text-amber-400">
+                                    {match.home_score} : {match.away_score}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Кнопки модерації організатора */}
+                            {isOwner && (
+                              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/60 pb-4">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {started && !isFinished && (
+                                    <span className="text-xs font-bold text-amber-400">
+                                      Матч розпочався! Внесіть результат після фінального свистка:
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={busyAction !== null}
+                                    onClick={() => void handleDeleteMatch(match)}
+                                    className="min-h-[44px] rounded-lg border border-rose-800/80 bg-rose-950/30 px-3.5 py-2 text-xs font-bold text-rose-300 hover:bg-rose-900/50 transition"
+                                  >
+                                    ✕ Видалити матч
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Внесення результату (Організатор) */}
+                            {isOwner && started && (
+                              <form
+                                className="mt-5 rounded-2xl border border-amber-600/50 bg-amber-950/20 p-4"
+                                onSubmit={(e) => void handleSaveResult(e, match)}
+                              >
+                                <span className="text-xs font-black uppercase text-amber-300 block mb-2">
+                                  {isFinished ? "Виправити підсумковий рахунок:" : "Внести фінальний результат:"}
+                                </span>
+                                <div className="flex flex-wrap items-end gap-3">
+                                  <div className="w-24">
                                     <label className="text-[10px] text-slate-400 block mb-1">
-                                      Сума ставки (монет):
+                                      {match.team_home}
                                     </label>
                                     <input
-                                      name="bet-stake"
+                                      name="home-score"
                                       type="number"
-                                      min="1"
-                                      max={details.currentBalance ?? undefined}
+                                      min="0"
                                       required
-                                      defaultValue="50"
+                                      defaultValue={match.home_score ?? 0}
+                                      className={fieldClassName}
+                                    />
+                                  </div>
+                                  <span className="pb-3 text-xl font-bold text-amber-400">:</span>
+                                  <div className="w-24">
+                                    <label className="text-[10px] text-slate-400 block mb-1">
+                                      {match.team_away}
+                                    </label>
+                                    <input
+                                      name="away-score"
+                                      type="number"
+                                      min="0"
+                                      required
+                                      defaultValue={match.away_score ?? 0}
                                       className={fieldClassName}
                                     />
                                   </div>
                                   <button
                                     type="submit"
-                                    disabled={busyAction === `bet-${match.id}` || !currentUserId}
-                                    className="h-12 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 font-sans text-xs font-black uppercase text-black hover:from-amber-400 hover:to-amber-500 transition shadow-lg"
+                                    disabled={busyAction === `result-${match.id}`}
+                                    className="min-h-[44px] h-12 rounded-xl bg-amber-500 px-6 font-sans text-xs font-black uppercase text-black hover:bg-amber-400 transition"
                                   >
-                                    {busyAction === `bet-${match.id}` ? "Ставимо..." : "Поставити монети"}
+                                    {busyAction === `result-${match.id}` ? "Збереження..." : "🏁 Завершити матч"}
                                   </button>
                                 </div>
-                                {betError?.matchId === match.id && (
-                                  <p className="mt-2 text-xs font-bold text-rose-400">{betError.message}</p>
-                                )}
                               </form>
                             )}
-                          </section>
-                        )}
 
-                        {/* Прогнози та ставки інших учасників */}
-                        {started && (
-                          <div className="mt-5 border-t border-slate-800 pt-4 grid gap-4 sm:grid-cols-2 text-xs">
-                            {/* Прогнози */}
-                            <div>
-                              <span className="font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                                Прогнози на гру:
-                              </span>
-                              {visiblePredictions.length === 0 ? (
-                                <p className="text-slate-600">Прогнозів немає</p>
-                              ) : (
-                                <ul className="space-y-1">
-                                  {visiblePredictions.map((pred) => (
-                                    <li key={pred.id} className="flex justify-between py-1 border-b border-slate-800/40">
-                                      <span className="text-slate-300 font-medium">{pred.profile?.username ?? "Гравець"}</span>
-                                      <span className="font-bold text-white">
-                                        {pred.predicted_home_score} : {pred.predicted_away_score}
-                                        {isFinished && (
-                                          <span className="ml-2 text-emerald-400 font-black">
-                                            +{pred.points_earned ?? 0} оч.
+                            {/* ФОРМА ПРОГНОЗУ НА МАТЧ */}
+                            {!isFinished && !started && (
+                              <form
+                                className="mt-6 rounded-2xl border border-slate-800 bg-[#0c1017] p-4 sm:p-5"
+                                onSubmit={(e) => void handleSavePrediction(e, match)}
+                              >
+                                <div className="flex items-center justify-between mb-3">
+                                  <span className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                                    <span>🎯</span> ВАШ ПРОГНОЗ НА РАХУНОК
+                                  </span>
+                                  {ownPrediction && (
+                                    <span className="rounded bg-emerald-950/60 border border-emerald-600/60 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                                      Поточний: {ownPrediction.predicted_home_score} : {ownPrediction.predicted_away_score}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex flex-wrap items-end gap-3">
+                                  <div className="w-24">
+                                    <label className="mb-1 block text-[10px] text-slate-400 truncate">
+                                      {match.team_home}
+                                    </label>
+                                    <input
+                                      name="home-score"
+                                      type="number"
+                                      min="0"
+                                      required
+                                      defaultValue={ownPrediction?.predicted_home_score ?? 0}
+                                      className={fieldClassName}
+                                    />
+                                  </div>
+                                  <span className="pb-3 text-xl font-bold text-slate-400">:</span>
+                                  <div className="w-24">
+                                    <label className="mb-1 block text-[10px] text-slate-400 truncate">
+                                      {match.team_away}
+                                    </label>
+                                    <input
+                                      name="away-score"
+                                      type="number"
+                                      min="0"
+                                      required
+                                      defaultValue={ownPrediction?.predicted_away_score ?? 0}
+                                      className={fieldClassName}
+                                    />
+                                  </div>
+                                  <button
+                                    type="submit"
+                                    disabled={busyAction === `prediction-${match.id}` || !currentUserId}
+                                    className="min-h-[44px] h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 font-sans text-xs font-black uppercase tracking-wider text-white shadow-lg hover:from-emerald-500 hover:to-teal-400 transition"
+                                  >
+                                    {busyAction === `prediction-${match.id}` ? "Збереження..." : "✓ Зберегти прогноз"}
+                                  </button>
+                                </div>
+                              </form>
+                            )}
+
+                            {/* СТАВКА НА РЕЗУЛЬТАТ (КОЇНИ) */}
+                            {!isFinished && !started && (
+                              <section className="mt-5 rounded-2xl border border-slate-800 bg-[#0c1017] p-4 sm:p-5">
+                                <span className="text-xs font-black uppercase tracking-wider text-amber-400 block mb-3">
+                                  💰 СТАВКА НА ПЕРЕМОЖЦЯ (ПУЛ МОНЕТ)
+                                </span>
+
+                                {ownBet ? (
+                                  <div className="rounded-xl border border-amber-600/50 bg-amber-950/30 p-3 text-xs font-bold text-amber-300">
+                                    Ваша ставка: {getBetPickLabel(ownBet.pick, match)} — {ownBet.stake} монет.
+                                  </div>
+                                ) : (
+                                  <form onSubmit={(e) => void handlePlaceBet(e, match)}>
+                                    <div className="grid gap-3 sm:grid-cols-3">
+                                      {(
+                                        [
+                                          ["home", match.team_home],
+                                          ["draw", "Нічия"],
+                                          ["away", match.team_away],
+                                        ] as const
+                                      ).map(([pick, label], idx) => {
+                                        const pickPool = matchPools[pick];
+                                        const multiplier =
+                                          pickPool > 0 && totalPool > 0
+                                            ? `${(totalPool / pickPool).toFixed(2)}x`
+                                            : "—";
+
+                                        return (
+                                          <label
+                                            key={pick}
+                                            className="cursor-pointer rounded-xl border border-slate-700/80 bg-slate-900/60 p-3.5 hover:border-amber-500 transition block text-xs"
+                                          >
+                                            <div className="flex items-center gap-2 font-bold text-white">
+                                              <input
+                                                type="radio"
+                                                name="bet-pick"
+                                                value={pick}
+                                                required
+                                                defaultChecked={idx === 0}
+                                                className="accent-amber-400"
+                                              />
+                                              <span>{label}</span>
+                                            </div>
+                                            <div className="mt-2 text-[11px] text-slate-400">
+                                              Пул: <span className="text-amber-400 font-bold">{pickPool}</span> 🪙
+                                            </div>
+                                            <div className="text-[10px] text-cyan-400 font-bold">
+                                              Множник: {multiplier}
+                                            </div>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+
+                                    <div className="mt-4 flex flex-wrap items-end gap-3">
+                                      <div className="w-40">
+                                        <label className="text-[10px] text-slate-400 block mb-1">
+                                          Сума ставки (монет):
+                                        </label>
+                                        <input
+                                          name="bet-stake"
+                                          type="number"
+                                          min="1"
+                                          max={details.currentBalance ?? undefined}
+                                          required
+                                          defaultValue="50"
+                                          className={fieldClassName}
+                                        />
+                                      </div>
+                                      <button
+                                        type="submit"
+                                        disabled={busyAction === `bet-${match.id}` || !currentUserId}
+                                        className="min-h-[44px] h-12 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 font-sans text-xs font-black uppercase text-black hover:from-amber-400 hover:to-amber-500 transition shadow-lg"
+                                      >
+                                        {busyAction === `bet-${match.id}` ? "Ставимо..." : "Поставити монети"}
+                                      </button>
+                                    </div>
+                                    {betError?.matchId === match.id && (
+                                      <p className="mt-2 text-xs font-bold text-rose-400">{betError.message}</p>
+                                    )}
+                                  </form>
+                                )}
+                              </section>
+                            )}
+
+                            {/* Прогнози та ставки інших учасників */}
+                            {started && (
+                              <div className="mt-5 border-t border-slate-800 pt-4 grid gap-4 sm:grid-cols-2 text-xs">
+                                {/* Прогнози */}
+                                <div>
+                                  <span className="font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                                    Прогнози на гру:
+                                  </span>
+                                  {visiblePredictions.length === 0 ? (
+                                    <p className="text-slate-400">Прогнозів немає</p>
+                                  ) : (
+                                    <ul className="space-y-1">
+                                      {visiblePredictions.map((pred) => (
+                                        <li key={pred.id} className="flex justify-between py-1 border-b border-slate-800/40">
+                                          <span className="text-slate-300 font-medium">{pred.profile?.username ?? "Гравець"}</span>
+                                          <span className="font-bold text-white">
+                                            {pred.predicted_home_score} : {pred.predicted_away_score}
+                                            {isFinished && (
+                                              <span className="ml-2 text-emerald-400 font-black">
+                                                +{pred.points_earned ?? 0} оч.
+                                              </span>
+                                            )}
                                           </span>
-                                        )}
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
 
-                            {/* Ставки */}
-                            <div>
-                              <span className="font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                                Ставки монет:
-                              </span>
-                              {visibleBets.length === 0 ? (
-                                <p className="text-slate-600">Ставок немає</p>
-                              ) : (
-                                <ul className="space-y-1">
-                                  {visibleBets.map((bet) => (
-                                    <li key={`${bet.user_id}-${bet.match_id}`} className="flex justify-between py-1 border-b border-slate-800/40">
-                                      <span className="text-slate-300 font-medium">{bet.profile?.username ?? "Гравець"}</span>
-                                      <span className="font-bold text-amber-400">
-                                        {bet.stake} 🪙 ({getBetPickLabel(bet.pick, match)})
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
+                                {/* Ставки */}
+                                <div>
+                                  <span className="font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                                    Ставки монет:
+                                  </span>
+                                  {visibleBets.length === 0 ? (
+                                    <p className="text-slate-400">Ставок немає</p>
+                                  ) : (
+                                    <ul className="space-y-1">
+                                      {visibleBets.map((bet) => (
+                                        <li key={`${bet.user_id}-${bet.match_id}`} className="flex justify-between py-1 border-b border-slate-800/40">
+                                          <span className="text-slate-300 font-medium">{bet.profile?.username ?? "Гравець"}</span>
+                                          <span className="font-bold text-amber-400">
+                                            {bet.stake} 🪙 ({getBetPickLabel(bet.pick, match)})
+                                          </span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
+              </>
+            )}
 
             {/* Небезпечна зона */}
             {(isOwner || isMember) && (
@@ -1219,7 +1743,7 @@ export default function LeagueDetailsPage() {
                       type="button"
                       disabled={busyAction !== null}
                       onClick={() => void handleDeleteLeague()}
-                      className="rounded-xl border border-rose-700 bg-rose-950/40 px-4 py-2 text-xs font-bold text-rose-300 hover:bg-rose-900/60 transition"
+                      className="min-h-[44px] rounded-xl border border-rose-700 bg-rose-950/40 px-5 py-2.5 text-xs font-bold text-rose-300 hover:bg-rose-900/60 transition"
                     >
                       {busyAction === "delete-league" ? "Видалення..." : "Видалити лігу"}
                     </button>
@@ -1228,7 +1752,7 @@ export default function LeagueDetailsPage() {
                       type="button"
                       disabled={busyAction !== null}
                       onClick={() => void handleLeaveLeague()}
-                      className="rounded-xl border border-rose-700 bg-rose-950/40 px-4 py-2 text-xs font-bold text-rose-300 hover:bg-rose-900/60 transition"
+                      className="min-h-[44px] rounded-xl border border-rose-700 bg-rose-950/40 px-5 py-2.5 text-xs font-bold text-rose-300 hover:bg-rose-900/60 transition"
                     >
                       {busyAction === "leave-league" ? "Вихід..." : "Вийти з ліги"}
                     </button>
