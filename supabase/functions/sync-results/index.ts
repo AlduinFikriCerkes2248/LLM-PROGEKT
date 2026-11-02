@@ -1,8 +1,7 @@
 // Supabase Edge Function: sync-results
 // Syncs football match results from external sports API using apply_auto_result RPC.
-// Protected by service_role authorization. API keys are strictly read from Edge Function secrets.
+// Protected by x-cron-secret header against CRON_SECRET. API keys are strictly read from secrets.
 
-// Declare Deno typing for environments where Deno type definitions are not globally loaded
 declare const Deno: {
   env: {
     get(key: string): string | undefined;
@@ -20,24 +19,9 @@ interface MatchRow {
 }
 
 interface ExternalMatchResult {
-  status: "scheduled" | "live" | "finished" | "cancelled";
+  status: "planned" | "live" | "finished" | "cancelled";
   homeScore: number | null;
   awayScore: number | null;
-}
-
-// Map external sports provider match statuses to internal domain status
-function mapExternalStatus(rawStatus: string): "scheduled" | "live" | "finished" | "cancelled" {
-  const s = rawStatus.toUpperCase();
-  if (["FINISHED", "FT", "AET", "PEN", "FULL_TIME", "ENDED"].includes(s)) {
-    return "finished";
-  }
-  if (["IN_PLAY", "LIVE", "PAUSED", "HT", "HALF_TIME", "1H", "2H", "BREAK"].includes(s)) {
-    return "live";
-  }
-  if (["CANCELLED", "POSTPONED", "SUSPENDED", "ABANDONED", "CANCELED"].includes(s)) {
-    return "cancelled";
-  }
-  return "scheduled";
 }
 
 // Fetch single match result from external sports API with rate limit safety
@@ -51,7 +35,6 @@ async function fetchExternalMatch(
     method: "GET",
     headers: {
       "X-Auth-Token": apiKey,
-      "Authorization": `Bearer ${apiKey}`,
       "Accept": "application/json",
     },
   });
@@ -62,43 +45,141 @@ async function fetchExternalMatch(
 
   const data = await response.json();
 
-  // Support typical sports API structures (API-Football / Football-Data.org / generic)
-  const statusStr =
+  const statusRaw = String(
     data.match?.status ||
     data.status ||
     data.fixture?.status?.short ||
-    "SCHEDULED";
+    "",
+  ).toUpperCase();
 
-  const mapped = mapExternalStatus(String(statusStr));
+  // 1. Статуси CANCELLED / CANCELED -> cancelled
+  if (statusRaw === "CANCELLED" || statusRaw === "CANCELED") {
+    return {
+      status: "cancelled",
+      homeScore: null,
+      awayScore: null,
+    };
+  }
 
-  const homeScoreRaw =
-    data.score?.fullTime?.home ??
-    data.score?.current?.home ??
-    data.goals?.home ??
-    data.homeScore ??
-    null;
+  // 2. POSTPONED / SUSPENDED / ABANDONED -> пропускаємо з логом
+  if (["POSTPONED", "SUSPENDED", "ABANDONED"].includes(statusRaw)) {
+    console.log(`[sync-results] Skipping match external_id ${externalId}: status is ${statusRaw}`);
+    return null;
+  }
 
-  const awayScoreRaw =
-    data.score?.fullTime?.away ??
-    data.score?.current?.away ??
-    data.goals?.away ??
-    data.awayScore ??
-    null;
+  // 3. Статуси наживо (live)
+  if (["IN_PLAY", "LIVE", "PAUSED", "HT", "HALF_TIME", "1H", "2H", "BREAK"].includes(statusRaw)) {
+    const liveHome =
+      data.score?.fullTime?.home ??
+      data.score?.current?.home ??
+      data.goals?.home ??
+      data.homeScore ??
+      null;
 
-  return {
-    status: mapped,
-    homeScore: homeScoreRaw !== null && homeScoreRaw !== undefined ? Number(homeScoreRaw) : null,
-    awayScore: awayScoreRaw !== null && awayScoreRaw !== undefined ? Number(awayScoreRaw) : null,
-  };
+    const liveAway =
+      data.score?.fullTime?.away ??
+      data.score?.current?.away ??
+      data.goals?.away ??
+      data.awayScore ??
+      null;
+
+    return {
+      status: "live",
+      homeScore: liveHome !== null && liveHome !== undefined ? Number(liveHome) : null,
+      awayScore: liveAway !== null && liveAway !== undefined ? Number(liveAway) : null,
+    };
+  }
+
+  // 4. Статуси завершених матчів (finished)
+  if (["FINISHED", "FT", "AET", "PEN", "FULL_TIME", "ENDED"].includes(statusRaw)) {
+    const duration = String(data.score?.duration || "REGULAR").toUpperCase();
+
+    // Якщо duration не REGULAR, беремо score.regularTime, а без нього пропускаємо з логом
+    if (duration !== "REGULAR") {
+      const regHome = data.score?.regularTime?.home;
+      const regAway = data.score?.regularTime?.away;
+
+      if (regHome === null || regHome === undefined || regAway === null || regAway === undefined) {
+        console.warn(
+          `[sync-results] Skipping finished match external_id ${externalId}: duration is ${duration} but score.regularTime is missing`,
+        );
+        return null;
+      }
+
+      return {
+        status: "finished",
+        homeScore: Number(regHome),
+        awayScore: Number(regAway),
+      };
+    }
+
+    // Для регулярного часу
+    const homeScoreRaw =
+      data.score?.regularTime?.home ??
+      data.score?.fullTime?.home ??
+      data.score?.current?.home ??
+      data.goals?.home ??
+      data.homeScore ??
+      null;
+
+    const awayScoreRaw =
+      data.score?.regularTime?.away ??
+      data.score?.fullTime?.away ??
+      data.score?.current?.away ??
+      data.goals?.away ??
+      data.awayScore ??
+      null;
+
+    if (homeScoreRaw === null || awayScoreRaw === null || homeScoreRaw === undefined || awayScoreRaw === undefined) {
+      console.warn(
+        `[sync-results] Skipping finished match external_id ${externalId}: missing scores in API response`,
+      );
+      return null;
+    }
+
+    return {
+      status: "finished",
+      homeScore: Number(homeScoreRaw),
+      awayScore: Number(awayScoreRaw),
+    };
+  }
+
+  // 5. Заплановані статуси
+  if (["TIMED", "SCHEDULED", "PLANNED", "NOT_STARTED", "NS"].includes(statusRaw)) {
+    return {
+      status: "planned",
+      homeScore: null,
+      awayScore: null,
+    };
+  }
+
+  // 6. Невідомі статуси -> пропускаємо з логом
+  console.log(`[sync-results] Skipping match external_id ${externalId}: unknown status '${statusRaw}'`);
+  return null;
 }
 
 Deno.serve(async (req: Request) => {
-  // Only accept POST requests
-  if (req.method !== "POST" && req.method !== "GET") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+  // Дозволено лише POST
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed. Use POST." }), {
       status: 405,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  // Перевірка заголовка x-cron-secret проти CRON_SECRET (401 при невідповідності)
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  const reqCronSecret = req.headers.get("x-cron-secret");
+
+  if (!cronSecret || reqCronSecret !== cronSecret) {
+    console.warn("[sync-results] Unauthorized: missing or invalid x-cron-secret header");
+    return new Response(
+      JSON.stringify({ error: "Unauthorized: invalid or missing x-cron-secret" }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -108,7 +189,7 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("FOOTBALL_API_URL") || "https://api.football-data.org/v4/matches";
 
   if (!supabaseUrl || !supabaseServiceKey) {
-    console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment");
+    console.error("[sync-results] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment");
     return new Response(JSON.stringify({ error: "Server configuration error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
@@ -116,7 +197,7 @@ Deno.serve(async (req: Request) => {
   }
 
   if (!footballApiKey) {
-    console.error("Missing FOOTBALL_API_KEY in Edge Function secrets");
+    console.error("[sync-results] Missing FOOTBALL_API_KEY in Edge Function secrets");
     return new Response(
       JSON.stringify({ error: "FOOTBALL_API_KEY secret is not configured" }),
       {
@@ -126,15 +207,8 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  const authHeader = req.headers.get("Authorization");
-  // Simple check that request comes from authorized caller (cron or service role)
-  if (!authHeader || !authHeader.includes(supabaseServiceKey)) {
-    // If not matching service key exactly, check if Supabase JWT matches service_role
-    // (In local development or pg_cron, service_role key is used in Bearer header)
-  }
-
   try {
-    // 1. Fetch matches that have external_id, started, and are not finished or cancelled
+    // Отримуємо матчі з external_id, які вже розпочалися або заплановані, і ще не finished / cancelled
     const nowIso = new Date().toISOString();
     const queryUrl = `${supabaseUrl}/rest/v1/matches?external_id=not.is.null&status=not.in.(finished,cancelled)&match_time=lte.${nowIso}&select=id,external_id,match_time,status,home_score,away_score&order=match_time.asc&limit=30`;
 
@@ -151,21 +225,21 @@ Deno.serve(async (req: Request) => {
     }
 
     const matches: MatchRow[] = await matchesRes.json();
-    console.log(`Found ${matches.length} active match(es) with external_id to sync`);
+    console.log(`[sync-results] Found ${matches.length} active match(es) with external_id to sync`);
 
     const results = {
       totalFound: matches.length,
       processed: 0,
       updated: 0,
+      skipped: 0,
       failed: 0,
       errors: [] as Array<{ matchId: string; externalId: string; error: string }>,
     };
 
-    // 2. Process each match independently to never fail entire batch
     for (const match of matches) {
       results.processed++;
       try {
-        // Respect API rate limits (e.g. 250ms pause between external calls)
+        // Затримка для дотримання лімітів зовнішнього API (250ms)
         await new Promise((resolve) => setTimeout(resolve, 250));
 
         const externalResult = await fetchExternalMatch(
@@ -175,16 +249,16 @@ Deno.serve(async (req: Request) => {
         );
 
         if (!externalResult) {
-          console.warn(`No data received for match ${match.id} (ext: ${match.external_id})`);
+          results.skipped++;
           continue;
         }
 
-        // Only call apply_auto_result if state changed
-        const isFinished = externalResult.status === "finished";
-        if (isFinished && (externalResult.homeScore === null || externalResult.awayScore === null)) {
+        // Заборона переводити у finished без обох рахунків
+        if (externalResult.status === "finished" && (externalResult.homeScore === null || externalResult.awayScore === null)) {
           console.warn(
-            `Match ${match.id} external status is finished but scores are missing. Skipping finish update.`,
+            `[sync-results] Match ${match.id} has status finished but missing score (${externalResult.homeScore}:${externalResult.awayScore}). Skipping.`,
           );
+          results.skipped++;
           continue;
         }
 
@@ -211,12 +285,12 @@ Deno.serve(async (req: Request) => {
 
         results.updated++;
         console.log(
-          `Successfully synced match ${match.id}: status=${externalResult.status}, score=${externalResult.homeScore}:${externalResult.awayScore}`,
+          `[sync-results] Successfully synced match ${match.id}: status=${externalResult.status}, score=${externalResult.homeScore}:${externalResult.awayScore}`,
         );
       } catch (err: unknown) {
         results.failed++;
         const errorMessage = err instanceof Error ? err.message : String(err);
-        console.error(`Error syncing match ${match.id} (external_id: ${match.external_id}):`, errorMessage);
+        console.error(`[sync-results] Error syncing match ${match.id} (external_id: ${match.external_id}):`, errorMessage);
         results.errors.push({
           matchId: match.id,
           externalId: match.external_id,
@@ -231,7 +305,7 @@ Deno.serve(async (req: Request) => {
     });
   } catch (globalErr: unknown) {
     const errorMsg = globalErr instanceof Error ? globalErr.message : String(globalErr);
-    console.error("Global error in sync-results function:", errorMsg);
+    console.error("[sync-results] Global error:", errorMsg);
     return new Response(JSON.stringify({ error: errorMsg }), {
       status: 500,
       headers: { "Content-Type": "application/json" },

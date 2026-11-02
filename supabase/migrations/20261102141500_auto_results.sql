@@ -2,26 +2,23 @@
 -- Description: Add external sync columns to matches and apply_auto_result function for service_role.
 -- DO NOT APPLY TO DATABASE (Prepared for review).
 
--- 1. Додавання колонок до таблиці matches
+-- 1. Додавання колонок до таблиці matches (статус 'planned' зберігається)
 ALTER TABLE public.matches
   ADD COLUMN IF NOT EXISTS external_id TEXT,
   ADD COLUMN IF NOT EXISTS result_source TEXT DEFAULT 'manual',
   ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMPTZ;
 
--- Міграція існуючих значень статусу (planned -> scheduled)
-UPDATE public.matches
-SET status = 'scheduled'
-WHERE status = 'planned';
-
--- Оновлення обмеження на статус: scheduled, live, finished, cancelled
+-- Оновлення обмеження на статус: planned, live, finished, cancelled
 ALTER TABLE public.matches DROP CONSTRAINT IF EXISTS matches_status_check;
 ALTER TABLE public.matches ADD CONSTRAINT matches_status_check
-  CHECK (status IN ('scheduled', 'live', 'finished', 'cancelled'));
+  CHECK (status IN ('planned', 'live', 'finished', 'cancelled'));
 
-ALTER TABLE public.matches ALTER COLUMN status SET DEFAULT 'scheduled';
+ALTER TABLE public.matches ALTER COLUMN status SET DEFAULT 'planned';
 
 -- 2. Створення функції apply_auto_result
 -- Приймає: p_match_id (UUID), p_home (INT), p_away (INT), p_status (TEXT)
+-- Виконується виключно service_role.
+-- Без розрахунку виплат або нарахування очок прогнозистам (лише фіксація результату та повернення при скасуванні).
 CREATE OR REPLACE FUNCTION public.apply_auto_result(
     p_match_id UUID,
     p_home INT DEFAULT NULL,
@@ -36,16 +33,10 @@ AS $$
 DECLARE
     v_match RECORD;
     v_bet RECORD;
-    v_winning_pick TEXT;
-    v_total_pool BIGINT := 0;
-    v_winning_pool BIGINT := 0;
-    v_ratio NUMERIC := 1.0;
     v_refunded_bets_count INT := 0;
-    v_settled_bets_count INT := 0;
-    v_updated_predictions_count INT := 0;
 BEGIN
     -- Перевірка валідності статусу
-    IF p_status NOT IN ('scheduled', 'live', 'finished', 'cancelled') THEN
+    IF p_status NOT IN ('planned', 'live', 'finished', 'cancelled') THEN
         RAISE EXCEPTION 'invalid_match_status: %', p_status;
     END IF;
 
@@ -101,9 +92,8 @@ BEGIN
         );
     END IF;
 
-    -- Логіка для статусу FINISHED
+    -- Логіка для статусу FINISHED (фіксація результату без виплат та підрахунку очок)
     IF p_status = 'finished' THEN
-        -- Оновлення матчу
         UPDATE public.matches
         SET status = 'finished',
             home_score = p_home,
@@ -112,80 +102,12 @@ BEGIN
             last_synced_at = NOW()
         WHERE id = p_match_id;
 
-        -- 1. Розрахунок балів за прогнози
-        -- 3 бали за точний рахунок, 1 бал за вгаданий результат (перемога господарів, гостей чи нічия), 0 інакше
-        WITH updated AS (
-            UPDATE public.predictions
-            SET points_earned = CASE
-                WHEN predicted_home_score = p_home AND predicted_away_score = p_away THEN 3
-                WHEN (p_home > p_away AND predicted_home_score > predicted_away_score) OR
-                     (p_home < p_away AND predicted_home_score < predicted_away_score) OR
-                     (p_home = p_away AND predicted_home_score = predicted_away_score) THEN 1
-                ELSE 0
-            END
-            WHERE match_id = p_match_id
-            RETURNING id
-        )
-        SELECT COUNT(*) INTO v_updated_predictions_count FROM updated;
-
-        -- 2. Розрахунок та виплата пулу ставок (bets)
-        IF p_home > p_away THEN
-            v_winning_pick := 'home';
-        ELSIF p_away > p_home THEN
-            v_winning_pick := 'away';
-        ELSE
-            v_winning_pick := 'draw';
-        END IF;
-
-        SELECT COALESCE(SUM(stake), 0) INTO v_total_pool
-        FROM public.bets
-        WHERE match_id = p_match_id;
-
-        SELECT COALESCE(SUM(stake), 0) INTO v_winning_pool
-        FROM public.bets
-        WHERE match_id = p_match_id AND pick = v_winning_pick;
-
-        IF v_winning_pool > 0 AND v_total_pool > 0 THEN
-            v_ratio := v_total_pool::NUMERIC / v_winning_pool::NUMERIC;
-
-            -- Виплата виграшних ставок
-            FOR v_bet IN
-                SELECT id, user_id, stake
-                FROM public.bets
-                WHERE match_id = p_match_id AND pick = v_winning_pick AND settled = FALSE
-                FOR UPDATE
-            LOOP
-                DECLARE
-                    v_payout BIGINT := FLOOR(v_bet.stake * v_ratio)::BIGINT;
-                BEGIN
-                    UPDATE public.profiles
-                    SET coins = COALESCE(coins, 0) + v_payout
-                    WHERE id = v_bet.user_id;
-
-                    UPDATE public.bets
-                    SET settled = TRUE,
-                        payout = v_payout
-                    WHERE id = v_bet.id;
-
-                    v_settled_bets_count := v_settled_bets_count + 1;
-                END;
-            END LOOP;
-        END IF;
-
-        -- Позначаємо всі незіграні ставки програними (settled = true, payout = 0)
-        UPDATE public.bets
-        SET settled = TRUE,
-            payout = 0
-        WHERE match_id = p_match_id AND settled = FALSE;
-
         RETURN jsonb_build_object(
             'success', TRUE,
             'match_id', p_match_id,
             'status', 'finished',
             'home_score', p_home,
-            'away_score', p_away,
-            'updated_predictions', v_updated_predictions_count,
-            'winning_bets_settled', v_settled_bets_count
+            'away_score', p_away
         );
     END IF;
 
@@ -208,17 +130,17 @@ BEGIN
         );
     END IF;
 
-    -- Логіка для статусу SCHEDULED
-    IF p_status = 'scheduled' THEN
+    -- Логіка для статусу PLANNED
+    IF p_status = 'planned' THEN
         UPDATE public.matches
-        SET status = 'scheduled',
+        SET status = 'planned',
             last_synced_at = NOW()
         WHERE id = p_match_id;
 
         RETURN jsonb_build_object(
             'success', TRUE,
             'match_id', p_match_id,
-            'status', 'scheduled'
+            'status', 'planned'
         );
     END IF;
 
@@ -237,8 +159,8 @@ COMMENT ON FUNCTION public.apply_auto_result(UUID, INT, INT, TEXT) IS 'Applies a
 -- ============================================================================
 -- 4. Приклад налаштування розкладу через pg_cron (закоментовано за вимогами)
 -- ============================================================================
--- Для автоматичного оновлення результатів матчів кожні 2 хвилини через розширення pg_cron
--- та pg_net, додайте такий розклад у консолі Supabase SQL Editor:
+-- Для автоматичного оновлення результатів матчів кожні 2 хвилини через pg_cron
+-- та pg_net із заголовком x-cron-secret:
 --
 -- CREATE EXTENSION IF NOT EXISTS pg_cron;
 -- CREATE EXTENSION IF NOT EXISTS pg_net;
@@ -252,7 +174,8 @@ COMMENT ON FUNCTION public.apply_auto_result(UUID, INT, INT, TEXT) IS 'Applies a
 --       url := 'https://<PROJECT-REF>.supabase.co/functions/v1/sync-results',
 --       headers := jsonb_build_object(
 --         'Content-Type', 'application/json',
---         'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key', true)
+--         'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key', true),
+--         'x-cron-secret', '<YOUR_CRON_SECRET>'
 --       ),
 --       body := '{}'::jsonb
 --     ) AS request_id;

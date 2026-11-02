@@ -23,7 +23,7 @@ type Match = {
   team_home: string;
   team_away: string;
   match_time: string;
-  status: "scheduled" | "planned" | "live" | "finished" | "cancelled";
+  status: "planned" | "live" | "finished" | "cancelled";
   home_score: number | null;
   away_score: number | null;
   external_id?: string | null;
@@ -143,15 +143,13 @@ function getBetPickLabel(pick: BetPick, match: Match) {
   return `Перемога: ${match.team_away}`;
 }
 
-// Рендеринг ярликів статусу з CSS-анімацією лише для "Наживо" та підтримкою prefers-reduced-motion
+// Рендеринг ярликів за статусами: planned, live, finished, cancelled (без scheduled).
+// CSS-анімація лише для "Наживо" з підтримкою prefers-reduced-motion.
 function renderMatchStatusBadge(match: Match, now: number) {
   const isFinished = match.status === "finished";
   const isCancelled = match.status === "cancelled";
-  const isLiveExplicit = match.status === "live";
-  const isScheduledOrPlanned =
-    match.status === "scheduled" || match.status === "planned" || !match.status;
   const isStarted = now >= new Date(match.match_time).getTime();
-  const isLive = isLiveExplicit || (isScheduledOrPlanned && isStarted && !isFinished && !isCancelled);
+  const isLive = match.status === "live" || (match.status === "planned" && isStarted && !isFinished && !isCancelled);
 
   if (isCancelled) {
     return (
@@ -265,7 +263,7 @@ export default function LeagueDetailsPage() {
       const betRows = (betsResponse.data as Bet[]) ?? [];
 
       const plannedMatches = matchRows.filter(
-        (match) => match.status === "planned" || match.status === "scheduled",
+        (match) => match.status === "planned",
       );
 
       const poolResults = await Promise.all(
@@ -507,33 +505,19 @@ export default function LeagueDetailsPage() {
     const teamHome = String(form.get("team-home")).trim();
     const teamAway = String(form.get("team-away")).trim();
     const matchTime = String(form.get("match-time"));
-    const externalId = String(form.get("external-id") || "").trim() || null;
 
     setBusyAction("add-match");
     setActionError(null);
     setActionMessage(null);
 
     try {
-      const matchData: {
-        league_id: string;
-        team_home: string;
-        team_away: string;
-        match_time: string;
-        status: string;
-        external_id?: string;
-      } = {
+      const { error } = await client.from("matches").insert({
         league_id: details.league.id,
         team_home: teamHome,
         team_away: teamAway,
         match_time: new Date(matchTime).toISOString(),
-        status: "scheduled",
-      };
-
-      if (externalId) {
-        matchData.external_id = externalId;
-      }
-
-      const { error } = await client.from("matches").insert(matchData);
+        status: "planned",
+      });
 
       if (error) throw error;
       setActionMessage("Матч успішно додано у розклад!");
@@ -541,35 +525,6 @@ export default function LeagueDetailsPage() {
       reload();
     } catch (err) {
       setActionError(getActionError(err, "Не вдалося додати матч."));
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function handleUpdateExternalId(event: FormEvent<HTMLFormElement>, match: Match) {
-    event.preventDefault();
-    const client = getSupabaseClient();
-    if (!client || !details) return;
-
-    const form = new FormData(event.currentTarget);
-    const externalId = String(form.get("external-id") || "").trim() || null;
-
-    setBusyAction(`ext-${match.id}`);
-    setActionError(null);
-    setActionMessage(null);
-
-    try {
-      const { error } = await client
-        .from("matches")
-        .update({ external_id: externalId })
-        .eq("id", match.id)
-        .eq("league_id", details.league.id);
-
-      if (error) throw error;
-      setActionMessage("API ID матчу оновлено!");
-      reload();
-    } catch (err) {
-      setActionError(getActionError(err, "Не вдалося оновити API ID матчу."));
     } finally {
       setBusyAction(null);
     }
@@ -595,7 +550,6 @@ export default function LeagueDetailsPage() {
           home_score: homeScore,
           away_score: awayScore,
           status: "finished",
-          result_source: "manual",
         })
         .eq("id", match.id)
         .eq("league_id", details.league.id)
@@ -864,7 +818,7 @@ export default function LeagueDetailsPage() {
                             <span
                               className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase ${
                                 member.role === "owner"
-                                    ? "border border-amber-600/50 bg-amber-950/30 text-amber-300"
+                                  ? "border border-amber-600/50 bg-amber-950/30 text-amber-300"
                                   : "border border-slate-700 bg-slate-800 text-slate-300"
                               }`}
                             >
@@ -897,7 +851,7 @@ export default function LeagueDetailsPage() {
                   <h2 className="text-xl font-black text-white">Додати матч у розклад</h2>
                 </div>
 
-                <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5" onSubmit={handleAddMatch}>
+                <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" onSubmit={handleAddMatch}>
                   <div>
                     <label htmlFor="team-home" className="mb-1.5 block text-xs font-bold text-slate-300">
                       Господарі (Команда 1)
@@ -935,19 +889,6 @@ export default function LeagueDetailsPage() {
                       name="match-time"
                       type="datetime-local"
                       required
-                      className={fieldClassName}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="external-id" className="mb-1.5 block text-xs font-bold text-slate-300">
-                      API ID (external_id, опц.)
-                    </label>
-                    <input
-                      id="external-id"
-                      name="external-id"
-                      type="text"
-                      placeholder="Напр. 493321"
-                      maxLength={50}
                       className={fieldClassName}
                     />
                   </div>
@@ -1063,35 +1004,12 @@ export default function LeagueDetailsPage() {
                         {/* Кнопки модерації організатора */}
                         {isOwner && (
                           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/60 pb-4">
-                            <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
                               {started && !isFinished && !isCancelled && (
                                 <span className="text-xs font-bold text-amber-400">
                                   Матч розпочався! Внесіть результат після фінального свистка:
                                 </span>
                               )}
-                              {/* Ручне введення/оновлення external_id */}
-                              <form
-                                className="flex flex-wrap items-center gap-2"
-                                onSubmit={(e) => void handleUpdateExternalId(e, match)}
-                              >
-                                <label className="text-[10px] text-slate-400 font-bold uppercase">
-                                  API ID:
-                                </label>
-                                <input
-                                  name="external-id"
-                                  type="text"
-                                  placeholder="ID у провайдера"
-                                  defaultValue={match.external_id ?? ""}
-                                  className="h-9 w-32 rounded-lg border border-slate-700 bg-slate-900 px-2.5 text-xs text-white"
-                                />
-                                <button
-                                  type="submit"
-                                  disabled={busyAction === `ext-${match.id}`}
-                                  className="min-h-[44px] rounded-lg border border-cyan-700 bg-cyan-950/40 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-900/60 transition"
-                                >
-                                  {busyAction === `ext-${match.id}` ? "..." : "Зберегти ID"}
-                                </button>
-                              </form>
                             </div>
                             <div className="flex items-center gap-2">
                               <button
@@ -1113,7 +1031,7 @@ export default function LeagueDetailsPage() {
                             onSubmit={(e) => void handleSaveResult(e, match)}
                           >
                             <span className="text-xs font-black uppercase text-amber-300 block mb-2">
-                              {isFinished ? "Виправити підсумковий рахунок вручну:" : "Внести фінальний результат вручну:"}
+                              {isFinished ? "Виправити підсумковий рахунок:" : "Внести фінальний результат:"}
                             </span>
                             <div className="flex flex-wrap items-end gap-3">
                               <div className="w-24">

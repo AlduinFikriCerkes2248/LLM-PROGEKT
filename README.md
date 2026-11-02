@@ -131,6 +131,9 @@ npm run build  # Повна оптимізована production-збірка Nex
 # Встановлення API ключа зовнішнього постачальника спортивних даних
 supabase secrets set FOOTBALL_API_KEY="ваш_секретний_api_ключ"
 
+# Встановлення секретного ключа для авторизації cron-запитів
+supabase secrets set CRON_SECRET="ваш_секретний_cron_токен"
+
 # Опціонально: кастомний базовий URL API (за замовчуванням https://api.football-data.org/v4/matches)
 supabase secrets set FOOTBALL_API_URL="https://api.football-data.org/v4/matches"
 ```
@@ -154,7 +157,8 @@ supabase functions serve sync-results --env-file ./supabase/.env.local
 Викличте функцію POST-запитом:
 ```bash
 curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/sync-results' \
-  --header 'Authorization: Bearer ВАШ_SERVICE_ROLE_KEY'
+  --header 'Authorization: Bearer ВАШ_SERVICE_ROLE_KEY' \
+  --header 'x-cron-secret: ВАШ_CRON_SECRET'
 ```
 
 ### 3. Деплой функції у хмару
