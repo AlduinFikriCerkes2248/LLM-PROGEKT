@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
+import { formatErrorMessage } from "../../lib/error-utils";
 import {
   getSupabaseClient,
   PROFILE_UPDATED_EVENT,
@@ -461,8 +462,8 @@ export default function OnlinePage() {
       setIsChallenging(null);
       window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
     } catch (err: unknown) {
-      console.error(err);
-      setErrorMsg((err as { message?: string })?.message || "Не вдалося надіслати виклик.");
+      console.error("Не вдалося надіслати виклик:", formatErrorMessage(err));
+      setErrorMsg(formatErrorMessage(err, "Не вдалося надіслати виклик."));
     } finally {
       setIsSubmitting(false);
     }
@@ -848,8 +849,8 @@ export default function OnlinePage() {
         setMessage("Виклик відхилено.");
       }
     } catch (err: unknown) {
-      console.error(err);
-      setErrorMsg((err as { message?: string })?.message || "Не вдалося прийняти виклик.");
+      console.error("Не вдалося відповісти на виклик:", formatErrorMessage(err));
+      setErrorMsg(formatErrorMessage(err, "Не вдалося прийняти виклик."));
     } finally {
       setAcceptingDuelId(null);
     }
@@ -1148,7 +1149,7 @@ export default function OnlinePage() {
                   <button
                     type="button"
                     onClick={handleCloseLiveBj}
-                    className="mt-5 rounded-xl bg-amber-500 px-8 py-2.5 font-sans text-xs font-black uppercase text-black hover:bg-amber-400 transition"
+                    className="btn-interactive min-h-[44px] mt-5 rounded-xl bg-amber-500 px-8 py-2.5 font-sans text-xs font-black uppercase text-black hover:bg-amber-400"
                   >
                     Повернутися до лобі
                   </button>
@@ -1223,7 +1224,7 @@ export default function OnlinePage() {
             <button
               type="button"
               onClick={() => setActiveDiceDuel(null)}
-              className="rounded-xl bg-slate-800 px-6 py-2 text-xs font-bold uppercase text-white hover:bg-slate-700"
+              className="btn-interactive min-h-[44px] rounded-xl bg-slate-800 px-6 py-2 text-xs font-bold uppercase text-white hover:bg-slate-700"
             >
               Закрити
             </button>
@@ -1268,7 +1269,7 @@ export default function OnlinePage() {
                   <button
                     type="button"
                     onClick={() => handleRespondInvite(inv, "decline")}
-                    className="rounded-xl bg-slate-800 px-4 py-2.5 font-sans text-xs font-bold uppercase text-slate-300 hover:bg-rose-950 hover:text-rose-300 transition"
+                    className="btn-interactive min-h-[44px] rounded-xl bg-slate-800 px-4 py-2.5 font-sans text-xs font-bold uppercase text-slate-300 hover:bg-rose-950 hover:text-rose-300"
                   >
                     ВІДХИЛИТИ
                   </button>
@@ -1297,7 +1298,7 @@ export default function OnlinePage() {
                 <button
                   type="button"
                   onClick={() => handleRespondInvite(out, "decline")}
-                  className="rounded-lg bg-slate-800 px-3 py-1 text-[11px] font-bold text-slate-300 hover:bg-rose-900/40 hover:text-rose-300 transition"
+                  className="btn-interactive min-h-[44px] rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-rose-900/40 hover:text-rose-300"
                 >
                   Скасувати
                 </button>
@@ -1346,7 +1347,7 @@ export default function OnlinePage() {
                 <button
                   type="button"
                   onClick={() => setIsChallenging(player)}
-                  className="rounded-xl border border-indigo-500/60 bg-indigo-950/40 px-3.5 py-2 text-xs font-bold text-indigo-300 hover:bg-indigo-900/70 hover:text-white transition active:scale-95"
+                  className="btn-interactive min-h-[44px] rounded-xl border border-cyan-500/60 bg-cyan-950/40 px-4 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-900/70 hover:text-white"
                 >
                   ⚔️ Виклик
                 </button>
@@ -1472,7 +1473,7 @@ export default function OnlinePage() {
                 <button
                   type="button"
                   onClick={() => setIsChallenging(null)}
-                  className="w-1/3 rounded-xl border border-slate-700 py-3 text-xs font-bold text-slate-400 hover:text-white"
+                  className="btn-interactive min-h-[44px] w-1/3 rounded-xl border border-slate-700 py-3 text-xs font-bold text-slate-400 hover:text-white"
                 >
                   Скасувати
                 </button>

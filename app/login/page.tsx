@@ -6,6 +6,7 @@ import {
 } from "../../lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { formatErrorMessage } from "../../lib/error-utils";
 
 type AuthMode = "login" | "signup";
 
@@ -69,8 +70,8 @@ export default function LoginPage() {
       setShowSplash(true);
       setTimeout(() => setIsFading(true), 1600);
       setTimeout(() => setShowSplash(false), 2100);
-    } catch {
-      setErrorMessage("Не вдалося з’єднатися із Supabase. Спробуйте ще раз.");
+    } catch (error) {
+      setErrorMessage(formatErrorMessage(error, "Не вдалося з’єднатися із Supabase. Спробуйте ще раз."));
     } finally {
       setIsSubmitting(false);
     }
@@ -303,7 +304,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting || !isSupabaseConfigured}
-            className="h-11 w-full bg-[#202722] px-5 text-sm font-semibold text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-[#a5ada6]"
+            className="btn-interactive min-h-[44px] h-11 w-full rounded-[var(--radius-sm)] bg-[#202722] px-5 text-sm font-semibold text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-[#a5ada6]"
           >
             {isSubmitting
               ? "Зачекайте…"

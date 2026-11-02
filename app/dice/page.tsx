@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { DemoNoticeBadge } from "../demo-banner";
 import { useEffect, useState } from "react";
+import { formatErrorMessage } from "../../lib/error-utils";
 import {
   getSupabaseClient,
   PROFILE_UPDATED_EVENT,
@@ -76,7 +77,7 @@ function InteractiveColaGlass({
         <span className="font-mono text-[11px] font-bold text-amber-300">
           {level > 0 ? `${level}% кола` : "Порожньо"}
         </span>
-        <p className="text-[9px] text-slate-500 uppercase">клік = ковток</p>
+        <p className="text-[9px] text-slate-400 uppercase">клік = ковток</p>
       </div>
     </div>
   );
@@ -190,7 +191,7 @@ export default function DicePage() {
       setTimeout(() => {
         clearInterval(interval);
         if (error) {
-          console.error("Помилка play_dice:", error);
+          console.error("Помилка play_dice:", formatErrorMessage(error));
           setErrorMessage("Помилка ставки. Переконайся, що функція play_dice створена в базі Supabase.");
           setIsRolling(false);
           return;
@@ -222,7 +223,7 @@ export default function DicePage() {
       }, 900);
     } catch (err) {
       clearInterval(interval);
-      console.error(err);
+      console.error("Помилка гри в кості:", formatErrorMessage(err));
       setErrorMessage("Збій зв'язку з базою.");
       setIsRolling(false);
     }
@@ -438,11 +439,11 @@ export default function DicePage() {
             <span>🏆</span> ТОП ГРАВЦІВ У ГРІ
           </h2>
           {leaderboard.length === 0 ? (
-            <p className="text-xs text-slate-500">Завантаження рейтингу...</p>
+            <p className="text-xs text-slate-400">Завантаження рейтингу...</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs font-mono">
-                <thead className="border-b border-slate-800 text-slate-500">
+                <thead className="border-b border-slate-800 text-slate-400">
                   <tr>
                     <th className="pb-2">#</th>
                     <th className="pb-2">Гравець</th>
@@ -453,7 +454,7 @@ export default function DicePage() {
                 <tbody className="divide-y divide-slate-800/60">
                   {leaderboard.map((entry, idx) => (
                     <tr key={idx} className="hover:bg-slate-800/40 transition">
-                      <td className="py-2.5 font-bold text-slate-500">{idx + 1}</td>
+                      <td className="py-2.5 font-bold text-slate-400">{idx + 1}</td>
                       <td className="py-2.5 font-bold text-slate-200">
                         {idx === 0 ? "🥇 " : idx === 1 ? "🥈 " : idx === 2 ? "🥉 " : "👤 "}
                         {entry.username}

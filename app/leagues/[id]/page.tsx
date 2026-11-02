@@ -694,7 +694,7 @@ export default function LeagueDetailsPage() {
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">
                     🔑 КОД ДЛЯ ЗАПРОШЕННЯ ДРУЗІВ:
                   </span>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-[11px] text-slate-400 mt-0.5">
                     Поділіться цим кодом, щоб друзі могли вступити у вашу лігу
                   </p>
                 </div>
@@ -743,51 +743,91 @@ export default function LeagueDetailsPage() {
               </div>
 
               {details.members.length === 0 ? (
-                <p className="py-6 text-center text-xs text-slate-500">У цій лізі поки немає учасників.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs font-mono">
-                    <thead className="border-b border-slate-800 text-slate-500">
-                      <tr>
-                        <th className="pb-2.5">#</th>
-                        <th className="pb-2.5">Учасник</th>
-                        <th className="pb-2.5">Роль</th>
-                        <th className="pb-2.5 text-center">Точні рахунки</th>
-                        <th className="pb-2.5 text-right">Бали ліги</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/60">
-                      {details.members.map((member, idx) => (
-                        <tr key={member.user_id} className="hover:bg-slate-800/30 transition">
-                          <td className="py-3 font-bold text-slate-500">{idx + 1}</td>
-                          <td className="py-3 font-bold text-white flex items-center gap-1.5">
-                            <span>{idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "👤"}</span>
-                            <span>{member.profile?.username ?? "Гравець"}</span>
-                          </td>
-                          <td className="py-3">
-                            <span
-                              className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase ${
-                                member.role === "owner"
-                                  ? "border border-amber-600/50 bg-amber-950/30 text-amber-300"
-                                  : "border border-slate-700 bg-slate-800 text-slate-300"
-                              }`}
-                            >
-                              {member.role === "owner" ? "👑 Організатор" : "⚽ Гравець"}
-                            </span>
-                          </td>
-                          <td className="py-3 text-center text-slate-300 font-bold">
-                            {member.exactScores}
-                          </td>
-                          <td className="py-3 text-right">
-                            <span className="rounded-lg bg-emerald-950/60 border border-emerald-500/50 px-3 py-1 font-black text-emerald-300 text-sm">
-                              +{member.points} оч.
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="py-8 text-center text-xs text-slate-400">
+                  <span className="text-3xl">👥</span>
+                  <p className="mt-2 text-sm font-bold text-white">У цій лізі поки немає учасників</p>
+                  <p className="mt-1 text-slate-400">Поділіться інвайт-кодом ліги з друзями, щоб розпочати турнір!</p>
                 </div>
+              ) : (
+                <>
+                  {/* Мобільний вигляд (картки): sm:hidden */}
+                  <div className="sm:hidden space-y-3">
+                    {details.members.map((member, idx) => (
+                      <div
+                        key={member.user_id}
+                        className="animate-card-in rounded-[var(--radius-lg)] border border-[var(--surface-border)] bg-[var(--surface)] p-3.5 shadow-sm"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-mono font-bold text-slate-400">#{idx + 1}</span>
+                            <span className="text-lg">{idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "👤"}</span>
+                            <span className="font-bold text-white truncate max-w-[140px]">{member.profile?.username ?? "Гравець"}</span>
+                          </div>
+                          <span className="rounded-[var(--radius-sm)] bg-emerald-950/60 border border-emerald-500/50 px-2.5 py-1 font-black text-emerald-300 text-xs">
+                            +{member.points} оч.
+                          </span>
+                        </div>
+                        <div className="mt-2.5 flex items-center justify-between text-xs border-t border-slate-800/60 pt-2 text-slate-400 font-mono">
+                          <span
+                            className={`rounded px-2 py-0.5 text-[10px] font-black uppercase ${
+                              member.role === "owner"
+                                ? "border border-amber-600/50 bg-amber-950/30 text-amber-300"
+                                : "border border-slate-700 bg-slate-800 text-slate-300"
+                            }`}
+                          >
+                            {member.role === "owner" ? "👑 Організатор" : "⚽ Гравець"}
+                          </span>
+                          <span>Точних: <strong className="text-white">{member.exactScores}</strong></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Десктопний вигляд (таблиця): hidden sm:block */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full text-left text-xs font-mono">
+                      <thead className="border-b border-slate-800 text-slate-400">
+                        <tr>
+                          <th className="pb-2.5">#</th>
+                          <th className="pb-2.5">Учасник</th>
+                          <th className="pb-2.5">Роль</th>
+                          <th className="pb-2.5 text-center">Точні рахунки</th>
+                          <th className="pb-2.5 text-right">Бали ліги</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {details.members.map((member, idx) => (
+                          <tr key={member.user_id} className="hover:bg-slate-800/30 transition">
+                            <td className="py-3 font-bold text-slate-400">{idx + 1}</td>
+                            <td className="py-3 font-bold text-white flex items-center gap-1.5">
+                              <span>{idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "👤"}</span>
+                              <span>{member.profile?.username ?? "Гравець"}</span>
+                            </td>
+                            <td className="py-3">
+                              <span
+                                className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase ${
+                                  member.role === "owner"
+                                    ? "border border-amber-600/50 bg-amber-950/30 text-amber-300"
+                                    : "border border-slate-700 bg-slate-800 text-slate-300"
+                                }`}
+                              >
+                                {member.role === "owner" ? "👑 Організатор" : "⚽ Гравець"}
+                              </span>
+                            </td>
+                            <td className="py-3 text-center text-slate-300 font-bold">
+                              {member.exactScores}
+                            </td>
+                            <td className="py-3 text-right">
+                              <span className="rounded-lg bg-emerald-950/60 border border-emerald-500/50 px-3 py-1 font-black text-emerald-300 text-sm">
+                                +{member.points} оч.
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </section>
 
@@ -868,7 +908,7 @@ export default function LeagueDetailsPage() {
                 <div className="rounded-3xl border-2 border-dashed border-slate-800 bg-[#0d1017] p-12 text-center text-slate-400">
                   <span className="text-4xl">⚽</span>
                   <h3 className="mt-3 text-base font-bold text-white">У цій лізі поки немає матчів</h3>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-slate-400">
                     {isOwner ? "Створіть перший матч у панелі організатора вище!" : "Організатор ліги незабаром додасть матчі."}
                   </p>
                 </div>
@@ -949,7 +989,7 @@ export default function LeagueDetailsPage() {
                                 type="button"
                                 disabled={busyAction !== null}
                                 onClick={() => void handleDeleteMatch(match)}
-                                className="rounded-lg border border-rose-800/80 bg-rose-950/30 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-900/50 transition"
+                                className="btn-interactive min-h-[44px] rounded-lg border border-rose-800/80 bg-rose-950/30 px-4 py-2 text-xs font-bold text-rose-300 hover:bg-rose-900/50"
                               >
                                 ✕ Видалити матч
                               </button>
@@ -1036,7 +1076,7 @@ export default function LeagueDetailsPage() {
                                   className={fieldClassName}
                                 />
                               </div>
-                              <span className="pb-3 text-xl font-bold text-slate-500">:</span>
+                              <span className="pb-3 text-xl font-bold text-slate-400">:</span>
                               <div className="w-24">
                                 <label className="mb-1 block text-[10px] text-slate-400 truncate">
                                   {match.team_away}
@@ -1133,7 +1173,7 @@ export default function LeagueDetailsPage() {
                                   <button
                                     type="submit"
                                     disabled={busyAction === `bet-${match.id}` || !currentUserId}
-                                    className="h-12 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 font-sans text-xs font-black uppercase text-black hover:from-amber-400 hover:to-amber-500 transition shadow-lg"
+                                    className="btn-interactive min-h-[44px] h-12 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 font-sans text-xs font-black uppercase text-black hover:from-amber-400 hover:to-amber-500 shadow-lg"
                                   >
                                     {busyAction === `bet-${match.id}` ? "Ставимо..." : "Поставити монети"}
                                   </button>
@@ -1155,7 +1195,7 @@ export default function LeagueDetailsPage() {
                                 Прогнози на гру:
                               </span>
                               {visiblePredictions.length === 0 ? (
-                                <p className="text-slate-600">Прогнозів немає</p>
+                                <p className="text-slate-400">Прогнозів немає</p>
                               ) : (
                                 <ul className="space-y-1">
                                   {visiblePredictions.map((pred) => (
@@ -1181,7 +1221,7 @@ export default function LeagueDetailsPage() {
                                 Ставки монет:
                               </span>
                               {visibleBets.length === 0 ? (
-                                <p className="text-slate-600">Ставок немає</p>
+                                <p className="text-slate-400">Ставок немає</p>
                               ) : (
                                 <ul className="space-y-1">
                                   {visibleBets.map((bet) => (

@@ -143,13 +143,13 @@ export default function AuthStatusIndicator() {
             </span>
 
             {/* Золоті монети */}
-            <span className="whitespace-nowrap font-bold text-amber-400" title="Золоті монети">
+            <span className="balance-badge whitespace-nowrap font-bold text-amber-400" title="Золоті монети">
               🪙 {coins === null ? "—" : coins.toLocaleString()}
             </span>
 
             {/* Друга валюта: Бонуси (валюта для кейсів та онлайн дуелей) */}
             <span
-              className="flex items-center gap-1 rounded-md border border-slate-600 bg-slate-800/80 px-2 py-0.5 font-bold text-slate-200 shadow-inner"
+              className="balance-badge flex items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--surface-border)] bg-[var(--surface)] px-2.5 py-1 font-bold text-slate-200 shadow-inner"
               title="Бонуси (валюта для кейсів та онлайн дуелей)"
             >
               <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 via-slate-400 to-slate-600 text-[9px] font-black text-slate-950 shadow-sm">
@@ -163,7 +163,7 @@ export default function AuthStatusIndicator() {
               type="button"
               onClick={handleSignOut}
               disabled={isSigningOut}
-              className="rounded border border-red-900/50 bg-red-950/30 px-2 py-0.5 font-bold text-red-400 transition hover:bg-red-900/50 disabled:opacity-50"
+              className="btn-interactive min-h-[44px] rounded-[var(--radius-sm)] border border-red-900/50 bg-red-950/30 px-3 py-1 font-bold text-red-400 hover:bg-red-900/50"
             >
               {isSigningOut ? "..." : "ВИХІД"}
             </button>
@@ -173,7 +173,7 @@ export default function AuthStatusIndicator() {
             <span className="text-gray-400">[ОФЛАЙН]</span>
             <Link
               href="/login"
-              className="rounded border border-cyan-800 bg-cyan-950/40 px-2.5 py-0.5 font-bold text-cyan-300 transition hover:bg-cyan-900/60"
+              className="btn-interactive min-h-[44px] rounded-[var(--radius-sm)] border border-cyan-800 bg-cyan-950/40 px-3.5 py-1.5 font-bold text-cyan-300 hover:bg-cyan-900/60"
             >
               УВІЙТИ
             </Link>
