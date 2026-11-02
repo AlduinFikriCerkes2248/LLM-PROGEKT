@@ -23,9 +23,12 @@ type Match = {
   team_home: string;
   team_away: string;
   match_time: string;
-  status: "planned" | "finished";
+  status: "scheduled" | "planned" | "live" | "finished" | "cancelled";
   home_score: number | null;
   away_score: number | null;
+  external_id?: string | null;
+  result_source?: "manual" | "auto" | null;
+  last_synced_at?: string | null;
 };
 
 type Prediction = {
@@ -76,7 +79,7 @@ type LeagueDetails = {
 };
 
 const backLinkClassName =
-  "text-xs font-bold uppercase tracking-wider text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1.5";
+  "min-h-[44px] text-xs font-bold uppercase tracking-wider text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1.5";
 const fieldClassName =
   "h-12 w-full rounded-xl border-2 border-slate-700 bg-slate-900/90 px-3.5 font-mono text-sm font-semibold text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -140,6 +143,54 @@ function getBetPickLabel(pick: BetPick, match: Match) {
   return `Перемога: ${match.team_away}`;
 }
 
+// Рендеринг ярликів статусу з CSS-анімацією лише для "Наживо" та підтримкою prefers-reduced-motion
+function renderMatchStatusBadge(match: Match, now: number) {
+  const isFinished = match.status === "finished";
+  const isCancelled = match.status === "cancelled";
+  const isLiveExplicit = match.status === "live";
+  const isScheduledOrPlanned =
+    match.status === "scheduled" || match.status === "planned" || !match.status;
+  const isStarted = now >= new Date(match.match_time).getTime();
+  const isLive = isLiveExplicit || (isScheduledOrPlanned && isStarted && !isFinished && !isCancelled);
+
+  if (isCancelled) {
+    return (
+      <span className="inline-block rounded-full border border-rose-500/50 bg-rose-950/40 px-3 py-1 text-xs font-black uppercase tracking-wider text-rose-300">
+        🚫 Скасовано
+      </span>
+    );
+  }
+
+  if (isFinished) {
+    if (match.result_source === "auto") {
+      return (
+        <span className="inline-block rounded-full border border-emerald-500/60 bg-emerald-950/40 px-3 py-1 text-xs font-black uppercase tracking-wider text-emerald-300">
+          🤖 Завершено авто
+        </span>
+      );
+    }
+    return (
+      <span className="inline-block rounded-full border border-teal-500/60 bg-teal-950/40 px-3 py-1 text-xs font-black uppercase tracking-wider text-teal-300">
+        🏁 Завершено вручну
+      </span>
+    );
+  }
+
+  if (isLive) {
+    return (
+      <span className="inline-block rounded-full border border-amber-500/60 bg-amber-950/50 px-3 py-1 text-xs font-black uppercase tracking-wider text-amber-300 animate-pulse motion-reduce:animate-none">
+        ⚡ Наживо
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-block rounded-full border border-cyan-500/50 bg-cyan-950/40 px-3 py-1 text-xs font-black uppercase tracking-wider text-cyan-300">
+      🟢 Заплановано
+    </span>
+  );
+}
+
 export default function LeagueDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -191,9 +242,7 @@ export default function LeagueDetailsPage() {
           .eq("league_id", id),
         client
           .from("matches")
-          .select(
-            "id, league_id, team_home, team_away, match_time, status, home_score, away_score",
-          )
+          .select("*")
           .eq("league_id", id)
           .order("match_time", { ascending: true }),
         isAuthResolved
@@ -216,7 +265,7 @@ export default function LeagueDetailsPage() {
       const betRows = (betsResponse.data as Bet[]) ?? [];
 
       const plannedMatches = matchRows.filter(
-        (match) => match.status === "planned",
+        (match) => match.status === "planned" || match.status === "scheduled",
       );
 
       const poolResults = await Promise.all(
@@ -458,19 +507,33 @@ export default function LeagueDetailsPage() {
     const teamHome = String(form.get("team-home")).trim();
     const teamAway = String(form.get("team-away")).trim();
     const matchTime = String(form.get("match-time"));
+    const externalId = String(form.get("external-id") || "").trim() || null;
 
     setBusyAction("add-match");
     setActionError(null);
     setActionMessage(null);
 
     try {
-      const { error } = await client.from("matches").insert({
+      const matchData: {
+        league_id: string;
+        team_home: string;
+        team_away: string;
+        match_time: string;
+        status: string;
+        external_id?: string;
+      } = {
         league_id: details.league.id,
         team_home: teamHome,
         team_away: teamAway,
         match_time: new Date(matchTime).toISOString(),
-        status: "planned",
-      });
+        status: "scheduled",
+      };
+
+      if (externalId) {
+        matchData.external_id = externalId;
+      }
+
+      const { error } = await client.from("matches").insert(matchData);
 
       if (error) throw error;
       setActionMessage("Матч успішно додано у розклад!");
@@ -478,6 +541,35 @@ export default function LeagueDetailsPage() {
       reload();
     } catch (err) {
       setActionError(getActionError(err, "Не вдалося додати матч."));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleUpdateExternalId(event: FormEvent<HTMLFormElement>, match: Match) {
+    event.preventDefault();
+    const client = getSupabaseClient();
+    if (!client || !details) return;
+
+    const form = new FormData(event.currentTarget);
+    const externalId = String(form.get("external-id") || "").trim() || null;
+
+    setBusyAction(`ext-${match.id}`);
+    setActionError(null);
+    setActionMessage(null);
+
+    try {
+      const { error } = await client
+        .from("matches")
+        .update({ external_id: externalId })
+        .eq("id", match.id)
+        .eq("league_id", details.league.id);
+
+      if (error) throw error;
+      setActionMessage("API ID матчу оновлено!");
+      reload();
+    } catch (err) {
+      setActionError(getActionError(err, "Не вдалося оновити API ID матчу."));
     } finally {
       setBusyAction(null);
     }
@@ -503,6 +595,7 @@ export default function LeagueDetailsPage() {
           home_score: homeScore,
           away_score: awayScore,
           status: "finished",
+          result_source: "manual",
         })
         .eq("id", match.id)
         .eq("league_id", details.league.id)
@@ -609,25 +702,25 @@ export default function LeagueDetailsPage() {
           <div className="flex flex-wrap items-center gap-2.5">
             <Link
               href="/online"
-              className="rounded-lg border border-indigo-500/80 bg-indigo-950/40 px-3 py-1.5 text-xs font-bold text-indigo-300 hover:bg-indigo-900/60 transition shadow-sm"
+              className="min-h-[44px] flex items-center rounded-lg border border-indigo-500/80 bg-indigo-950/40 px-3 py-1.5 text-xs font-bold text-indigo-300 hover:bg-indigo-900/60 transition shadow-sm"
             >
               🌐 Онлайн Дуелі
             </Link>
             <Link
               href="/dice"
-              className="rounded-lg border border-red-600/60 bg-red-950/30 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-900/40 transition"
+              className="min-h-[44px] flex items-center rounded-lg border border-red-600/60 bg-red-950/30 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-900/40 transition"
             >
               🎲 Кості
             </Link>
             <Link
               href="/blackjack"
-              className="rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition"
+              className="min-h-[44px] flex items-center rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition"
             >
               🃏 Блекджек
             </Link>
             <Link
               href="/cases"
-              className="rounded-lg border border-purple-800 bg-purple-950/30 px-3 py-1.5 text-xs font-bold text-purple-300 hover:bg-purple-900/40 transition"
+              className="min-h-[44px] flex items-center rounded-lg border border-purple-800 bg-purple-950/30 px-3 py-1.5 text-xs font-bold text-purple-300 hover:bg-purple-900/40 transition"
             >
               🎁 Кейси
             </Link>
@@ -645,7 +738,10 @@ export default function LeagueDetailsPage() {
             <span className="text-4xl">🔍</span>
             <h1 className="mt-3 text-2xl font-black text-white">ЛІГУ НЕ ЗНАЙДЕНО</h1>
             <p className="mt-1 text-xs text-slate-400">Можливо її було видалено або код невірний.</p>
-            <Link href="/leagues" className="mt-5 inline-block rounded-xl bg-cyan-600 px-6 py-2.5 text-xs font-bold uppercase text-black hover:bg-cyan-500 transition">
+            <Link
+              href="/leagues"
+              className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-xl bg-cyan-600 px-6 py-2.5 text-xs font-bold uppercase text-black hover:bg-cyan-500 transition"
+            >
               До списку ліг
             </Link>
           </section>
@@ -705,7 +801,7 @@ export default function LeagueDetailsPage() {
                   <button
                     type="button"
                     onClick={handleCopyInviteCode}
-                    className="rounded-xl bg-gradient-to-r from-cyan-600 to-teal-500 px-5 py-2.5 text-xs font-black uppercase text-black hover:from-cyan-400 hover:to-teal-300 transition shadow-md"
+                    className="min-h-[44px] rounded-xl bg-gradient-to-r from-cyan-600 to-teal-500 px-5 py-2.5 text-xs font-black uppercase text-black hover:from-cyan-400 hover:to-teal-300 transition shadow-md"
                   >
                     📋 Копіювати
                   </button>
@@ -768,7 +864,7 @@ export default function LeagueDetailsPage() {
                             <span
                               className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase ${
                                 member.role === "owner"
-                                  ? "border border-amber-600/50 bg-amber-950/30 text-amber-300"
+                                    ? "border border-amber-600/50 bg-amber-950/30 text-amber-300"
                                   : "border border-slate-700 bg-slate-800 text-slate-300"
                               }`}
                             >
@@ -801,7 +897,7 @@ export default function LeagueDetailsPage() {
                   <h2 className="text-xl font-black text-white">Додати матч у розклад</h2>
                 </div>
 
-                <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" onSubmit={handleAddMatch}>
+                <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5" onSubmit={handleAddMatch}>
                   <div>
                     <label htmlFor="team-home" className="mb-1.5 block text-xs font-bold text-slate-300">
                       Господарі (Команда 1)
@@ -842,11 +938,24 @@ export default function LeagueDetailsPage() {
                       className={fieldClassName}
                     />
                   </div>
+                  <div>
+                    <label htmlFor="external-id" className="mb-1.5 block text-xs font-bold text-slate-300">
+                      API ID (external_id, опц.)
+                    </label>
+                    <input
+                      id="external-id"
+                      name="external-id"
+                      type="text"
+                      placeholder="Напр. 493321"
+                      maxLength={50}
+                      className={fieldClassName}
+                    />
+                  </div>
                   <div className="flex items-end">
                     <button
                       type="submit"
                       disabled={busyAction === "add-match"}
-                      className="h-12 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 font-sans text-xs font-black uppercase text-black hover:brightness-110 active:scale-95 transition disabled:opacity-50"
+                      className="min-h-[44px] h-12 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 font-sans text-xs font-black uppercase text-black hover:brightness-110 active:scale-95 transition disabled:opacity-50"
                     >
                       {busyAction === "add-match" ? "Додаємо..." : "⚽ Додати матч"}
                     </button>
@@ -876,7 +985,12 @@ export default function LeagueDetailsPage() {
                 <ul className="space-y-6">
                   {details.matches.map((match) => {
                     const isFinished = match.status === "finished";
-                    const started = isFinished || now >= new Date(match.match_time).getTime();
+                    const isCancelled = match.status === "cancelled";
+                    const started =
+                      isFinished ||
+                      match.status === "live" ||
+                      now >= new Date(match.match_time).getTime();
+
                     const ownPrediction = details.predictions.find(
                       (p) => p.match_id === match.id && p.user_id === currentUserId,
                     );
@@ -909,47 +1023,82 @@ export default function LeagueDetailsPage() {
                                 {match.team_away}
                               </span>
                             </div>
-                            <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1.5 font-sans">
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-400 font-sans">
                               <span>🕒 {formatMatchTime(match.match_time)}</span>
-                            </p>
+                              {match.external_id && (
+                                <span className="rounded-md border border-cyan-800/60 bg-cyan-950/40 px-2 py-0.5 text-[10px] font-bold text-cyan-300">
+                                  🌐 API ID: {match.external_id}
+                                </span>
+                              )}
+                              {match.last_synced_at && (
+                                <span className="text-[10px] text-slate-500">
+                                  (синхр: {formatMatchTime(match.last_synced_at)})
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           <div className="text-right shrink-0">
-                            <span
-                              className={`inline-block rounded-full px-3 py-1 text-xs font-black uppercase tracking-wider ${
-                                isFinished
-                                  ? "border border-emerald-500/50 bg-emerald-950/40 text-emerald-300"
-                                  : started
-                                  ? "border border-amber-500/50 bg-amber-950/40 text-amber-300 animate-pulse"
-                                  : "border border-cyan-500/50 bg-cyan-950/40 text-cyan-300"
-                              }`}
-                            >
-                              {isFinished ? "🏁 Завершено" : started ? "⚡ Наживо" : "🟢 Заплановано"}
-                            </span>
-                            {isFinished && (
+                            {renderMatchStatusBadge(match, now)}
+                            {isFinished && match.home_score !== null && match.away_score !== null && (
                               <div className="mt-2 text-3xl font-black text-amber-400">
+                                {match.home_score} : {match.away_score}
+                              </div>
+                            )}
+                            {match.status === "live" && match.home_score !== null && match.away_score !== null && (
+                              <div className="mt-2 text-2xl font-black text-amber-300">
                                 {match.home_score} : {match.away_score}
                               </div>
                             )}
                           </div>
                         </div>
 
+                        {/* Повідомлення при скасуванні */}
+                        {isCancelled && (
+                          <div className="mt-4 rounded-xl border border-rose-800/40 bg-rose-950/30 p-3 text-xs text-rose-300">
+                            ⚠️ Матч скасовано. Усі зроблені ставки автоматично повернено на баланс монет.
+                          </div>
+                        )}
+
                         {/* Кнопки модерації організатора */}
                         {isOwner && (
                           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/60 pb-4">
-                            <div className="flex flex-wrap items-center gap-2">
-                              {started && !isFinished && (
+                            <div className="flex flex-wrap items-center gap-3">
+                              {started && !isFinished && !isCancelled && (
                                 <span className="text-xs font-bold text-amber-400">
                                   Матч розпочався! Внесіть результат після фінального свистка:
                                 </span>
                               )}
+                              {/* Ручне введення/оновлення external_id */}
+                              <form
+                                className="flex flex-wrap items-center gap-2"
+                                onSubmit={(e) => void handleUpdateExternalId(e, match)}
+                              >
+                                <label className="text-[10px] text-slate-400 font-bold uppercase">
+                                  API ID:
+                                </label>
+                                <input
+                                  name="external-id"
+                                  type="text"
+                                  placeholder="ID у провайдера"
+                                  defaultValue={match.external_id ?? ""}
+                                  className="h-9 w-32 rounded-lg border border-slate-700 bg-slate-900 px-2.5 text-xs text-white"
+                                />
+                                <button
+                                  type="submit"
+                                  disabled={busyAction === `ext-${match.id}`}
+                                  className="min-h-[44px] rounded-lg border border-cyan-700 bg-cyan-950/40 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-900/60 transition"
+                                >
+                                  {busyAction === `ext-${match.id}` ? "..." : "Зберегти ID"}
+                                </button>
+                              </form>
                             </div>
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
                                 disabled={busyAction !== null}
                                 onClick={() => void handleDeleteMatch(match)}
-                                className="rounded-lg border border-rose-800/80 bg-rose-950/30 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-900/50 transition"
+                                className="min-h-[44px] rounded-lg border border-rose-800/80 bg-rose-950/30 px-3.5 py-2 text-xs font-bold text-rose-300 hover:bg-rose-900/50 transition"
                               >
                                 ✕ Видалити матч
                               </button>
@@ -957,14 +1106,14 @@ export default function LeagueDetailsPage() {
                           </div>
                         )}
 
-                        {/* Внесення результату (Організатор) */}
-                        {isOwner && started && (
+                        {/* Внесення результату (Організатор вручну) */}
+                        {isOwner && started && !isCancelled && (
                           <form
                             className="mt-5 rounded-2xl border border-amber-600/50 bg-amber-950/20 p-4"
                             onSubmit={(e) => void handleSaveResult(e, match)}
                           >
                             <span className="text-xs font-black uppercase text-amber-300 block mb-2">
-                              {isFinished ? "Виправити підсумковий рахунок:" : "Внести фінальний результат:"}
+                              {isFinished ? "Виправити підсумковий рахунок вручну:" : "Внести фінальний результат вручну:"}
                             </span>
                             <div className="flex flex-wrap items-end gap-3">
                               <div className="w-24">
@@ -997,7 +1146,7 @@ export default function LeagueDetailsPage() {
                               <button
                                 type="submit"
                                 disabled={busyAction === `result-${match.id}`}
-                                className="h-12 rounded-xl bg-amber-500 px-6 font-sans text-xs font-black uppercase text-black hover:bg-amber-400 transition"
+                                className="min-h-[44px] h-12 rounded-xl bg-amber-500 px-6 font-sans text-xs font-black uppercase text-black hover:bg-amber-400 transition"
                               >
                                 {busyAction === `result-${match.id}` ? "Збереження..." : "🏁 Завершити матч"}
                               </button>
@@ -1006,7 +1155,7 @@ export default function LeagueDetailsPage() {
                         )}
 
                         {/* ФОРМА ПРОГНОЗУ НА МАТЧ */}
-                        {!isFinished && !started && (
+                        {!isFinished && !started && !isCancelled && (
                           <form
                             className="mt-6 rounded-2xl border border-slate-800 bg-[#0c1017] p-4 sm:p-5"
                             onSubmit={(e) => void handleSavePrediction(e, match)}
@@ -1053,7 +1202,7 @@ export default function LeagueDetailsPage() {
                               <button
                                 type="submit"
                                 disabled={busyAction === `prediction-${match.id}` || !currentUserId}
-                                className="h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 font-sans text-xs font-black uppercase tracking-wider text-white shadow-lg hover:from-emerald-500 hover:to-teal-400 transition"
+                                className="min-h-[44px] h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 font-sans text-xs font-black uppercase tracking-wider text-white shadow-lg hover:from-emerald-500 hover:to-teal-400 transition"
                               >
                                 {busyAction === `prediction-${match.id}` ? "Збереження..." : "✓ Зберегти прогноз"}
                               </button>
@@ -1062,7 +1211,7 @@ export default function LeagueDetailsPage() {
                         )}
 
                         {/* СТАВКА НА РЕЗУЛЬТАТ (КОЇНИ) */}
-                        {!isFinished && !started && (
+                        {!isFinished && !started && !isCancelled && (
                           <section className="mt-5 rounded-2xl border border-slate-800 bg-[#0c1017] p-4 sm:p-5">
                             <span className="text-xs font-black uppercase tracking-wider text-amber-400 block mb-3">
                               💰 СТАВКА НА ПЕРЕМОЖЦЯ (ПУЛ МОНЕТ)
@@ -1133,7 +1282,7 @@ export default function LeagueDetailsPage() {
                                   <button
                                     type="submit"
                                     disabled={busyAction === `bet-${match.id}` || !currentUserId}
-                                    className="h-12 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 font-sans text-xs font-black uppercase text-black hover:from-amber-400 hover:to-amber-500 transition shadow-lg"
+                                    className="min-h-[44px] h-12 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 font-sans text-xs font-black uppercase text-black hover:from-amber-400 hover:to-amber-500 transition shadow-lg"
                                   >
                                     {busyAction === `bet-${match.id}` ? "Ставимо..." : "Поставити монети"}
                                   </button>
@@ -1219,7 +1368,7 @@ export default function LeagueDetailsPage() {
                       type="button"
                       disabled={busyAction !== null}
                       onClick={() => void handleDeleteLeague()}
-                      className="rounded-xl border border-rose-700 bg-rose-950/40 px-4 py-2 text-xs font-bold text-rose-300 hover:bg-rose-900/60 transition"
+                      className="min-h-[44px] rounded-xl border border-rose-700 bg-rose-950/40 px-5 py-2.5 text-xs font-bold text-rose-300 hover:bg-rose-900/60 transition"
                     >
                       {busyAction === "delete-league" ? "Видалення..." : "Видалити лігу"}
                     </button>
@@ -1228,7 +1377,7 @@ export default function LeagueDetailsPage() {
                       type="button"
                       disabled={busyAction !== null}
                       onClick={() => void handleLeaveLeague()}
-                      className="rounded-xl border border-rose-700 bg-rose-950/40 px-4 py-2 text-xs font-bold text-rose-300 hover:bg-rose-900/60 transition"
+                      className="min-h-[44px] rounded-xl border border-rose-700 bg-rose-950/40 px-5 py-2.5 text-xs font-bold text-rose-300 hover:bg-rose-900/60 transition"
                     >
                       {busyAction === "leave-league" ? "Вихід..." : "Вийти з ліги"}
                     </button>
