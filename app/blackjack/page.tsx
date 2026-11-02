@@ -2,6 +2,7 @@
 import { DemoNoticeBadge } from "../demo-banner";
 
 import Link from "next/link";
+import { formatErrorMessage } from "../../lib/error-utils";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   getSupabaseClient,
@@ -245,7 +246,7 @@ function InteractiveColaGlass({
         <span className="font-mono text-[11px] font-bold text-amber-300">
           {level > 0 ? `${level}% кола` : "Порожньо"}
         </span>
-        <p className="text-[9px] text-slate-500 uppercase">клік = ковток</p>
+        <p className="text-[9px] text-slate-400 uppercase">клік = ковток</p>
       </div>
     </div>
   );
@@ -356,7 +357,7 @@ export default function BlackjackPage() {
         const parsedGame = parseGame(data);
         if (parsedGame) setGame(parsedGame);
       } catch (error) {
-        console.error("Помилка завантаження:", error);
+        console.error("Помилка завантаження блекджеку:", formatErrorMessage(error));
       } finally {
         setIsLoading(false);
       }
@@ -759,11 +760,11 @@ export default function BlackjackPage() {
             <span>🏆</span> РЕЙТИНГ ГРАВЦІВ ПІДПІЛЬНОГО КЛУБУ
           </h2>
           {leaderboard.length === 0 ? (
-            <p className="text-xs text-slate-500">Поки що немає зіграних партій.</p>
+            <p className="text-xs text-slate-400">Поки що немає зіграних партій.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs font-mono">
-                <thead className="border-b border-slate-800 text-slate-500">
+                <thead className="border-b border-slate-800 text-slate-400">
                   <tr>
                     <th className="py-2.5">Гравець</th>
                     <th className="py-2.5">Партії</th>

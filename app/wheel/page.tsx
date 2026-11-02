@@ -2,6 +2,7 @@
 import { DemoNoticeBadge } from "../demo-banner";
 
 import Link from "next/link";
+import { formatErrorMessage } from "../../lib/error-utils";
 import { useEffect, useState, type TransitionEvent } from "react";
 import {
   getSupabaseClient,
@@ -94,7 +95,7 @@ export default function WheelPage() {
         if (isNotAuthenticatedError(error)) {
           setMessage("Увійдіть, щоб крутити колесо.");
         } else {
-          console.error("Не вдалося перевірити можливість обертання:", error);
+          console.error("Не вдалося перевірити можливість обертання:", formatErrorMessage(error));
           setMessage("Не вдалося перевірити колесо. Спробуйте ще раз.");
         }
       } finally {
@@ -149,7 +150,7 @@ export default function WheelPage() {
       } else if (isNotAuthenticatedError(error)) {
         setMessage("Увійдіть, щоб крутити колесо.");
       } else {
-        console.error("Не вдалося крутити колесо:", error);
+        console.error("Не вдалося крутити колесо:", formatErrorMessage(error));
         setMessage("Не вдалося крутити колесо. Спробуйте ще раз.");
       }
     }

@@ -590,7 +590,7 @@ export function HeraldicCelebrationModal({
           Гербова відзнака пошани: здиблені золоті леви та лицарська звитяга відкривають ваш турнір!
         </p>
 
-        <p className="mt-6 font-mono text-[11px] text-slate-500 hover:text-slate-300 transition">
+        <p className="mt-6 font-mono text-[11px] text-slate-400 hover:text-slate-300 transition">
           (натисніть будь-де, щоб перейти до ліги)
         </p>
       </div>

@@ -8,6 +8,7 @@ import {
   isSupabaseConfigured,
 } from "../../lib/supabase/client";
 import { useEffect, useState, type FormEvent } from "react";
+import { formatErrorMessage } from "../../lib/error-utils";
 
 type League = {
   id: string;
@@ -102,7 +103,7 @@ export default function LeaguesPage() {
         setLoadError(null);
       } catch (error) {
         if (cancelled) return;
-        console.error("Не вдалося завантажити ліги:", error);
+        console.error("Не вдалося завантажити ліги:", formatErrorMessage(error));
         setLoadError("Не вдалося завантажити список ліг. Спробуйте оновити сторінку.");
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -172,7 +173,7 @@ export default function LeaguesPage() {
         setFormError(getMemberInsertError(memberError, "create"));
       }
     } catch (error) {
-      console.error("Не вдалося створити лігу:", error);
+      console.error("Не вдалося створити лігу:", formatErrorMessage(error));
       const code = getErrorCode(error);
       if (code === "23503") {
         setFormError(
@@ -185,8 +186,7 @@ export default function LeaguesPage() {
       } else if (code === "42501") {
         setFormError("Недостатньо прав для створення ліги. Перевірте RLS політики.");
       } else {
-        const msg = error instanceof Error ? error.message : (error && typeof error === "object" && "message" in error) ? String(error.message) : "Не вдалося створити лігу. Спробуйте ще раз.";
-        setFormError(msg);
+        setFormError(formatErrorMessage(error, "Не вдалося створити лігу. Спробуйте ще раз."));
       }
     } finally {
       setIsCreating(false);
@@ -245,7 +245,7 @@ export default function LeaguesPage() {
         setLeagues((prev) => [...prev, leagueData as League]);
       }
     } catch (error) {
-      console.error("Не вдалося приєднатися до ліги:", error);
+      console.error("Не вдалося приєднатися до ліги:", formatErrorMessage(error));
       setJoinError("Не вдалося приєднатися до ліги. Спробуйте ще раз.");
     } finally {
       setIsJoining(false);
@@ -318,7 +318,7 @@ export default function LeaguesPage() {
         {/* Action Forms Grid */}
         <div className="mb-10 grid gap-6 sm:grid-cols-2">
           {/* Create League */}
-          <section className="rounded-xl border border-cyan-900/50 bg-gradient-to-b from-[#0f1a15] to-[#0a120e] p-5 shadow-[0_0_20px_rgba(0,255,200,0.03)] sm:p-6">
+          <section className="ui-surface-card p-5 sm:p-6">
             <h2 className="mb-2 flex items-center gap-2 text-base font-bold text-cyan-300">
               <span>➕</span> СТВОРИТИ ЛІГУ
             </h2>
@@ -333,12 +333,12 @@ export default function LeaguesPage() {
                 onChange={(e) => setLeagueTitle(e.target.value)}
                 required
                 disabled={isCreating}
-                className="h-10 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 text-sm text-cyan-200 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 disabled:opacity-50"
+                className="h-11 min-h-[44px] w-full rounded-[var(--radius-sm)] border border-[var(--surface-border)] bg-[#07090e] px-3.5 text-sm text-cyan-200 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={isCreating || !leagueTitle.trim()}
-                className="h-10 w-full rounded-lg bg-gradient-to-r from-cyan-600 to-emerald-600 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-cyan-600/20 transition hover:from-cyan-500 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="btn-interactive h-11 min-h-[44px] w-full rounded-[var(--radius-sm)] bg-gradient-to-r from-cyan-600 to-emerald-600 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-cyan-600/20 hover:from-cyan-500 hover:to-emerald-500"
               >
                 {isCreating ? "Створення..." : "Створити лігу"}
               </button>
@@ -354,7 +354,7 @@ export default function LeaguesPage() {
           </section>
 
           {/* Join League */}
-          <section className="rounded-xl border border-cyan-900/50 bg-gradient-to-b from-[#0f1a15] to-[#0a120e] p-5 shadow-[0_0_20px_rgba(0,255,200,0.03)] sm:p-6">
+          <section className="ui-surface-card p-5 sm:p-6">
             <h2 className="mb-2 flex items-center gap-2 text-base font-bold text-cyan-300">
               <span>🔑</span> ПРИЄДНАТИСЯ ЗА КОДОМ
             </h2>
@@ -369,12 +369,12 @@ export default function LeaguesPage() {
                 onChange={(e) => setInviteCodeInput(e.target.value)}
                 required
                 disabled={isJoining}
-                className="h-10 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 text-sm uppercase text-cyan-200 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 disabled:opacity-50"
+                className="h-11 min-h-[44px] w-full rounded-[var(--radius-sm)] border border-[var(--surface-border)] bg-[#07090e] px-3.5 text-sm uppercase text-cyan-200 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={isJoining || !inviteCodeInput.trim()}
-                className="h-10 w-full rounded-lg border border-cyan-700 bg-cyan-950/40 px-4 text-xs font-bold uppercase tracking-wider text-cyan-300 shadow-lg transition hover:bg-cyan-900/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="btn-interactive h-11 min-h-[44px] w-full rounded-[var(--radius-sm)] border border-cyan-600/80 bg-cyan-950/40 px-4 text-xs font-bold uppercase tracking-wider text-cyan-300 shadow-lg hover:bg-cyan-900/50 hover:text-white"
               >
                 {isJoining ? "Приєднання..." : "Приєднатися"}
               </button>
@@ -389,16 +389,16 @@ export default function LeaguesPage() {
         </div>
 
         {/* Leagues List */}
-        <section className="rounded-xl border border-cyan-900/40 bg-gradient-to-b from-[#0f1a15] to-[#0a120e] p-5 shadow-[0_0_25px_rgba(0,255,200,0.04)] sm:p-8">
+        <section className="ui-surface-card p-5 sm:p-8">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-cyan-900/40 pb-4">
             <h2 className="flex items-center gap-2 text-lg font-bold text-cyan-300">
               <span>🏆</span> ДОСТУПНІ ЛІГИ ({leagues.length})
             </h2>
-            <span className="text-xs text-gray-500">[ Оберіть лігу для прогнозів ]</span>
+            <span className="text-xs text-slate-400">[ Оберіть лігу для прогнозів ]</span>
           </div>
 
           {isLoading ? (
-            <p className="py-8 text-center text-gray-500 animate-pulse">
+            <p className="py-8 text-center text-slate-400 animate-pulse">
               ⚡ Завантаження ліг...
             </p>
           ) : loadError ? (
@@ -414,7 +414,7 @@ export default function LeaguesPage() {
                 <Link
                   key={league.id}
                   href={`/leagues/${league.id}`}
-                  className="group relative flex items-center justify-between overflow-hidden rounded-2xl border-2 border-slate-800 bg-gradient-to-r from-[#111722] via-[#0d121c] to-[#0a0d14] p-5 transition-all duration-200 hover:-translate-y-1 hover:border-cyan-400 hover:shadow-[0_10px_25px_rgba(6,182,212,0.25)]"
+                  className="animate-card-in group relative flex items-center justify-between overflow-hidden rounded-[var(--radius-lg)] border border-[var(--surface-border)] bg-[var(--surface)] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-[var(--shadow-main)]"
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-800/80 bg-cyan-950/40 text-2xl shadow-inner group-hover:scale-110 transition-transform">

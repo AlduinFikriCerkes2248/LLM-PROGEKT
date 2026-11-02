@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { formatErrorMessage } from "../../lib/error-utils";
 import {
   getSupabaseClient,
   PROFILE_UPDATED_EVENT,
@@ -214,7 +215,8 @@ export default function CasesPage() {
         }
       }
     } catch (err: unknown) {
-      console.error("Помилка відкриття кейсу:", err);
+      console.error("Помилка відкриття кейсу:", formatErrorMessage(err));
+      setErrorMessage(formatErrorMessage(err, "Не вдалося відкрити кейс."));
       setErrorMessage("Не вдалося відкрити кейс. Переконайтеся, що ви увійшли у систему.");
     } finally {
       setIsOpening(false);
@@ -271,7 +273,8 @@ export default function CasesPage() {
         window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
       }
     } catch (err: unknown) {
-      console.error("Помилка купівлі кейсу:", err);
+      console.error("Помилка купівлі кейсу:", formatErrorMessage(err));
+      setErrorMessage(formatErrorMessage(err, "Не вдалося придбати кейс."));
       setErrorMessage(
         err instanceof Error
           ? err.message
