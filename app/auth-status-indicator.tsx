@@ -126,7 +126,7 @@ export default function AuthStatusIndicator() {
     }
   }
 
-  if (pathname === "/login") return null;
+  if (pathname === "/login" || pathname === "/") return null;
 
   return (
     <>

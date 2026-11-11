@@ -1,5 +1,4 @@
-import { createBrowserClient } from "@supabase/ssr";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export const PROFILE_UPDATED_EVENT = "matchday:profile-updated";
 
@@ -16,6 +15,6 @@ export function getSupabaseClient() {
 
   if (!url || !key) return null;
 
-  supabaseClient ??= createBrowserClient(url, key);
+  supabaseClient ??= createClient(url, key);
   return supabaseClient;
 }

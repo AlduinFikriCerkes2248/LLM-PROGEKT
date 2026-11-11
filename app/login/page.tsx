@@ -5,8 +5,7 @@ import {
   isSupabaseConfigured,
 } from "../../lib/supabase/client";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { formatErrorMessage } from "../../lib/error-utils";
 
 type AuthMode = "login" | "signup";
@@ -15,6 +14,16 @@ export default function LoginPage() {
   const router = useRouter();
   const [showSplash, setShowSplash] = useState(false);
   const [isFading, setIsFading] = useState(false);
+
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) return;
+    void client.auth.getSession().then(({ data }) => {
+      if (data?.session) {
+        router.replace("/leagues");
+      }
+    });
+  }, [router]);
 
   function handleSkipSplash() {
     setShowSplash(false);
@@ -337,14 +346,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-center">
-          <Link
-            href="/"
-            className="text-[11px] font-mono text-slate-400 hover:text-[#0297DE] transition-colors"
-          >
-            ← На головну сторінку
-          </Link>
-        </div>
+
       </section>
     </div>
 </main>
