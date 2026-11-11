@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import FluxHero from "../components/flux-hero";
 
 export default function Home() {
-  redirect("/login");
+  return <FluxHero />;
 }

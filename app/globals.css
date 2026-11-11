@@ -1,23 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  /* Дизайн-система: єдиний акцент (Cyan), єдиний фон, поверхні та приглушений текст */
-  --background: #07090e;
+  /* Дизайн-система: глибокий темно-синій фон, електричний синій та кораловий вогонь */
+  --background: #060a17;
   --foreground: #f8fafc;
-  --accent: #06b6d4;
+  --color-primary: #0297de;
+  --color-accent: #fc734d;
+  --color-navy: #0a1430;
+  --accent: #0297de;
   --accent-hover: #22d3ee;
-  --accent-glow: rgba(6, 182, 212, 0.25);
-  --surface: #0f141c;
+  --accent-glow: rgba(2, 151, 222, 0.25);
+  --surface: #0a1430;
   --surface-border: #1e293b;
   --surface-hover: #161f2c;
-  --text-muted: #94a3b8; /* slate-400: контраст >= 4.5:1 на фоні #07090e */
+  --text-muted: #94a3b8; /* slate-400: контраст >= 4.5:1 на фоні #060a17 */
 
   /* Два радіуси скруглення */
   --radius-sm: 0.5rem; /* 8px: бейджі, інпути, дрібні перемикачі */
   --radius-lg: 1rem;   /* 16px: картки, модальні вікна, контейнери */
 
   /* Єдина тінь дизайн-системи */
-  --shadow-main: 0 10px 25px -5px rgba(6, 182, 212, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  --shadow-main: 0 10px 25px -5px rgba(2, 151, 222, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
 }
 
 @theme inline {
@@ -109,7 +112,35 @@ body {
 }
 
 .ui-surface-card:hover {
-  border-color: rgba(6, 182, 212, 0.4);
+  border-color: rgba(2, 151, 222, 0.4);
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.85;
+    filter: drop-shadow(0 0 12px rgba(252, 115, 77, 0.45));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 24px rgba(252, 115, 77, 0.75));
+  }
+}
+
+@keyframes waveFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+.animate-wave-float {
+  animation: waveFloat 4s ease-in-out infinite;
 }
 
 /* ====================================================================
@@ -123,6 +154,5 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
-    transform: none !important;
   }
 }

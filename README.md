@@ -112,4 +112,60 @@ npm run build  # Повна оптимізована production-збірка Nex
 ## 📌 Відомі обмеження та подальший розвиток
 
 * **Синхронізація онлайн-столів:** Наразі синхронізація кроків у PvP базується на RPC `pvp_view` та періодичному опитуванні. Наступним етапом планується переведення на `supabase.channel()` Realtime Broadcast для мілісекундної реакції.
-* **Спортивні дані:** Розклад та результати матчів вносяться організатором ліги вручну; заплановано інтеграцію зовнішнього API футбольних ліг (Football-Data / API-Football).
+* **Спортивні дані:** Розклад та результати матчів вносяться організатором ліги вручну або автоматично синхронізуються через Edge Function `sync-results` за наявності `external_id` матчу.
+
+---
+
+## 🔑 Налаштування секретів для Edge Function (Авторезультати)
+
+Автоматична синхронізація результатів матчів реалізована через безпечну серверну **Edge Function** (`supabase/functions/sync-results`), яка викликає функцію бази даних `apply_auto_result` із правами `service_role`.
+
+> [!IMPORTANT]
+> **API-ключ провайдера спортивних даних ніколи не потрапляє у клієнтський код (`NEXT_PUBLIC_*`), браузер або git-репозиторій.** Він зберігається виключно у зашифрованому сховищі секретів Supabase (Vault / Edge Function Secrets).
+
+### 1. Додавання секретів через Supabase CLI
+
+Виконайте команду у терміналі для встановлення ключа у вашому Supabase-проєкті:
+
+```bash
+# Встановлення API ключа зовнішнього постачальника спортивних даних
+supabase secrets set FOOTBALL_API_KEY="ваш_секретний_api_ключ"
+
+# Встановлення секретного ключа для авторизації cron-запитів
+supabase secrets set CRON_SECRET="ваш_секретний_cron_токен"
+
+# Опціонально: кастомний базовий URL API (за замовчуванням https://api.football-data.org/v4/matches)
+supabase secrets set FOOTBALL_API_URL="https://api.football-data.org/v4/matches"
+```
+
+Або введіть секрети у веб-панелі: **Supabase Dashboard → Project Settings → Edge Functions → Secrets**.
+
+### 2. Локальне тестування функції
+
+Для локального тестування створіть файл оточення для функцій (наприклад `supabase/.env.local` — не додавайте його в git):
+```env
+FOOTBALL_API_KEY=ваш_ключ
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_SERVICE_ROLE_KEY=ваш_service_role_key
+```
+
+Запустіть Edge Function локально:
+```bash
+supabase functions serve sync-results --env-file ./supabase/.env.local
+```
+
+Викличте функцію POST-запитом:
+```bash
+curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/sync-results' \
+  --header 'Authorization: Bearer ВАШ_SERVICE_ROLE_KEY' \
+  --header 'x-cron-secret: ВАШ_CRON_SECRET'
+```
+
+### 3. Деплой функції у хмару
+
+```bash
+supabase functions deploy sync-results
+```
+
+Після деплою функцію можна запускати періодично через розширення `pg_cron` (закоментований приклад розкладу наведено у файлі міграції `supabase/migrations/*_auto_results.sql`) або за допомогою зовнішнього планувальника (GitHub Actions, cron-job.org).
+

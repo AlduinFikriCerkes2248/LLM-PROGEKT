@@ -1,0 +1,14 @@
+ RUN  v3.2.7 C:/Users/Acer/.gemini/antigravity/scratch/LLM-PROGEKT
+
+ ❯ tests/actions-leagues.test.ts (3 tests | 1 failed)
+   ✓ точки доступу: ліги > успішний виклик: організатор створює лігу, і вона є в базі
+   ✓ точки доступу: ліги > невалідні дані: порожня назва повз форму відхиляється з кодом 400
+   × точки доступу: ліги > чужий запис: акаунт Б не бачить і не видаляє лігу акаунта А
+     → AssertionError: expected { id: 'league-test-01', title: 'тест-чужа' } to be null
+ ✓ tests/smoke.test.ts (1 test)
+ ✓ tests/db-leagues.test.ts (3 tests)
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 6 passed (7)
+   Start at  10:52:45
+   Duration  1.75s

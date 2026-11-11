@@ -253,13 +253,22 @@ export default function LeaguesPage() {
   }
 
   return (
-    <main className="min-h-screen flex-1 bg-[#0a0a0a] px-4 py-8 font-mono text-gray-100 sm:px-8 sm:py-12">
+    <main className="min-h-screen flex-1 bg-[#060A17] px-4 py-8 font-mono text-gray-100 sm:px-8 sm:py-12">
       <div className="mx-auto max-w-5xl">
         {/* Navigation Bar / Quick Links */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-cyan-900/40 pb-4">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
-            <span className="text-xs uppercase tracking-widest text-cyan-400">СИСТЕМА ЛІГ ПРОГНОЗІВ v2.0</span>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+              <span className="w-1.5 h-3.5 bg-[#FC734D] rounded-full" />
+              <span className="w-1.5 h-4 bg-[#0297DE] rounded-full" />
+              <span className="w-1.5 h-3 bg-[#0A1430] border border-[#0297DE]/60 rounded-full" />
+              <span className="font-sans font-semibold text-xs tracking-wide text-white">ФлюксЭдит</span>
+            </Link>
+            <span className="text-slate-600">|</span>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-[#0297DE] shadow-[0_0_8px_#0297DE]" />
+              <span className="text-xs uppercase tracking-widest text-[#0297DE]">ЛІГИ ПРОГНОЗІВ v2.0</span>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
@@ -390,7 +399,7 @@ export default function LeaguesPage() {
 
         {/* Leagues List */}
         <section className="ui-surface-card p-5 sm:p-8">
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-cyan-900/40 pb-4">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
             <h2 className="flex items-center gap-2 text-lg font-bold text-cyan-300">
               <span>🏆</span> ДОСТУПНІ ЛІГИ ({leagues.length})
             </h2>
