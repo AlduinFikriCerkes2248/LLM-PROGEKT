@@ -31,308 +31,297 @@ export default function FluxHero() {
   }, [totalColumns]);
 
   return (
-    <div className="min-h-screen w-full bg-[#060A17] text-white font-sans selection:bg-[#FC734D] selection:text-white flex flex-col items-center px-4 py-6 sm:py-10 overflow-x-hidden">
+    <div className="min-h-screen w-full bg-[#060A17] text-white font-sans selection:bg-[#FC7340] selection:text-white flex flex-col justify-between px-4 py-6 sm:py-8 overflow-x-hidden">
+      {/* Фонове дифузне світіння арени (CSS) */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[20%] left-1/2 -translate-x-1/2 w-[700px] h-[380px] bg-gradient-to-b from-[#FC7340]/15 via-[#0297DE]/10 to-transparent blur-[120px] rounded-full" />
+        <div className="absolute bottom-0 left-0 w-[350px] h-[350px] bg-[#0297DE]/15 blur-[100px] rounded-full" />
+        <div className="absolute bottom-0 right-0 w-[350px] h-[350px] bg-[#FC7340]/15 blur-[100px] rounded-full" />
+      </div>
+
       {/* ========================================================= */}
-      {/* 1. ВЕРХНІЙ БЛОК ПРЕЗЕНТАЦІЇ ПАЛІТРИ З ЕТАЛОНУ            */}
+      {/* 1. ВЕРХНЯ НАВІГАЦІЯ                                      */}
       {/* ========================================================= */}
-      <section className="w-full max-w-4xl flex flex-col items-center mb-10 sm:mb-14">
-        <div className="grid grid-cols-3 gap-3 sm:gap-6 w-full max-w-lg">
-          {/* Card 1: Тёмно-синий */}
-          <div className="h-32 sm:h-40 rounded-2xl bg-[#0A1430] border border-slate-800/80 shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-3 sm:p-4 flex flex-col justify-end transition-transform hover:-translate-y-1">
-            <span className="text-xs sm:text-sm font-medium text-slate-200">
-              Тёмно-синий
-            </span>
-            <span className="text-[10px] sm:text-xs text-slate-400 font-mono mt-0.5">
-              #0A1430
-            </span>
+      <header className="relative z-20 w-full max-w-6xl mx-auto flex items-center justify-between pb-6 border-b border-[#162544]">
+        {/* Логотип: 3 фірмові кольорові маркери + MATCHDAY */}
+        <Link href="/" className="flex items-center gap-2.5 group cursor-pointer">
+          <div className="flex items-center gap-1">
+            <span className="w-1.5 h-3.5 bg-[#FC7340] rounded-full group-hover:h-4 transition-all" />
+            <span className="w-1.5 h-4 bg-[#0297DE] rounded-full group-hover:h-3 transition-all" />
+            <span className="w-1.5 h-3 bg-[#0A1430] border border-[#0297DE]/70 rounded-full group-hover:h-4 transition-all" />
           </div>
+          <span className="font-semibold text-sm sm:text-base tracking-widest text-white uppercase">
+            Matchday
+          </span>
+        </Link>
 
-          {/* Card 2: Electric Blue */}
-          <div className="h-32 sm:h-40 rounded-2xl bg-[#0297DE] shadow-[0_10px_30px_rgba(2,151,222,0.35)] p-3 sm:p-4 flex flex-col justify-end transition-transform hover:-translate-y-1">
-            <span className="text-xs sm:text-sm font-medium text-white">
-              Electric Blue
-            </span>
-            <span className="text-[10px] sm:text-xs text-white/80 font-mono mt-0.5">
-              #0297DE
-            </span>
-          </div>
-
-          {/* Card 3: Оранжевый */}
-          <div className="h-32 sm:h-40 rounded-2xl bg-[#FC734D] shadow-[0_10px_30px_rgba(252,115,77,0.35)] p-3 sm:p-4 flex flex-col justify-end transition-transform hover:-translate-y-1">
-            <span className="text-xs sm:text-sm font-medium text-white">
-              Оранжевый
-            </span>
-            <span className="text-[10px] sm:text-xs text-white/80 font-mono mt-0.5">
-              #FC734D
-            </span>
-          </div>
-        </div>
-
-        <h2 className="mt-6 sm:mt-8 text-center text-xs sm:text-base tracking-wider text-slate-300 font-light drop-shadow-[0_0_15px_rgba(255,255,255,0.35)]">
-          і це вже виглядає як дорогий продукт для футбольних фанатів
-        </h2>
-      </section>
-
-      {/* ========================================================= */}
-      {/* 2. ГОЛОВНИЙ ЕКРАН MATCHDAY У СТИЛІ ЕТАЛОНУ               */}
-      {/* ========================================================= */}
-      <section className="relative w-full max-w-5xl rounded-3xl bg-[#060A17] border border-slate-800/90 shadow-[0_25px_80px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col justify-between p-6 sm:p-8 md:p-10">
-        {/* Фонове дифузне світіння арени */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-[25%] left-1/2 -translate-x-1/2 w-[650px] h-[360px] bg-gradient-to-b from-[#FC734D]/15 via-[#0297DE]/10 to-transparent blur-[110px] rounded-full" />
-          <div className="absolute -bottom-10 left-0 w-[300px] h-[300px] bg-[#0297DE]/15 blur-[90px] rounded-full" />
-          <div className="absolute -bottom-10 right-0 w-[300px] h-[300px] bg-[#FC734D]/15 blur-[90px] rounded-full" />
-        </div>
-
-        {/* НАВІГАЦІЯ САЙТУ */}
-        <header className="relative z-20 w-full flex items-center justify-between pb-6">
-          {/* Логотип: 3 пігулки + MATCHDAY */}
-          <Link href="/" className="flex items-center gap-2 group cursor-pointer">
-            <div className="flex items-center gap-1">
-              <span className="w-1 h-3.5 bg-[#FC734D] rounded-full group-hover:h-4 transition-all" />
-              <span className="w-1 h-4 bg-[#0297DE] rounded-full group-hover:h-3 transition-all" />
-              <span className="w-1 h-3 bg-[#0A1430] border border-[#0297DE]/70 rounded-full group-hover:h-4 transition-all" />
-            </div>
-            <span className="font-semibold text-xs sm:text-sm tracking-widest text-white uppercase">
-              Matchday
-            </span>
+        {/* Навігація по дійсних маршрутах платформи */}
+        <nav className="hidden md:flex items-center gap-6 text-xs text-slate-300">
+          <Link href="/leagues" className="hover:text-white transition-colors">
+            Мої ліги
           </Link>
+          <Link href="/wheel" className="hover:text-white transition-colors">
+            Колесо
+          </Link>
+          <Link href="/online" className="hover:text-white transition-colors">
+            Онлайн дуелі
+          </Link>
+          <Link href="/cases" className="hover:text-white transition-colors">
+            Кейси
+          </Link>
+          <Link href="/blackjack" className="hover:text-white transition-colors">
+            Блекджек
+          </Link>
+          <Link href="/dice" className="hover:text-white transition-colors">
+            Кості
+          </Link>
+        </nav>
 
-          {/* Пункти меню платформи */}
-          <nav className="hidden md:flex items-center gap-7 text-xs text-slate-300">
-            <Link href="/leagues" className="hover:text-white transition-colors">
-              Ліги прогнозів
-            </Link>
-            <Link href="/online" className="hover:text-white transition-colors">
-              Онлайн PvP
-            </Link>
-            <Link href="/cases" className="hover:text-white transition-colors">
-              Кейси та квести
-            </Link>
-            <Link href="/wheel" className="hover:text-white transition-colors">
-              Колесо фортуни
-            </Link>
-          </nav>
-
-          {/* Головна дія */}
+        {/* Кнопка авторизації */}
+        <div className="flex items-center gap-3">
           <Link
             href="/login"
-            className="bg-[#FC734D] hover:bg-[#ff8563] text-white text-[11px] sm:text-xs font-semibold px-4 py-2 rounded-full shadow-[0_0_20px_rgba(252,115,77,0.4)] transition-all hover:scale-105 active:scale-95 inline-block"
+            className="btn-interactive min-h-[38px] bg-[#0A1430] hover:bg-[#121e3d] text-white border border-[#0297DE]/50 hover:border-[#0297DE] text-xs font-semibold px-4 py-2 rounded-full transition-all shadow-[0_0_15px_rgba(2,151,222,0.2)]"
           >
-            Почати безкоштовно
+            Увійти
           </Link>
-        </header>
+        </div>
+      </header>
 
-        {/* СЕРЕДНЯ ЧАСТИНА HERO */}
-        <div className="relative z-20 flex flex-col items-center text-center mt-6 mb-4">
-          {/* Головний заголовок Serif */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl text-white tracking-tight leading-[1.2]">
-            <span className="font-serif font-normal">Прогнози зі швидкістю </span>
-            <span className="font-serif italic font-normal text-slate-100">
-              думки.
-            </span>
-          </h1>
+      {/* ========================================================= */}
+      {/* 2. ГОЛОВНИЙ HERO-БЛОК                                     */}
+      {/* ========================================================= */}
+      <main className="relative z-20 flex-1 flex flex-col items-center justify-center max-w-5xl w-full mx-auto my-6 sm:my-10 text-center">
+        {/* Бейдж статусу платформи */}
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#0297DE]/40 bg-[#0A1430]/80 px-3.5 py-1 text-xs text-[#0297DE] shadow-[0_0_12px_rgba(2,151,222,0.15)]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#0297DE] animate-pulse" />
+          <span className="font-mono tracking-wider uppercase text-[11px]">Футбольна ліга прогнозів</span>
+        </div>
 
-          {/* Підзаголовок адаптований під Matchday */}
-          <p className="mt-3 text-xs sm:text-sm text-slate-400 max-w-lg leading-relaxed">
-            Змагайтеся у футбольних прогнозах з друзями без реальних ставок,
-            <br />
-            аналізуйте європейські матчі та завойовуйте кубки ліги.
-          </p>
+        {/* Головний заголовок Serif */}
+        <h1 className="text-3xl sm:text-5xl md:text-6xl text-white tracking-tight leading-[1.15] max-w-3xl">
+          <span className="font-serif font-normal">Футбольні прогнози зі швидкістю </span>
+          <span className="font-serif italic font-normal text-slate-100">
+            думки.
+          </span>
+        </h1>
 
-          {/* СТАТИСТИКА ПЛАТФОРМИ */}
-          <div className="w-full flex justify-between items-center my-6 px-1 sm:px-4 pointer-events-none">
-            {/* Ліва колонка */}
-            <div className="space-y-4 text-left">
-              <div>
-                <div className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white">
-                  3X
-                </div>
-                <div className="text-[9px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-medium">
-                  більше емоцій у турі
-                </div>
-              </div>
-              <div>
-                <div className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white">
-                  87%
-                </div>
-                <div className="text-[9px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-medium">
-                  авто-розрахунок результатів
-                </div>
-              </div>
-            </div>
+        {/* Реалістичний підзаголовок без вигаданих цифр */}
+        <p className="mt-4 text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
+          Змагайтеся в точності футбольних прогнозів з друзями, аналізуйте матчі топових чемпіонатів, крутіть колесо фортуни та перемагайте в онлайн-дуелях.
+        </p>
 
-            {/* Права колонка */}
-            <div className="space-y-4 text-right">
-              <div>
-                <div className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white">
-                  120K+
-                </div>
-                <div className="text-[9px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-medium">
-                  зроблених прогнозів
-                </div>
-              </div>
-              <div>
-                <div className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white">
-                  2.4M
-                </div>
-                <div className="text-[9px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-medium">
-                  футбольних подій
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Головні кнопки дії з реальними маршрутами */}
+        <div className="mt-7 flex flex-wrap items-center justify-center gap-3.5">
+          <Link
+            href="/leagues"
+            className="btn-interactive min-h-[44px] bg-[#FC7340] hover:bg-[#fd855d] text-white text-xs sm:text-sm font-semibold px-6 py-2.5 rounded-full shadow-[0_0_25px_rgba(252,115,64,0.45)] transition-all hover:scale-105 active:scale-95"
+          >
+            🏆 Мої ліги
+          </Link>
+          <Link
+            href="/wheel"
+            className="btn-interactive min-h-[44px] bg-[#0A1430] hover:bg-[#121e3d] text-[#0297DE] hover:text-white border border-[#0297DE]/70 hover:border-[#0297DE] text-xs sm:text-sm font-semibold px-6 py-2.5 rounded-full shadow-[0_0_20px_rgba(2,151,222,0.25)] transition-all hover:scale-105 active:scale-95"
+          >
+            🎡 Колесо
+          </Link>
+          <Link
+            href="/online"
+            className="btn-interactive min-h-[44px] bg-[#0A1430]/80 hover:bg-[#121e3d] text-slate-200 border border-slate-700 hover:border-slate-500 text-xs sm:text-sm font-semibold px-5 py-2.5 rounded-full transition-all"
+          >
+            🌐 Онлайн дуелі
+          </Link>
+        </div>
 
-          {/* ASCII СИМВОЛЬНИЙ ЕКВАЛАЙЗЕР ШУМУ СТАДІОНУ */}
-          <div className="relative w-full max-w-3xl h-40 -mb-12 overflow-hidden flex items-end justify-between pointer-events-none select-none font-mono text-[9px] leading-[9px]">
-            {columnsData.map((col) => {
-              const t = frame * 0.045;
-              const wave1 = Math.sin(t + col.index * 0.3);
-              const wave2 = Math.cos(t * 0.7 - col.index * 0.2);
-              const noise = (wave1 + wave2) * 0.5;
+        {/* Швидкі переходи по міні-іграх */}
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono text-slate-400">
+          <span className="text-slate-500">Швидкий перехід:</span>
+          <Link href="/cases" className="hover:text-[#FC7340] transition-colors underline-offset-4 hover:underline">
+            🎁 Кейси
+          </Link>
+          <span>•</span>
+          <Link href="/dice" className="hover:text-[#0297DE] transition-colors underline-offset-4 hover:underline">
+            🎲 Кості
+          </Link>
+          <span>•</span>
+          <Link href="/blackjack" className="hover:text-[#0297DE] transition-colors underline-offset-4 hover:underline">
+            🃏 Блекджек
+          </Link>
+        </div>
 
-              let targetHeight = 0;
-              let colorClass = "text-[#0297DE]";
+        {/* ========================================================= */}
+        {/* 3. ASCII СИМВОЛЬНИЙ ЕКВАЛАЙЗЕР ШУМУ СТАДІОНУ               */}
+        {/* ========================================================= */}
+        <div className="relative w-full max-w-3xl h-36 -mb-10 overflow-hidden flex items-end justify-between pointer-events-none select-none font-mono text-[9px] leading-[9px] opacity-90 mt-6">
+          {columnsData.map((col) => {
+            const t = frame * 0.045;
+            const wave1 = Math.sin(t + col.index * 0.3);
+            const wave2 = Math.cos(t * 0.7 - col.index * 0.2);
+            const noise = (wave1 + wave2) * 0.5;
 
-              if (col.isCenter) {
-                const centerWeight = 1 - Math.abs(col.index - 26.5) / 8.5;
-                targetHeight = Math.floor(13 + centerWeight * 16 + noise * 5);
-                colorClass = "text-[#FC734D]";
-              } else if (col.isSide) {
-                const sideWeight = (Math.abs(col.index - 26.5) - 17) / 10;
-                targetHeight = Math.floor(9 + sideWeight * 14 + noise * 4);
-                colorClass = "text-[#0297DE]";
-              } else {
-                targetHeight = Math.floor(3 + noise * 2.5);
-                colorClass = "text-[#0297DE]/50";
-              }
+            let targetHeight = 0;
+            let colorClass = "text-[#0297DE]";
 
-              const clampedHeight = Math.max(2, Math.min(targetHeight, 26));
+            if (col.isCenter) {
+              const centerWeight = 1 - Math.abs(col.index - 26.5) / 8.5;
+              targetHeight = Math.floor(13 + centerWeight * 16 + noise * 5);
+              colorClass = "text-[#FC7340]";
+            } else if (col.isSide) {
+              const sideWeight = (Math.abs(col.index - 26.5) - 17) / 10;
+              targetHeight = Math.floor(9 + sideWeight * 14 + noise * 4);
+              colorClass = "text-[#0297DE]";
+            } else {
+              targetHeight = Math.floor(3 + noise * 2.5);
+              colorClass = "text-[#0297DE]/50";
+            }
 
-              const chars = [];
-              for (let row = 0; row < clampedHeight; row++) {
-                const ratio = row / clampedHeight;
-                let charIndex = Math.floor(ratio * ASCII_PALETTE.length);
-                if (charIndex >= ASCII_PALETTE.length) charIndex = ASCII_PALETTE.length - 1;
-                chars.push(ASCII_PALETTE[charIndex]);
-              }
+            const clampedHeight = Math.max(2, Math.min(targetHeight, 26));
 
-              return (
-                <div
-                  key={col.index}
-                  className={`flex flex-col-reverse items-center justify-start ${colorClass} transition-all duration-75`}
-                  style={{
-                    filter: col.isCenter
-                      ? "drop-shadow(0 0 6px rgba(252,115,77,0.7))"
-                      : "drop-shadow(0 0 6px rgba(2,151,222,0.5))",
-                  }}
-                >
-                  {chars.map((char, charIdx) => (
-                    <span
-                      key={charIdx}
-                      className="inline-block"
-                      style={{
-                        opacity: Math.max(0.2, 1 - (charIdx / clampedHeight) * 0.75),
-                      }}
-                    >
-                      {char}
-                    </span>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
+            const chars = [];
+            for (let row = 0; row < clampedHeight; row++) {
+              const ratio = row / clampedHeight;
+              let charIndex = Math.floor(ratio * ASCII_PALETTE.length);
+              if (charIndex >= ASCII_PALETTE.length) charIndex = ASCII_PALETTE.length - 1;
+              chars.push(ASCII_PALETTE[charIndex]);
+            }
 
-          {/* ТРИ НИЖНІ КАРТКИ ДЛЯ ФУТБОЛЬНОЇ ПЛАТФОРМИ */}
-          <div className="relative z-30 w-full grid grid-cols-1 md:grid-cols-12 gap-4 items-end mt-4">
-            {/* Card 1: Матч-центр (топові події туру) */}
-            <div className="md:col-span-4 bg-[#0A1430]/95 border border-slate-800/90 rounded-2xl p-4 shadow-xl backdrop-blur-md hover:border-slate-700 transition-all text-left">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-semibold text-slate-200">
-                  Матч-центр
-                </span>
-                <span className="text-[9px] font-mono text-[#0297DE] bg-[#0297DE]/10 px-1.5 py-0.5 rounded">
-                  LIVE
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 mb-2">
-                <div className="h-10 rounded-lg bg-[#0A1430] border border-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-300">
-                  АРС · ЧЕЛ
-                </div>
-                <div className="h-10 rounded-lg bg-gradient-to-br from-[#FC734D] to-[#E24A5E] shadow-sm flex items-center justify-center text-[11px] font-black text-white">
-                  2 : 1
-                </div>
-                <div className="h-10 rounded-lg bg-[#0297DE] flex items-center justify-center text-[10px] font-bold text-white">
-                  РЕАЛ · БАР
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <div className="h-3 w-3/4 rounded-full bg-[#FC734D]/85" />
-                <div className="h-2.5 w-1/2 rounded-full bg-slate-800" />
-              </div>
-            </div>
-
-            {/* Card 2: Рейтинг та крива набору очок (виділена коралова картка) */}
-            <div className="md:col-span-4 bg-gradient-to-b from-[#FC734D] via-[#E24A5E] to-[#B82E56] rounded-2xl p-4 text-white shadow-[0_10px_35px_rgba(252,115,77,0.35)] relative overflow-hidden transition-transform hover:-translate-y-1 text-left">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[11px] font-semibold text-white/95">
-                  Криві: Динаміка очок
-                </span>
-                <span className="text-[9px] font-bold bg-white/20 px-2 py-0.5 rounded-full text-white">
-                  Топ-1 Ліги
-                </span>
-              </div>
-              <div className="relative h-14 w-full flex items-center justify-center">
-                <svg
-                  viewBox="0 0 200 60"
-                  className="w-full h-full overflow-visible"
-                  fill="none"
-                >
-                  <path
-                    d="M 5 45 C 50 45, 70 15, 100 25 C 130 35, 160 15, 195 10"
-                    stroke="#FFFFFF"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                  <circle
-                    cx="100"
-                    cy="25"
-                    r="5.5"
-                    fill="#FFFFFF"
-                    stroke="#FC734D"
-                    strokeWidth="2"
-                    className="animate-pulse"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            {/* Card 3: Таймлайн туру (розклад і хвилини) */}
-            <div className="md:col-span-4 bg-[#0A1430]/95 border border-slate-800/90 rounded-2xl p-4 shadow-xl backdrop-blur-md hover:border-slate-700 transition-all text-left">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-semibold text-slate-200">
-                  Таймлайн туру
-                </span>
-                <span className="text-[9px] font-mono text-slate-400">
-                  90&apos; + 4&apos;
-                </span>
-              </div>
-              <div className="grid grid-cols-8 gap-1 mb-2.5">
-                {Array.from({ length: 8 }).map((_, idx) => (
-                  <div
-                    key={idx}
-                    className="h-3 rounded-sm bg-slate-800/90 border border-slate-700/60"
-                  />
+            return (
+              <div
+                key={col.index}
+                className={`flex flex-col-reverse items-center justify-start ${colorClass} transition-all duration-75`}
+                style={{
+                  filter: col.isCenter
+                    ? "drop-shadow(0 0 6px rgba(252,115,64,0.7))"
+                    : "drop-shadow(0 0 6px rgba(2,151,222,0.5))",
+                }}
+              >
+                {chars.map((char, charIdx) => (
+                  <span
+                    key={charIdx}
+                    className="inline-block"
+                    style={{
+                      opacity: Math.max(0.2, 1 - (charIdx / clampedHeight) * 0.75),
+                    }}
+                  >
+                    {char}
+                  </span>
                 ))}
               </div>
-              <div className="space-y-1.5">
-                <div className="h-3 w-5/6 rounded-full bg-[#FC734D]" />
-                <div className="h-3 w-2/3 ml-auto rounded-full bg-[#0297DE]" />
-              </div>
-            </div>
-          </div>
+            );
+          })}
         </div>
-      </section>
+
+        {/* ========================================================= */}
+        {/* 4. ТРИ ІНТЕРАКТИВНІ КАРТКИ НА ДІЙСНІ РОЗДІЛИ             */}
+        {/* ========================================================= */}
+        <div className="relative z-30 w-full grid grid-cols-1 md:grid-cols-12 gap-4 items-end mt-4">
+          {/* Card 1: Мої ліги */}
+          <Link
+            href="/leagues"
+            className="md:col-span-4 bg-[#0A1430]/95 hover:bg-[#101c3d] border border-[#162544] hover:border-[#0297DE]/60 rounded-2xl p-4 shadow-xl backdrop-blur-md transition-all text-left group block"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-slate-200 group-hover:text-[#0297DE] transition-colors">
+                Мої ліги
+              </span>
+              <span className="text-[10px] font-mono text-[#0297DE] bg-[#0297DE]/10 px-2 py-0.5 rounded-full border border-[#0297DE]/30">
+                /leagues
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
+              Створюйте власні ліги прогнозів або приєднуйтесь до відкритих турнірів за інвайт-кодом.
+            </p>
+            <div className="flex items-center text-xs font-medium text-[#0297DE] group-hover:translate-x-1 transition-transform">
+              Відкрити ліги →
+            </div>
+          </Link>
+
+          {/* Card 2: Колесо (виділена картка оранжевого кольору #FC7340) */}
+          <Link
+            href="/wheel"
+            className="md:col-span-4 bg-gradient-to-b from-[#FC7340] via-[#E24A5E] to-[#B82E56] hover:from-[#fd8055] rounded-2xl p-4 text-white shadow-[0_10px_35px_rgba(252,115,64,0.35)] relative overflow-hidden transition-all hover:-translate-y-1 text-left block group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold text-white">
+                Колесо фортуни
+              </span>
+              <span className="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full text-white">
+                /wheel
+              </span>
+            </div>
+
+            {/* SVG крива з пульсуючою точкою (CSS/SVG) */}
+            <div className="relative h-12 w-full flex items-center justify-center my-1">
+              <svg
+                viewBox="0 0 200 50"
+                className="w-full h-full overflow-visible"
+                fill="none"
+              >
+                <path
+                  d="M 5 40 C 45 40, 65 15, 100 20 C 135 25, 155 10, 195 8"
+                  stroke="#FFFFFF"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+                <circle
+                  cx="100"
+                  cy="20"
+                  r="5"
+                  fill="#FFFFFF"
+                  stroke="#FC7340"
+                  strokeWidth="2"
+                  className="animate-pulse"
+                />
+              </svg>
+            </div>
+
+            <div className="flex items-center justify-between text-xs font-semibold text-white/95 mt-1">
+              <span>Крутити колесо щодня</span>
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            </div>
+          </Link>
+
+          {/* Card 3: Онлайн дуелі */}
+          <Link
+            href="/online"
+            className="md:col-span-4 bg-[#0A1430]/95 hover:bg-[#101c3d] border border-[#162544] hover:border-[#0297DE]/60 rounded-2xl p-4 shadow-xl backdrop-blur-md transition-all text-left group block"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-slate-200 group-hover:text-[#0297DE] transition-colors">
+                Онлайн дуелі
+              </span>
+              <span className="text-[10px] font-mono text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-full">
+                /online
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
+              Змагайтеся у PvP-прогнозах проти реальних гравців наживо та ставте ігрові бали.
+            </p>
+            <div className="flex items-center text-xs font-medium text-[#0297DE] group-hover:translate-x-1 transition-transform">
+              До PvP арени →
+            </div>
+          </Link>
+        </div>
+      </main>
+
+      {/* Футер платформи */}
+      <footer className="relative z-20 w-full max-w-6xl mx-auto pt-6 border-t border-[#162544] flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
+        <div>Matchday © 2026. Платформа футбольних ліг без ставок на гроші.</div>
+        <div className="flex items-center gap-4">
+          <Link href="/leagues" className="hover:text-slate-300 transition-colors">
+            Ліги
+          </Link>
+          <Link href="/wheel" className="hover:text-slate-300 transition-colors">
+            Колесо
+          </Link>
+          <Link href="/online" className="hover:text-slate-300 transition-colors">
+            Онлайн
+          </Link>
+          <Link href="/login" className="hover:text-slate-300 transition-colors">
+            Вхід
+          </Link>
+        </div>
+      </footer>
     </div>
   );
 }
