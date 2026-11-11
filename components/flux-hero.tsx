@@ -31,14 +31,31 @@ export default function FluxHero() {
     });
   }, []);
 
-  const totalColumns = 48;
+  const totalColumns = 74;
 
   const columnsData = useMemo(() => {
     return Array.from({ length: totalColumns }).map((_, i) => {
-      const centerDist = Math.abs(i - 23.5) / 23.5;
-      const isCenter = centerDist < 0.28;
-      const isSide = centerDist > 0.65;
-      return { index: i, centerDist, isCenter, isSide };
+      // Три окремі масивні хвилі згідно з оригінальним дизайном:
+      // 1. Лівий пік (i ≈ 12): Electric Blue, прямо під 3X та 87%
+      // 2. Центральний пік (i ≈ 37): Coral Orange, під описом по центру
+      // 3. Правий пік (i ≈ 61): Electric Blue, прямо під 120K+ та 2.4M
+      const distLeft = Math.abs(i - 12);
+      const distCenter = Math.abs(i - 37);
+      const distRight = Math.abs(i - 61);
+
+      const isCenter = distCenter <= 11;
+      const isLeft = distLeft <= 12;
+      const isRight = distRight <= 12;
+
+      return {
+        index: i,
+        distLeft,
+        distCenter,
+        distRight,
+        isCenter,
+        isLeft,
+        isRight,
+      };
     });
   }, [totalColumns]);
 
@@ -51,6 +68,22 @@ export default function FluxHero() {
         <div className="absolute top-[14%] left-1/2 -translate-x-1/2 w-[700px] h-[360px] bg-gradient-to-b from-[#FC7340]/20 via-[#0297DE]/10 to-transparent blur-[120px] rounded-full" />
         <div className="absolute bottom-[-40px] left-[-40px] w-[350px] h-[350px] bg-[#0297DE]/15 blur-[110px] rounded-full" />
         <div className="absolute bottom-[-40px] right-[-40px] w-[350px] h-[350px] bg-[#FC7340]/15 blur-[110px] rounded-full" />
+      </div>
+
+      {/* Бічні неонові анімовані ASCII-колонки по краях екрана */}
+      <div className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 hidden xl:flex flex-col items-center gap-1.5 font-mono text-[9px] text-[#0297DE]/35 pointer-events-none select-none z-10">
+        {Array.from({ length: 24 }).map((_, i) => (
+          <span key={i} className="animate-pulse" style={{ animationDelay: `${(i % 6) * 180}ms` }}>
+            {ASCII_PALETTE[(i + frame) % ASCII_PALETTE.length]}
+          </span>
+        ))}
+      </div>
+      <div className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 hidden xl:flex flex-col items-center gap-1.5 font-mono text-[9px] text-[#FC7340]/35 pointer-events-none select-none z-10">
+        {Array.from({ length: 24 }).map((_, i) => (
+          <span key={i} className="animate-pulse" style={{ animationDelay: `${(i % 6) * 220}ms` }}>
+            {ASCII_PALETTE[(i + frame * 2) % ASCII_PALETTE.length]}
+          </span>
+        ))}
       </div>
 
       {/* ========================================================= */}
@@ -118,11 +151,11 @@ export default function FluxHero() {
         {/* ========================================================= */}
         {/* 3. СТАТИСТИКА (ЗЛІВА / СПРАВА) + СИМВОЛЬНІ ХВИЛІ ASCII    */}
         {/* ========================================================= */}
-        <div className="relative w-full max-w-5xl mt-6 sm:mt-8 min-h-[170px] sm:min-h-[190px] flex items-center justify-between">
+        <div className="relative w-full max-w-6xl mt-6 sm:mt-8 min-h-[190px] sm:min-h-[220px] flex items-center justify-between">
           {/* ЛІВА КОЛОНКА СТАТИСТИКИ */}
-          <div className="relative z-20 flex flex-col items-start gap-5 sm:gap-7 text-left w-36 sm:w-48 pl-1">
+          <div className="relative z-20 flex flex-col items-start gap-5 sm:gap-7 text-left w-36 sm:w-48 pl-2 sm:pl-4">
             <div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight drop-shadow-md">
                 3X
               </div>
               <div className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider text-slate-400 mt-0.5 uppercase">
@@ -131,7 +164,7 @@ export default function FluxHero() {
             </div>
 
             <div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight drop-shadow-md">
                 87%
               </div>
               <div className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider text-slate-400 mt-0.5 uppercase">
@@ -140,32 +173,38 @@ export default function FluxHero() {
             </div>
           </div>
 
-          {/* ЦЕНТРАЛЬНИЙ ШАР: ASCII-ХВИЛІ З СИМВОЛІВ */}
-          <div className="absolute inset-x-0 bottom-0 top-0 flex items-end justify-center pointer-events-none select-none z-10 px-8 sm:px-20 overflow-hidden">
-            <div className="w-full max-w-2xl h-40 flex items-end justify-between font-mono text-[9px] leading-[9px] opacity-85">
+          {/* ШАР ASCII-ХВИЛЬ: НА ВСЮ ШИРИНУ ЗЛІВА, В ЦЕНТРІ ТА СПРАВА */}
+          <div className="absolute inset-x-0 bottom-0 top-0 flex items-end justify-center pointer-events-none select-none z-10 px-1 sm:px-3 overflow-hidden">
+            <div className="w-full h-44 sm:h-52 flex items-end justify-between font-mono text-[8px] sm:text-[9px] leading-[8px] sm:leading-[9px] opacity-90">
               {columnsData.map((col) => {
                 const t = frame * 0.045;
-                const wave1 = Math.sin(t + col.index * 0.3);
+                const wave1 = Math.sin(t + col.index * 0.28);
                 const wave2 = Math.cos(t * 0.7 - col.index * 0.2);
                 const noise = (wave1 + wave2) * 0.5;
 
                 let targetHeight = 0;
                 let colorClass = "text-[#0297DE]";
+                let isOrange = false;
 
                 if (col.isCenter) {
-                  const centerWeight = 1 - Math.abs(col.index - 23.5) / 7.5;
-                  targetHeight = Math.floor(13 + centerWeight * 16 + noise * 5);
+                  const centerWeight = Math.max(0, 1 - col.distCenter / 11);
+                  targetHeight = Math.floor(10 + centerWeight * 18 + noise * 5);
                   colorClass = "text-[#FC7340]";
-                } else if (col.isSide) {
-                  const sideWeight = (Math.abs(col.index - 23.5) - 15) / 9;
-                  targetHeight = Math.floor(9 + sideWeight * 14 + noise * 4);
+                  isOrange = true;
+                } else if (col.isLeft) {
+                  const leftWeight = Math.max(0, 1 - col.distLeft / 12);
+                  targetHeight = Math.floor(8 + leftWeight * 20 + noise * 4.5);
+                  colorClass = "text-[#0297DE]";
+                } else if (col.isRight) {
+                  const rightWeight = Math.max(0, 1 - col.distRight / 12);
+                  targetHeight = Math.floor(8 + rightWeight * 20 + noise * 4.5);
                   colorClass = "text-[#0297DE]";
                 } else {
-                  targetHeight = Math.floor(3 + noise * 2.5);
+                  targetHeight = Math.floor(3 + Math.abs(noise) * 3);
                   colorClass = "text-[#0297DE]/50";
                 }
 
-                const clampedHeight = Math.max(2, Math.min(targetHeight, 26));
+                const clampedHeight = Math.max(2, Math.min(targetHeight, 28));
 
                 const chars = [];
                 for (let row = 0; row < clampedHeight; row++) {
@@ -180,9 +219,9 @@ export default function FluxHero() {
                     key={col.index}
                     className={`flex flex-col-reverse items-center justify-start ${colorClass} transition-all duration-75`}
                     style={{
-                      filter: col.isCenter
-                        ? "drop-shadow(0 0 6px rgba(252,115,64,0.7))"
-                        : "drop-shadow(0 0 6px rgba(2,151,222,0.5))",
+                      filter: isOrange
+                        ? "drop-shadow(0 0 6px rgba(252,115,64,0.75))"
+                        : "drop-shadow(0 0 6px rgba(2,151,222,0.6))",
                     }}
                   >
                     {chars.map((char, charIdx) => (
@@ -203,9 +242,9 @@ export default function FluxHero() {
           </div>
 
           {/* ПРАВА КОЛОНКА СТАТИСТИКИ */}
-          <div className="relative z-20 flex flex-col items-end gap-5 sm:gap-7 text-right w-36 sm:w-48 pr-1">
+          <div className="relative z-20 flex flex-col items-end gap-5 sm:gap-7 text-right w-36 sm:w-48 pr-2 sm:pr-4">
             <div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight drop-shadow-md">
                 120K+
               </div>
               <div className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider text-slate-400 mt-0.5 uppercase">
