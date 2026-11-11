@@ -9,6 +9,7 @@ const ASCII_PALETTE = ["#", "№", "!", ";", "/", "\"", "*", "·"];
 export default function SideWaves() {
   const pathname = usePathname();
   const [frame, setFrame] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(1000);
 
   useEffect(() => {
     let animId: number;
@@ -20,27 +21,39 @@ export default function SideWaves() {
     return () => cancelAnimationFrame(animId);
   }, []);
 
-  // Крім логіна ("крім логіна" - за запитом користувача)
+  useEffect(() => {
+    const updateHeight = () => {
+      if (typeof window !== "undefined") {
+        setViewportHeight(window.innerHeight || 1000);
+      }
+    };
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
+  }, []);
+
+  // Крім логіна ("крім логіна" - за вимогами користувача)
   const isLoginPage = pathname === "/login" || pathname?.startsWith("/login");
 
-  const leftColumnsCount = 10;
-  const rightColumnsCount = 10;
+  // Кількість колонок з кожного боку (великі, широкі, помітні)
+  const columnsCount = 16;
 
-  const leftColumns = useMemo(() => {
-    return Array.from({ length: leftColumnsCount }).map((_, i) => ({
-      index: i,
-      // i = 0 - це крайній лівий стовпчик впритик до краю екрана
-      baseHeight: Math.floor(32 - i * 2.2),
-    }));
-  }, [leftColumnsCount]);
+  // Висота одного рядка шрифту в пікселях (~14-16px)
+  const rowHeightPx = 15;
+  const maxRows = Math.max(50, Math.ceil(viewportHeight / rowHeightPx));
 
-  const rightColumns = useMemo(() => {
-    return Array.from({ length: rightColumnsCount }).map((_, i) => ({
-      index: i,
-      // i = 0 - це крайній правий стовпчик впритик до краю екрана
-      baseHeight: Math.floor(32 - i * 2.2),
-    }));
-  }, [rightColumnsCount]);
+  const columns = useMemo(() => {
+    return Array.from({ length: columnsCount }).map((_, i) => {
+      // i = 0 - стовпчик впритик до самого краю екрана
+      // Стовпчики біля краю йдуть на повну висоту (з самого низу до самого верху)
+      const ratio = i / (columnsCount - 1);
+      const baseHeight = Math.floor(maxRows * (1 - ratio * 0.55));
+      return {
+        index: i,
+        baseHeight,
+      };
+    });
+  }, [columnsCount, maxRows]);
 
   if (isLoginPage) return null;
 
@@ -52,124 +65,160 @@ export default function SideWaves() {
       className="pointer-events-none fixed inset-0 z-0 overflow-hidden select-none"
     >
       {/* ============================================================== */}
-      {/* 1. ЛІВА ХВИЛЯ: ВПРИТИК ДО ЛІВОГО КРАЮ ЕКРАНА (Electric Blue)   */}
+      {/* 1. ЛІВА ХВИЛЯ: ВЕЛИКА, ВПРИТИК, З САМОГО НИЗУ ДО САМОГО ВЕРХУ */}
+      {/*    Колір: Electric Blue (#0297DE)                              */}
       {/* ============================================================== */}
-      <div className="absolute left-0 bottom-0 flex items-end gap-[3px] sm:gap-1.5 pl-0 sm:pl-1 pb-1 opacity-70 sm:opacity-90">
-        {leftColumns.map((col) => {
-          const wave1 = Math.sin(t + col.index * 0.35);
-          const wave2 = Math.cos(t * 0.7 - col.index * 0.25);
+      <div className="absolute left-0 inset-y-0 flex items-end gap-1 sm:gap-1.5 md:gap-2 pl-0 sm:pl-1 pb-0 opacity-80 sm:opacity-95">
+        {columns.map((col) => {
+          const wave1 = Math.sin(t + col.index * 0.32);
+          const wave2 = Math.cos(t * 0.7 - col.index * 0.22);
           const noise = (wave1 + wave2) * 0.5;
 
-          const targetHeight = Math.floor(col.baseHeight + noise * 5.5);
-          const clampedHeight = Math.max(4, Math.min(targetHeight, 36));
+          const targetHeight = Math.floor(col.baseHeight + noise * 7);
+          const clampedHeight = Math.max(12, Math.min(targetHeight, maxRows));
 
-          const chars: string[] = [];
+          // Символи знизу вгору
+          const bottomChars: string[] = [];
           for (let row = 0; row < clampedHeight; row++) {
             const ratio = row / clampedHeight;
             let charIndex = Math.floor(ratio * ASCII_PALETTE.length);
             if (charIndex >= ASCII_PALETTE.length) charIndex = ASCII_PALETTE.length - 1;
-            chars.push(ASCII_PALETTE[charIndex]);
+            bottomChars.push(ASCII_PALETTE[charIndex]);
+          }
+
+          // Для повної висоти з самого низу по самий верх:
+          // Рядки, що заповнюють верхню частину стовпчика до стелі екрана
+          const topGap = Math.max(0, maxRows - clampedHeight);
+          const topChars: string[] = [];
+          for (let row = 0; row < topGap; row++) {
+            const charIdx = (col.index + row + Math.floor(frame * 0.5)) % ASCII_PALETTE.length;
+            topChars.push(ASCII_PALETTE[charIdx]);
           }
 
           return (
             <div
               key={col.index}
-              className="flex flex-col-reverse items-center font-mono text-[8px] sm:text-[10px] leading-[8px] sm:leading-[10px] text-[#0297DE] transition-all duration-75"
+              className="flex h-full flex-col justify-between font-mono text-[11px] sm:text-[13px] md:text-[15px] font-bold leading-[11px] sm:leading-[13px] md:leading-[15px] text-[#0297DE] transition-all duration-75"
               style={{
-                filter: "drop-shadow(0 0 6px rgba(2,151,222,0.75))",
+                filter: "drop-shadow(0 0 8px rgba(2,151,222,0.85)) drop-shadow(0 0 16px rgba(2,151,222,0.4))",
               }}
             >
-              {chars.map((char, charIdx) => (
-                <span
-                  key={charIdx}
-                  className="inline-block"
-                  style={{
-                    opacity: Math.max(0.18, 1 - (charIdx / clampedHeight) * 0.78),
-                  }}
-                >
-                  {char}
-                </span>
-              ))}
+              {/* Верхня частина стовпчика (до самого верху) */}
+              <div className="flex flex-col items-center">
+                {topChars.map((char, charIdx) => {
+                  const fade = 0.15 + (1 - charIdx / Math.max(1, topGap)) * 0.45;
+                  return (
+                    <span
+                      key={`top-${charIdx}`}
+                      className="inline-block"
+                      style={{ opacity: Math.max(0.12, Math.min(0.65, fade)) }}
+                    >
+                      {char}
+                    </span>
+                  );
+                })}
+              </div>
+
+              {/* Нижня частина: потужна хвиля від самого низу */}
+              <div className="flex flex-col-reverse items-center">
+                {bottomChars.map((char, charIdx) => {
+                  const ratio = charIdx / clampedHeight;
+                  const opacity = Math.max(0.2, 1 - ratio * 0.7);
+                  return (
+                    <span
+                      key={`bottom-${charIdx}`}
+                      className="inline-block"
+                      style={{ opacity }}
+                    >
+                      {char}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* Тонкий вертикальний анімований ланцюг вздовж лівого краю догори */}
-      <div className="absolute left-0.5 sm:left-1 top-0 bottom-36 hidden sm:flex flex-col justify-around font-mono text-[8px] text-[#0297DE]/25">
-        {Array.from({ length: 28 }).map((_, i) => (
-          <span
-            key={i}
-            className="animate-pulse"
-            style={{ animationDelay: `${(i % 7) * 160}ms` }}
-          >
-            {ASCII_PALETTE[(i + frame) % ASCII_PALETTE.length]}
-          </span>
-        ))}
-      </div>
-
       {/* ============================================================== */}
-      {/* 2. ПРАВА ХВИЛЯ: ВПРИТИК ДО ПРАВОГО КРАЮ ЕКРАНА (Coral / Blue)   */}
+      {/* 2. ПРАВА ХВИЛЯ: ВЕЛИКА, ВПРИТИК, З САМОГО НИЗУ ДО САМОГО ВЕРХУ*/}
+      {/*    Колір: Coral Orange (#FC7340) та Electric Blue              */}
       {/* ============================================================== */}
-      <div className="absolute right-0 bottom-0 flex flex-row-reverse items-end gap-[3px] sm:gap-1.5 pr-0 sm:pr-1 pb-1 opacity-70 sm:opacity-90">
-        {rightColumns.map((col) => {
-          const wave1 = Math.sin(t * 0.95 + col.index * 0.38);
-          const wave2 = Math.cos(t * 0.65 - col.index * 0.28);
+      <div className="absolute right-0 inset-y-0 flex flex-row-reverse items-end gap-1 sm:gap-1.5 md:gap-2 pr-0 sm:pr-1 pb-0 opacity-80 sm:opacity-95">
+        {columns.map((col) => {
+          const wave1 = Math.sin(t * 0.95 + col.index * 0.35);
+          const wave2 = Math.cos(t * 0.65 - col.index * 0.25);
           const noise = (wave1 + wave2) * 0.5;
 
-          const targetHeight = Math.floor(col.baseHeight + noise * 5.5);
-          const clampedHeight = Math.max(4, Math.min(targetHeight, 36));
+          const targetHeight = Math.floor(col.baseHeight + noise * 7);
+          const clampedHeight = Math.max(12, Math.min(targetHeight, maxRows));
 
-          // Градієнтне чергування відтінків: крайні стовпчики ближче до коралового, далі перехід
-          const isCoral = col.index < 6;
+          const isCoral = col.index < 9;
           const colorClass = isCoral ? "text-[#FC7340]" : "text-[#0297DE]";
           const shadowColor = isCoral
-            ? "drop-shadow(0 0 6px rgba(252,115,64,0.8))"
-            : "drop-shadow(0 0 6px rgba(2,151,222,0.75))";
+            ? "drop-shadow(0 0 8px rgba(252,115,64,0.9)) drop-shadow(0 0 16px rgba(252,115,64,0.45))"
+            : "drop-shadow(0 0 8px rgba(2,151,222,0.85)) drop-shadow(0 0 16px rgba(2,151,222,0.4))";
 
-          const chars: string[] = [];
+          // Символи знизу вгору
+          const bottomChars: string[] = [];
           for (let row = 0; row < clampedHeight; row++) {
             const ratio = row / clampedHeight;
             let charIndex = Math.floor(ratio * ASCII_PALETTE.length);
             if (charIndex >= ASCII_PALETTE.length) charIndex = ASCII_PALETTE.length - 1;
-            chars.push(ASCII_PALETTE[charIndex]);
+            bottomChars.push(ASCII_PALETTE[charIndex]);
+          }
+
+          // Рядки, що заповнюють верхню частину стовпчика до стелі екрана
+          const topGap = Math.max(0, maxRows - clampedHeight);
+          const topChars: string[] = [];
+          for (let row = 0; row < topGap; row++) {
+            const charIdx = (col.index + row + Math.floor(frame * 0.5)) % ASCII_PALETTE.length;
+            topChars.push(ASCII_PALETTE[charIdx]);
           }
 
           return (
             <div
               key={col.index}
-              className={`flex flex-col-reverse items-center font-mono text-[8px] sm:text-[10px] leading-[8px] sm:leading-[10px] ${colorClass} transition-all duration-75`}
+              className={`flex h-full flex-col justify-between font-mono text-[11px] sm:text-[13px] md:text-[15px] font-bold leading-[11px] sm:leading-[13px] md:leading-[15px] ${colorClass} transition-all duration-75`}
               style={{
                 filter: shadowColor,
               }}
             >
-              {chars.map((char, charIdx) => (
-                <span
-                  key={charIdx}
-                  className="inline-block"
-                  style={{
-                    opacity: Math.max(0.18, 1 - (charIdx / clampedHeight) * 0.78),
-                  }}
-                >
-                  {char}
-                </span>
-              ))}
+              {/* Верхня частина стовпчика (до самого верху) */}
+              <div className="flex flex-col items-center">
+                {topChars.map((char, charIdx) => {
+                  const fade = 0.15 + (1 - charIdx / Math.max(1, topGap)) * 0.45;
+                  return (
+                    <span
+                      key={`top-${charIdx}`}
+                      className="inline-block"
+                      style={{ opacity: Math.max(0.12, Math.min(0.65, fade)) }}
+                    >
+                      {char}
+                    </span>
+                  );
+                })}
+              </div>
+
+              {/* Нижня частина: потужна хвиля від самого низу */}
+              <div className="flex flex-col-reverse items-center">
+                {bottomChars.map((char, charIdx) => {
+                  const ratio = charIdx / clampedHeight;
+                  const opacity = Math.max(0.2, 1 - ratio * 0.7);
+                  return (
+                    <span
+                      key={`bottom-${charIdx}`}
+                      className="inline-block"
+                      style={{ opacity }}
+                    >
+                      {char}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
           );
         })}
-      </div>
-
-      {/* Тонкий вертикальний анімований ланцюг вздовж правого краю догори */}
-      <div className="absolute right-0.5 sm:right-1 top-0 bottom-36 hidden sm:flex flex-col justify-around font-mono text-[8px] text-[#FC7340]/25">
-        {Array.from({ length: 28 }).map((_, i) => (
-          <span
-            key={i}
-            className="animate-pulse"
-            style={{ animationDelay: `${(i % 7) * 200}ms` }}
-          >
-            {ASCII_PALETTE[(i + frame * 2) % ASCII_PALETTE.length]}
-          </span>
-        ))}
       </div>
     </div>
   );
