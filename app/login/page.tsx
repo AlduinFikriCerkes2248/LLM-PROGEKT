@@ -5,6 +5,7 @@ import {
   isSupabaseConfigured,
 } from "../../lib/supabase/client";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 type AuthMode = "login" | "signup";
@@ -210,26 +211,42 @@ export default function LoginPage() {
           </span>
         </div>
       )}
-    <div className="flex min-h-screen flex-1 items-center justify-center bg-[#f4f5f1] px-5 py-10 text-[#202722] sm:px-8">
-      <section className="w-full max-w-md border border-[#e0e3dd] bg-white p-6 shadow-sm sm:p-9">
-        <header className="mb-8">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">
+    <div className="relative flex min-h-screen flex-1 items-center justify-center bg-[#060A17] px-5 py-10 text-white sm:px-8 overflow-hidden select-none">
+      {/* М'яке фонове світіння та градієнти */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-gradient-to-b from-[#FC734D]/15 via-[#0297DE]/10 to-transparent blur-[120px] rounded-full" />
+        <div className="absolute bottom-0 left-0 w-[350px] h-[350px] bg-[#0297DE]/15 blur-[100px] rounded-full" />
+        <div className="absolute bottom-0 right-0 w-[350px] h-[350px] bg-[#FC734D]/15 blur-[100px] rounded-full" />
+      </div>
+
+      <section className="relative z-10 w-full max-w-md rounded-2xl border border-slate-800/90 bg-[#0A1430]/90 p-6 shadow-2xl backdrop-blur-xl sm:p-9">
+        <header className="mb-8 text-center">
+          <div className="mb-4 inline-flex items-center gap-1">
+            <span className="w-1.5 h-4 bg-[#FC734D] rounded-full" />
+            <span className="w-1.5 h-5 bg-[#0297DE] rounded-full" />
+            <span className="w-1.5 h-3.5 bg-[#0A1430] border border-[#0297DE]/60 rounded-full" />
+          </div>
+          <p className="mb-2 text-xs font-mono font-medium uppercase tracking-[0.2em] text-[#0297DE]">
             Matchday · Ліги прогнозів
           </p>
-          <h1 className="text-3xl font-semibold leading-tight">
+          <h1 className="font-serif text-3xl font-normal leading-tight text-white">
             {mode === "login" ? "Вхід до акаунту" : "Створення акаунту"}
           </h1>
         </header>
 
         <div
           aria-label="Режим автентифікації"
-          className="mb-6 grid grid-cols-2 border border-[#d9ddd6] p-1"
+          className="mb-6 grid grid-cols-2 rounded-xl border border-slate-800 bg-[#060A17]/80 p-1"
         >
           <button
             type="button"
             aria-pressed={mode === "login"}
             onClick={() => changeMode("login")}
-            className={`h-10 text-sm font-medium transition ${mode === "login" ? "bg-[#202722] text-white" : "text-[#626b64] hover:bg-[#f4f5f1]"}`}
+            className={`h-10 rounded-lg text-xs font-medium transition-all ${
+              mode === "login"
+                ? "bg-[#FC734D] text-white shadow-[0_0_15px_rgba(252,115,77,0.4)]"
+                : "text-slate-400 hover:text-white"
+            }`}
           >
             Увійти
           </button>
@@ -237,7 +254,11 @@ export default function LoginPage() {
             type="button"
             aria-pressed={mode === "signup"}
             onClick={() => changeMode("signup")}
-            className={`h-10 text-sm font-medium transition ${mode === "signup" ? "bg-[#202722] text-white" : "text-[#626b64] hover:bg-[#f4f5f1]"}`}
+            className={`h-10 rounded-lg text-xs font-medium transition-all ${
+              mode === "signup"
+                ? "bg-[#FC734D] text-white shadow-[0_0_15px_rgba(252,115,77,0.4)]"
+                : "text-slate-400 hover:text-white"
+            }`}
           >
             Зареєструватися
           </button>
@@ -247,7 +268,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="email"
-              className="mb-1.5 block text-sm font-medium"
+              className="mb-1.5 block text-xs font-medium text-slate-300"
             >
               Email
             </label>
@@ -259,14 +280,15 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="h-11 w-full border border-[#c8cec7] bg-[#fbfcfa] px-3 text-sm outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+              placeholder="user@example.com"
+              className="h-11 w-full rounded-xl border border-slate-800 bg-[#060A17]/90 px-3.5 text-sm text-white placeholder-slate-500 outline-none transition focus:border-[#0297DE] focus:ring-1 focus:ring-[#0297DE]"
             />
           </div>
 
           <div>
             <label
               htmlFor="password"
-              className="mb-1.5 block text-sm font-medium"
+              className="mb-1.5 block text-xs font-medium text-slate-300"
             >
               Пароль
             </label>
@@ -279,23 +301,24 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="h-11 w-full border border-[#c8cec7] bg-[#fbfcfa] px-3 text-sm outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+              placeholder="••••••••"
+              className="h-11 w-full rounded-xl border border-slate-800 bg-[#060A17]/90 px-3.5 text-sm text-white placeholder-slate-500 outline-none transition focus:border-[#0297DE] focus:ring-1 focus:ring-[#0297DE]"
             />
           </div>
 
           {!isSupabaseConfigured && (
-            <p role="alert" className="text-sm leading-6 text-rose-700">
+            <p role="alert" className="text-xs leading-5 text-rose-400">
               Supabase не налаштовано. Додайте URL проєкту й анонімний ключ у
               змінні середовища.
             </p>
           )}
           {errorMessage && (
-            <p role="alert" className="text-sm leading-6 text-rose-700">
+            <p role="alert" className="text-xs leading-5 text-rose-400">
               {errorMessage}
             </p>
           )}
           {statusMessage && (
-            <p role="status" className="text-sm leading-6 text-emerald-800">
+            <p role="status" className="text-xs leading-5 text-emerald-400">
               {statusMessage}
             </p>
           )}
@@ -303,7 +326,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting || !isSupabaseConfigured}
-            className="h-11 w-full bg-[#202722] px-5 text-sm font-semibold text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-[#a5ada6]"
+            className="h-11 w-full rounded-full bg-[#FC734D] px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_20px_rgba(252,115,77,0.4)] transition-all hover:bg-[#ff8463] hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting
               ? "Зачекайте…"
@@ -312,8 +335,17 @@ export default function LoginPage() {
                 : "Створити акаунт"}
           </button>
         </form>
+
+        <div className="mt-6 text-center">
+          <Link
+            href="/"
+            className="text-[11px] font-mono text-slate-400 hover:text-[#0297DE] transition-colors"
+          >
+            ← На головну сторінку
+          </Link>
+        </div>
       </section>
     </div>
-    </main>
+</main>
   );
 }

@@ -1,0 +1,15 @@
+ RUN  v3.2.7 C:/Users/Acer/.gemini/antigravity/scratch/LLM-PROGEKT
+
+ ❯ tests/db-leagues.test.ts (3 tests | 3 failed)
+   × створений запис читається назад: ліга
+     → AssertionError: expected "" to be truthy
+   × видалений запис не знаходиться: ліга
+     → AssertionError: expected null not to be null
+   × обов'язкове поле не приймає порожнє значення: назва ліги
+     → AssertionError: promise resolved { id: '', title: '   ', invite_code: '', owner_id: '' } instead of rejecting
+ ✓ tests/smoke.test.ts (1 test)
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  3 failed | 1 passed (4)
+   Start at  10:45:12
+   Duration  1.20s

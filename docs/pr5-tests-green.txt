@@ -1,0 +1,13 @@
+ RUN  v3.2.7 C:/Users/Acer/.gemini/antigravity/scratch/LLM-PROGEKT
+
+ ✓ tests/actions-leagues.test.ts (3 tests) 410ms
+   ✓ точки доступу: ліги > успішний виклик: організатор створює лігу, і вона є в базі
+   ✓ точки доступу: ліги > невалідні дані: порожня назва повз форму відхиляється з кодом 400
+   ✓ точки доступу: ліги > чужий запис: акаунт Б не бачить і не видаляє лігу акаунта А
+ ✓ tests/db-leagues.test.ts (3 tests) 320ms
+ ✓ tests/smoke.test.ts (1 test) 2ms
+
+ Test Files  3 passed (3)
+      Tests  7 passed (7)
+   Start at  11:20:15
+   Duration  1.85s

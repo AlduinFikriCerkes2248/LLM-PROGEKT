@@ -1,0 +1,12 @@
+ RUN  v3.2.7 C:/Users/Acer/.gemini/antigravity/scratch/LLM-PROGEKT
+
+ ✓ tests/db-leagues.test.ts (3 tests) 320ms
+   ✓ створений запис читається назад: ліга
+   ✓ видалений запис не знаходиться: ліга
+   ✓ обов'язкове поле не приймає порожнє значення: назва ліги
+ ✓ tests/smoke.test.ts (1 test) 2ms
+
+ Test Files  2 passed (2)
+      Tests  4 passed (4)
+   Start at  11:15:30
+   Duration  1.45s
