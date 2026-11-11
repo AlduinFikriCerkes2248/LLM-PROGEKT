@@ -1,19 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  /* Дизайн-система: глибокий темно-синій фон, електричний синій та кораловий вогонь */
+  /* Палітра: тьмяно-синій #0A1430, Electric Blue #0297DE, оранжевий #FC7340 */
   --background: #060a17;
   --foreground: #f8fafc;
   --color-primary: #0297de;
-  --color-accent: #fc734d;
+  --color-accent: #fc7340;
   --color-navy: #0a1430;
   --accent: #0297de;
-  --accent-hover: #22d3ee;
-  --accent-glow: rgba(2, 151, 222, 0.25);
+  --accent-hover: #38bdf8;
+  --accent-glow: rgba(2, 151, 222, 0.3);
   --surface: #0a1430;
-  --surface-border: #1e293b;
-  --surface-hover: #161f2c;
+  --surface-border: #162544;
+  --surface-hover: #121e3d;
   --text-muted: #94a3b8; /* slate-400: контраст >= 4.5:1 на фоні #060a17 */
+  --orange: #fc7340;
+  --orange-hover: #fd855d;
+  --orange-glow: rgba(252, 115, 64, 0.4);
 
   /* Два радіуси скруглення */
   --radius-sm: 0.5rem; /* 8px: бейджі, інпути, дрібні перемикачі */
@@ -118,11 +121,11 @@ body {
 @keyframes pulseGlow {
   0%, 100% {
     opacity: 0.85;
-    filter: drop-shadow(0 0 12px rgba(252, 115, 77, 0.45));
+    filter: drop-shadow(0 0 12px rgba(252, 115, 64, 0.45));
   }
   50% {
     opacity: 1;
-    filter: drop-shadow(0 0 24px rgba(252, 115, 77, 0.75));
+    filter: drop-shadow(0 0 24px rgba(252, 115, 64, 0.75));
   }
 }
 
