@@ -131,13 +131,13 @@ export default function AuthStatusIndicator() {
   return (
     <>
       <div aria-hidden="true" className="h-14" />
-      <aside className="fixed right-3 top-3 z-50 max-w-[calc(100vw-1.5rem)] rounded-xl border border-slate-700/80 bg-[#0d1218]/95 px-3.5 py-2 font-mono text-xs text-gray-200 shadow-[0_4px_25px_rgba(0,0,0,0.6)] backdrop-blur-md sm:right-5 sm:top-4">
+      <aside className="fixed right-3 top-3 z-50 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-[#162544] bg-[#0A1430]/95 px-4 py-2 font-mono text-xs text-gray-200 shadow-[0_8px_30px_rgba(0,0,0,0.7)] backdrop-blur-xl sm:right-5 sm:top-4">
         {isLoading ? (
-          <span role="status" className="animate-pulse text-cyan-400">⚡ синхронізація...</span>
+          <span role="status" className="animate-pulse text-[#0297DE]">⚡ синхронізація...</span>
         ) : user ? (
           <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
             {/* Нікнейм з аватаркою */}
-            <span className="flex items-center gap-1.5 max-w-40 truncate font-bold text-slate-100">
+            <span className="flex items-center gap-1.5 max-w-40 truncate font-semibold text-slate-100">
               <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
               {username || user.email || "Агент"}
             </span>
@@ -149,10 +149,10 @@ export default function AuthStatusIndicator() {
 
             {/* Друга валюта: Бонуси (валюта для кейсів та онлайн дуелей) */}
             <span
-              className="balance-badge flex items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--surface-border)] bg-[var(--surface)] px-2.5 py-1 font-bold text-slate-200 shadow-inner"
+              className="balance-badge flex items-center gap-1 rounded-xl border border-[#0297DE]/30 bg-[#060A17]/90 px-2.5 py-1 font-bold text-slate-200 shadow-inner"
               title="Бонуси (валюта для кейсів та онлайн дуелей)"
             >
-              <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 via-slate-400 to-slate-600 text-[9px] font-black text-slate-950 shadow-sm">
+              <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 via-slate-400 to-slate-600 text-[9px] font-black text-slate-950 shadow-sm">
                 Б
               </span>
               <span>{hohlyantsi === null ? "25" : hohlyantsi.toLocaleString()}</span>
@@ -163,17 +163,17 @@ export default function AuthStatusIndicator() {
               type="button"
               onClick={handleSignOut}
               disabled={isSigningOut}
-              className="btn-interactive min-h-[44px] rounded-[var(--radius-sm)] border border-red-900/50 bg-red-950/30 px-3 py-1 font-bold text-red-400 hover:bg-red-900/50"
+              className="btn-interactive min-h-[36px] rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1 font-bold text-rose-300 hover:bg-rose-500/25 hover:border-rose-500/50 transition-all"
             >
               {isSigningOut ? "..." : "ВИХІД"}
             </button>
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <span className="text-gray-400">[ОФЛАЙН]</span>
+            <span className="text-slate-400 text-xs">[ОФЛАЙН]</span>
             <Link
               href="/login"
-              className="btn-interactive min-h-[44px] rounded-[var(--radius-sm)] border border-cyan-800 bg-cyan-950/40 px-3.5 py-1.5 font-bold text-cyan-300 hover:bg-cyan-900/60"
+              className="btn-interactive min-h-[36px] rounded-full bg-gradient-to-r from-[#FC7340] to-[#FF5E3A] px-4 py-1.5 text-xs font-semibold text-white shadow-[0_0_15px_rgba(252,115,64,0.35)] hover:from-[#ff8153] hover:to-[#ff6f4c] transition-all"
             >
               УВІЙТИ
             </Link>

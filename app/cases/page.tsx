@@ -286,45 +286,66 @@ export default function CasesPage() {
   }
 
   return (
-    <main className="min-h-screen flex-1 bg-[#090b0e] px-4 py-8 font-mono text-slate-100 sm:px-8 sm:py-12">
-      <div className="mx-auto max-w-5xl">
+    <main className="min-h-screen flex-1 bg-[#050813] px-4 py-6 font-sans text-slate-100 sm:px-8 sm:py-10 relative overflow-hidden select-none">
+      {/* М'яке фонове дифузне світіння */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[12%] left-1/2 -translate-x-1/2 w-[650px] h-[350px] bg-gradient-to-b from-[#FC7340]/15 via-[#0297DE]/10 to-transparent blur-[130px] rounded-full" />
+        <div className="absolute bottom-[-50px] right-[-50px] w-[350px] h-[350px] bg-[#0297DE]/15 blur-[120px] rounded-full" />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-5xl">
         {/* Navigation Bar */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
-          <Link
-            href="/leagues"
-            className="text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-100 transition"
-          >
-            ← До ліг
-          </Link>
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-[#162544]/80 pb-4">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2 group cursor-pointer">
+              <div className="flex items-center gap-1">
+                <span className="w-1 h-3.5 bg-[#0297DE] rounded-full group-hover:h-4 transition-all" />
+                <span className="w-1 h-4.5 bg-[#0297DE] rounded-full group-hover:h-5 transition-all" />
+                <span className="w-1 h-3.5 bg-[#0297DE] rounded-full group-hover:h-4 transition-all" />
+              </div>
+              <span className="font-bold text-sm sm:text-base tracking-[0.16em] text-white uppercase ml-1">
+                MATCHDAY
+              </span>
+            </Link>
+            <span className="text-slate-600">|</span>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-[#FC7340] shadow-[0_0_8px_#FC7340]" />
+              <span className="text-xs font-mono uppercase tracking-widest text-[#FC7340]">КЕЙСИ ТА КВЕСТИ</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/leagues"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
+            >
+              🏆 Мої ліги
+            </Link>
             <Link
               href="/online"
-              className="rounded-lg border border-indigo-600/60 bg-indigo-950/40 px-3 py-1 text-xs font-bold text-indigo-300 hover:bg-indigo-900/60 transition"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🌐 Онлайн Дуелі
+              🌐 Онлайн PvP
+            </Link>
+            <Link
+              href="/wheel"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
+            >
+              🎡 Колесо
             </Link>
             <Link
               href="/blackjack"
-              className="rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-1 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
               🃏 Блекджек
             </Link>
             <Link
               href="/dice"
-              className="rounded-lg border border-red-800 bg-red-950/30 px-3 py-1 text-xs font-bold text-red-300 hover:bg-red-900/40 transition"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
               🎲 Кості
             </Link>
-            {/* Баланс золотих монет */}
-            <div className="font-mono text-xs text-amber-400 font-semibold">
+            <div className="rounded-xl bg-[#060A17] border border-amber-500/40 px-3 py-1 text-xs font-bold text-amber-300">
               🪙 {balance === null ? "—" : `${balance.toLocaleString()} монет`}
-            </div>
-            {/* Баланс Бонусів */}
-            <div className="flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/80 px-2.5 py-1 text-xs font-bold text-slate-200 shadow-inner">
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 via-slate-400 to-slate-600 text-[10px] font-black text-slate-950">
-                Б
-              </span>
-              <span>{hohlyantsi === null ? "25" : hohlyantsi.toLocaleString()} Бонусів</span>
             </div>
           </div>
         </div>

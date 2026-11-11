@@ -78,8 +78,6 @@ type LeagueDetails = {
   currentBalance: number | null;
 };
 
-const backLinkClassName =
-  "min-h-[44px] text-xs font-bold uppercase tracking-wider text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1.5";
 const fieldClassName =
   "h-12 w-full rounded-xl border-2 border-slate-700 bg-slate-900/90 px-3.5 font-mono text-sm font-semibold text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -683,38 +681,63 @@ export default function LeagueDetailsPage() {
   const [now] = useState(() => Date.now());
 
   return (
-    <main className="min-h-screen flex-1 bg-[#07090d] px-4 py-8 font-mono text-slate-100 sm:px-8 sm:py-12">
-      <div className="mx-auto max-w-5xl">
+    <main className="min-h-screen flex-1 bg-[#050813] px-4 py-6 font-sans text-slate-100 sm:px-8 sm:py-10 relative overflow-hidden select-none">
+      {/* М'яке фонове дифузне світіння */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[10%] left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-gradient-to-b from-[#FC7340]/15 via-[#0297DE]/10 to-transparent blur-[130px] rounded-full" />
+        <div className="absolute bottom-[-60px] right-[-60px] w-[350px] h-[350px] bg-[#0297DE]/15 blur-[120px] rounded-full" />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-5xl">
         <DemoNoticeBadge />
         {/* Navigation Bar */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
-          <Link href="/leagues" className={backLinkClassName}>
-            ← Назад до списку ліг
-          </Link>
-          <div className="flex flex-wrap items-center gap-2.5">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-[#162544]/80 pb-4">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2 group cursor-pointer">
+              <div className="flex items-center gap-1">
+                <span className="w-1 h-3.5 bg-[#0297DE] rounded-full group-hover:h-4 transition-all" />
+                <span className="w-1 h-4.5 bg-[#0297DE] rounded-full group-hover:h-5 transition-all" />
+                <span className="w-1 h-3.5 bg-[#0297DE] rounded-full group-hover:h-4 transition-all" />
+              </div>
+              <span className="font-bold text-sm sm:text-base tracking-[0.16em] text-white uppercase ml-1">
+                MATCHDAY
+              </span>
+            </Link>
+            <span className="text-slate-600">|</span>
+            <Link href="/leagues" className="text-xs font-mono font-medium text-[#0297DE] hover:underline flex items-center gap-1">
+              ← До списку ліг
+            </Link>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/online"
-              className="min-h-[44px] flex items-center rounded-lg border border-indigo-500/80 bg-indigo-950/40 px-3 py-1.5 text-xs font-bold text-indigo-300 hover:bg-indigo-900/60 transition shadow-sm"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🌐 Онлайн Дуелі
+              🌐 Онлайн PvP
             </Link>
             <Link
-              href="/dice"
-              className="min-h-[44px] flex items-center rounded-lg border border-red-600/60 bg-red-950/30 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-900/40 transition"
+              href="/wheel"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🎲 Кості
+              🎡 Колесо
+            </Link>
+            <Link
+              href="/cases"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
+            >
+              🎁 Кейси
             </Link>
             <Link
               href="/blackjack"
-              className="min-h-[44px] flex items-center rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
               🃏 Блекджек
             </Link>
             <Link
-              href="/cases"
-              className="min-h-[44px] flex items-center rounded-lg border border-purple-800 bg-purple-950/30 px-3 py-1.5 text-xs font-bold text-purple-300 hover:bg-purple-900/40 transition"
+              href="/dice"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🎁 Кейси
+              🎲 Кості
             </Link>
           </div>
         </div>

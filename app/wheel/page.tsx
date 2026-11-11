@@ -10,7 +10,7 @@ import {
 } from "../../lib/supabase/client";
 
 const prizes = [10, 20, 50, 100, 500] as const;
-const wheelColors = ["#047857", "#b45309", "#0284c7", "#be123c", "#7c3aed"];
+const wheelColors = ["#0297DE", "#FC7340", "#10B981", "#8B5CF6", "#F59E0B"];
 const spinDuration = 5200;
 
 type Prize = (typeof prizes)[number];
@@ -50,14 +50,6 @@ function isNotAuthenticatedError(error: unknown) {
   );
 }
 
-const ASCII_WHEEL = `
-██╗    ██╗██╗  ██╗███████╗███████╗██╗     
-██║    ██║██║  ██║██╔════╝██╔════╝██║     
-██║ █╗ ██║███████║█████╗  █████╗  ██║     
-██║███╗██║██╔══██║██╔══╝  ██╔══╝  ██║     
-╚███╔███╔╝██║  ██║███████╗███████╗███████╗
- ╚══╝╚══╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝
-`.trim();
 
 export default function WheelPage() {
   const [canSpin, setCanSpin] = useState<boolean | null>(null);
@@ -170,44 +162,98 @@ export default function WheelPage() {
   const sectorAngle = 360 / prizes.length;
 
   return (
-    <main className="min-h-screen flex-1 bg-[#0a0a0a] px-4 py-8 font-mono text-gray-100 sm:px-8 sm:py-12">
-      <div className="mx-auto max-w-4xl">
-        <Link
-          href="/leagues"
-          className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan-400 transition hover:text-cyan-300"
-        >
-          ← До ліг
-        </Link>
+    <main className="min-h-screen flex-1 bg-[#050813] px-4 py-6 font-sans text-slate-100 sm:px-8 sm:py-10 relative overflow-hidden select-none">
+      {/* М'яке фонове дифузне світіння */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[12%] left-1/2 -translate-x-1/2 w-[650px] h-[350px] bg-gradient-to-b from-[#FC7340]/20 via-[#0297DE]/10 to-transparent blur-[130px] rounded-full" />
+        <div className="absolute bottom-[-50px] right-[-50px] w-[350px] h-[350px] bg-[#FC7340]/15 blur-[120px] rounded-full" />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-4xl">
+        {/* Navigation Bar / Quick Links */}
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-[#162544]/80 pb-4">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2 group cursor-pointer">
+              <div className="flex items-center gap-1">
+                <span className="w-1 h-3.5 bg-[#0297DE] rounded-full group-hover:h-4 transition-all" />
+                <span className="w-1 h-4.5 bg-[#0297DE] rounded-full group-hover:h-5 transition-all" />
+                <span className="w-1 h-3.5 bg-[#0297DE] rounded-full group-hover:h-4 transition-all" />
+              </div>
+              <span className="font-bold text-sm sm:text-base tracking-[0.16em] text-white uppercase ml-1">
+                MATCHDAY
+              </span>
+            </Link>
+            <span className="text-slate-600">|</span>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-[#FC7340] shadow-[0_0_8px_#FC7340]" />
+              <span className="text-xs font-mono uppercase tracking-widest text-[#FC7340]">КОЛЕСО ФОРТУНИ</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/leagues"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
+            >
+              🏆 Мої ліги
+            </Link>
+            <Link
+              href="/online"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
+            >
+              🌐 Онлайн PvP
+            </Link>
+            <Link
+              href="/cases"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
+            >
+              🎁 Кейси
+            </Link>
+            <Link
+              href="/blackjack"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
+            >
+              🃏 Блекджек
+            </Link>
+            <Link
+              href="/dice"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
+            >
+              🎲 Кості
+            </Link>
+          </div>
+        </div>
 
         <DemoNoticeBadge />
-        {/* ASCII Header */}
+
+        {/* Header */}
         <header className="mb-8 text-center">
-          <pre className="mx-auto hidden overflow-x-auto text-[0.45rem] font-bold leading-tight text-yellow-400 sm:block sm:text-[0.55rem] md:text-xs" aria-hidden="true">
-            {ASCII_WHEEL}
-          </pre>
-          <h1 className="text-3xl font-bold text-yellow-400 sm:hidden">
-            КОЛЕСО ФОРТУНИ
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#FC7340]/40 bg-[#0A1430]/90 px-3.5 py-1 text-xs text-[#FC7340] shadow-[0_0_12px_rgba(252,115,64,0.15)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#FC7340] animate-pulse" />
+            <span className="font-mono tracking-wider uppercase text-[11px]">Щоденна фортуна</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-serif text-white tracking-tight">
+            Колесо Фортуни
           </h1>
-          <p className="mt-3 text-sm text-cyan-300">
-            ⚡ Щоденний бонус монет · 1 спроба на добу ⚡
+          <p className="mt-2 text-xs sm:text-sm text-slate-300">
+            Отримуйте щоденний бонус монет для ставок у лігах та міні-іграх
           </p>
         </header>
 
         {/* Wheel Section */}
-        <section className="rounded-xl border border-cyan-900/50 bg-gradient-to-b from-[#0f1a15] to-[#0a120e] p-6 text-center shadow-[0_0_30px_rgba(234,179,8,0.06)] sm:p-10">
+        <section className="rounded-3xl border border-[#162544] bg-[#0A1430]/95 p-6 text-center shadow-2xl backdrop-blur-xl sm:p-10 relative">
           <div className="relative mx-auto mb-8 flex h-[340px] w-[340px] items-center justify-center">
             {/* Top Indicator Arrow */}
-            <div className="absolute -top-3 left-1/2 z-20 -translate-x-1/2 drop-shadow-[0_0_10px_#eab308]">
-              <div className="h-0 w-0 border-x-8 border-x-transparent border-t-[18px] border-t-yellow-400" />
+            <div className="absolute -top-3 left-1/2 z-20 -translate-x-1/2 drop-shadow-[0_0_12px_#FC7340]">
+              <div className="h-0 w-0 border-x-8 border-x-transparent border-t-[18px] border-t-[#FC7340]" />
             </div>
 
             {/* Glowing Ring */}
-            <div className="absolute inset-0 rounded-full border-4 border-yellow-500/30 shadow-[0_0_40px_rgba(234,179,8,0.15)] pointer-events-none" />
+            <div className="absolute inset-0 rounded-full border-4 border-[#FC7340]/30 shadow-[0_0_40px_rgba(252,115,64,0.2)] pointer-events-none" />
 
             {/* SVG Wheel */}
             <svg
               viewBox="0 0 320 320"
-              className="h-full w-full"
+              className="h-full w-full drop-shadow-2xl"
               style={{
                 transform: `rotate(${rotation}deg)`,
                 transition: isSpinning
@@ -229,7 +275,7 @@ export default function WheelPage() {
                     <path
                       d={`M 160 160 L ${p1.x} ${p1.y} A 150 150 0 0 1 ${p2.x} ${p2.y} Z`}
                       fill={wheelColors[index % wheelColors.length]}
-                      stroke="#0a0a0a"
+                      stroke="#050813"
                       strokeWidth="3"
                     />
                     <text
@@ -249,12 +295,12 @@ export default function WheelPage() {
                 );
               })}
               {/* Center Pin */}
-              <circle cx="160" cy="160" r="26" fill="#0a0a0a" stroke="#eab308" strokeWidth="4" />
+              <circle cx="160" cy="160" r="26" fill="#0A1430" stroke="#FC7340" strokeWidth="4" />
               <text
                 x="160"
                 y="160"
-                fill="#eab308"
-                fontSize="14"
+                fill="#FC7340"
+                fontSize="15"
                 fontWeight="bold"
                 textAnchor="middle"
                 dominantBaseline="central"
@@ -270,7 +316,7 @@ export default function WheelPage() {
               type="button"
               onClick={handleSpin}
               disabled={isChecking || isSpinning || canSpin !== true}
-              className="h-12 min-w-48 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-8 text-base font-bold text-black shadow-lg shadow-yellow-500/20 transition hover:from-yellow-400 hover:to-amber-500 hover:shadow-yellow-500/40 disabled:cursor-not-allowed disabled:opacity-40"
+              className="btn-interactive min-h-[48px] min-w-56 rounded-full bg-gradient-to-r from-[#FC7340] to-[#FF5E3A] hover:from-[#ff8153] hover:to-[#ff6f4c] px-8 text-sm font-bold tracking-wider text-white shadow-[0_0_25px_rgba(252,115,64,0.45)] transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isChecking
                 ? "Перевірка..."
@@ -284,10 +330,10 @@ export default function WheelPage() {
             {message && (
               <p
                 role="alert"
-                className={`rounded-lg border px-4 py-2 font-mono text-sm ${
+                className={`rounded-xl border px-4 py-2 text-xs font-mono font-medium ${
                   winningPrize !== null
-                    ? "border-emerald-800 bg-emerald-950/40 text-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.2)]"
-                    : "border-gray-800 bg-gray-900/50 text-gray-400"
+                    ? "border-emerald-600/60 bg-emerald-950/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.25)]"
+                    : "border-[#162544] bg-[#060A17] text-slate-300"
                 }`}
               >
                 {message}
@@ -297,8 +343,8 @@ export default function WheelPage() {
         </section>
 
         {/* Footer */}
-        <p className="mt-8 text-center text-xs text-gray-600">
-          Matchday · Щоденне колесо · Монети віртуальні
+        <p className="mt-8 text-center text-xs text-slate-500">
+          Matchday · Щоденне колесо фортуни · Монети віртуальні
         </p>
       </div>
     </main>

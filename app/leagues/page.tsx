@@ -15,14 +15,6 @@ type League = {
   title: string;
 };
 
-const ASCII_MATCHDAY = `
-███╗   ███╗ █████╗ ████████╗ ██████╗██╗  ██╗██████╗  █████╗ ██╗   ██╗
-████╗ ████║██╔══██╗╚══██╔══╝██╔════╝██║  ██║██╔══██╗██╔══██╗╚██╗ ██╔╝
-██╔████╔██║███████║   ██║   ██║     ███████║██║  ██║███████║ ╚████╔╝ 
-██║╚██╔╝██║██╔══██║   ██║   ██║     ██╔══██║██║  ██║██╔══██║  ╚██╔╝  
-██║ ╚═╝ ██║██║  ██║   ██║   ╚██████╗██║  ██║██████╔╝██║  ██║   ██║   
-╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝   ╚═╝   
-`.trim();
 
 function getErrorCode(error: unknown) {
   if (
@@ -253,88 +245,100 @@ export default function LeaguesPage() {
   }
 
   return (
-    <main className="min-h-screen flex-1 bg-[#060A17] px-4 py-8 font-mono text-gray-100 sm:px-8 sm:py-12">
-      <div className="mx-auto max-w-5xl">
+    <main className="min-h-screen flex-1 bg-[#050813] px-4 py-6 font-sans text-slate-100 sm:px-8 sm:py-10 relative overflow-hidden select-none">
+      {/* М'яке фонове дифузне світіння */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[10%] left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-gradient-to-b from-[#FC7340]/15 via-[#0297DE]/10 to-transparent blur-[130px] rounded-full" />
+        <div className="absolute bottom-[-60px] left-[-60px] w-[380px] h-[380px] bg-[#0297DE]/15 blur-[120px] rounded-full" />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-5xl">
         {/* Navigation Bar / Quick Links */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-[#162544]/80 pb-4">
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
-              <span className="w-1.5 h-3.5 bg-[#FC734D] rounded-full" />
-              <span className="w-1.5 h-4 bg-[#0297DE] rounded-full" />
-              <span className="w-1.5 h-3 bg-[#0A1430] border border-[#0297DE]/60 rounded-full" />
-              <span className="font-sans font-semibold text-xs tracking-wide text-white">ФлюксЭдит</span>
+            <Link href="/" className="flex items-center gap-2 group cursor-pointer">
+              <div className="flex items-center gap-1">
+                <span className="w-1 h-3.5 bg-[#0297DE] rounded-full group-hover:h-4 transition-all" />
+                <span className="w-1 h-4.5 bg-[#0297DE] rounded-full group-hover:h-5 transition-all" />
+                <span className="w-1 h-3.5 bg-[#0297DE] rounded-full group-hover:h-4 transition-all" />
+              </div>
+              <span className="font-bold text-sm sm:text-base tracking-[0.16em] text-white uppercase ml-1">
+                MATCHDAY
+              </span>
             </Link>
             <span className="text-slate-600">|</span>
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-[#0297DE] shadow-[0_0_8px_#0297DE]" />
-              <span className="text-xs uppercase tracking-widest text-[#0297DE]">ЛІГИ ПРОГНОЗІВ v2.0</span>
+              <span className="text-xs font-mono uppercase tracking-widest text-[#0297DE]">ЛІГИ ПРОГНОЗІВ</span>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/online"
-              className="rounded-lg border border-indigo-500/80 bg-indigo-950/40 px-3 py-1.5 text-xs font-bold text-indigo-300 transition hover:bg-indigo-900/60 hover:shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse"
+              className="rounded-xl border border-[#0297DE]/40 bg-[#0A1430] hover:bg-[#121e3d] hover:border-[#0297DE] px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition shadow-[0_0_12px_rgba(2,151,222,0.15)]"
             >
-              🌐 ОНЛАЙН ДУЕЛІ (PVP)
-            </Link>
-            <Link
-              href="/dice"
-              className="rounded-lg border border-red-600/60 bg-red-950/20 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:bg-red-900/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
-            >
-              🎲 КОСТІ (DICE)
-            </Link>
-            <Link
-              href="/cases"
-              className="rounded-lg border border-purple-600/60 bg-purple-950/20 px-3 py-1.5 text-xs font-bold text-purple-300 transition hover:bg-purple-900/40 hover:shadow-[0_0_15px_rgba(168,85,247,0.2)]"
-            >
-              🎁 КЕЙСИ ТА КВЕСТИ
+              🌐 Онлайн PvP
             </Link>
             <Link
               href="/wheel"
-              className="rounded-lg border border-yellow-600/60 bg-yellow-950/20 px-3 py-1.5 text-xs font-bold text-yellow-400 transition hover:bg-yellow-900/40 hover:shadow-[0_0_15px_rgba(234,179,8,0.2)]"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#FC7340]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🎡 КОЛЕСО ФОРТУНИ
+              🎡 Колесо фортуни
+            </Link>
+            <Link
+              href="/cases"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
+            >
+              🎁 Кейси та квести
             </Link>
             <Link
               href="/blackjack"
-              className="rounded-lg border border-cyan-600/60 bg-cyan-950/20 px-3 py-1.5 text-xs font-bold text-cyan-300 transition hover:bg-cyan-900/40 hover:shadow-[0_0_15px_rgba(34,211,238,0.2)]"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🃏 БЛЕКДЖЕК
+              🃏 Блекджек
+            </Link>
+            <Link
+              href="/dice"
+              className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
+            >
+              🎲 Кості
             </Link>
           </div>
         </div>
 
         <HeraldicCelebrationModal
-        show={newlyCreatedLeague !== null}
-        onClose={() => setNewlyCreatedLeague(null)}
-        leagueTitle={newlyCreatedLeague?.title}
-        inviteCode={newlyCreatedLeague?.inviteCode}
-      />
+          show={newlyCreatedLeague !== null}
+          onClose={() => setNewlyCreatedLeague(null)}
+          leagueTitle={newlyCreatedLeague?.title}
+          inviteCode={newlyCreatedLeague?.inviteCode}
+        />
         <DemoNoticeBadge />
-        {/* ASCII Header */}
+
+        {/* Header Section */}
         <header className="mb-10 text-center">
-          <pre className="mx-auto hidden overflow-x-auto text-[0.45rem] font-bold leading-tight text-cyan-400 sm:block sm:text-[0.55rem] md:text-xs" aria-hidden="true">
-            {ASCII_MATCHDAY}
-          </pre>
-          <h1 className="text-3xl font-bold text-cyan-400 sm:hidden">
-            MATCHDAY · ЛІГИ
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#0297DE]/30 bg-[#0A1430]/90 px-3.5 py-1 text-xs text-[#0297DE] shadow-[0_0_12px_rgba(2,151,222,0.15)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#0297DE] animate-pulse" />
+            <span className="font-mono tracking-wider uppercase text-[11px]">Футбольна ліга прогнозів</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-serif text-white tracking-tight leading-tight">
+            Турніри та ліги прогнозів
           </h1>
-          <p className="mt-3 text-sm text-yellow-400">
-            ⚡ Змагайся у прогнозах, крути колесо та став монети ⚡
+          <p className="mt-2.5 text-xs sm:text-sm text-slate-300/90 max-w-lg mx-auto">
+            Створюйте власні ліги або приєднуйтесь за інвайт-кодом друзів
           </p>
         </header>
 
         {/* Action Forms Grid */}
         <div className="mb-10 grid gap-6 sm:grid-cols-2">
           {/* Create League */}
-          <section className="ui-surface-card p-5 sm:p-6">
-            <h2 className="mb-2 flex items-center gap-2 text-base font-bold text-cyan-300">
-              <span>➕</span> СТВОРИТИ ЛІГУ
+          <section className="bg-[#0A1430]/95 border border-[#162544] hover:border-[#0297DE]/50 rounded-2xl p-6 sm:p-7 shadow-2xl backdrop-blur-xl transition-all">
+            <h2 className="mb-2 flex items-center gap-2 text-base font-bold text-white">
+              <span className="text-[#FC7340]">➕</span> СТВОРИТИ ЛІГУ
             </h2>
-            <p className="mb-4 text-xs text-gray-400">
+            <p className="mb-4 text-xs text-slate-400">
               Створи свою лігу для друзів та отримуй код запрошення.
             </p>
-            <form onSubmit={handleCreateLeague} className="space-y-3">
+            <form onSubmit={handleCreateLeague} className="space-y-3.5">
               <input
                 type="text"
                 placeholder="Назва турніру або ліги..."
@@ -342,35 +346,35 @@ export default function LeaguesPage() {
                 onChange={(e) => setLeagueTitle(e.target.value)}
                 required
                 disabled={isCreating}
-                className="h-11 min-h-[44px] w-full rounded-[var(--radius-sm)] border border-[var(--surface-border)] bg-[#07090e] px-3.5 text-sm text-cyan-200 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-50"
+                className="h-11 min-h-[44px] w-full rounded-xl border border-[#162544] bg-[#060A17] px-3.5 text-sm text-white placeholder-slate-500 outline-none transition focus:border-[#0297DE] focus:ring-1 focus:ring-[#0297DE] disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={isCreating || !leagueTitle.trim()}
-                className="btn-interactive h-11 min-h-[44px] w-full rounded-[var(--radius-sm)] bg-gradient-to-r from-cyan-600 to-emerald-600 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-cyan-600/20 hover:from-cyan-500 hover:to-emerald-500"
+                className="btn-interactive h-11 min-h-[44px] w-full rounded-xl bg-gradient-to-r from-[#FC7340] to-[#FF5E3A] hover:from-[#ff8153] hover:to-[#ff6f4c] px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_20px_rgba(252,115,64,0.35)] transition-all hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isCreating ? "Створення..." : "Створити лігу"}
               </button>
             </form>
             {createdInviteCode && (
-              <div className="mt-3 rounded border border-emerald-800 bg-emerald-950/40 p-2 text-center text-xs text-emerald-300">
-                Код запрошення: <span className="font-bold text-yellow-400 select-all">{createdInviteCode}</span>
+              <div className="mt-3 rounded-xl border border-emerald-800/80 bg-emerald-950/40 p-2.5 text-center text-xs text-emerald-300">
+                Код запрошення: <span className="font-bold text-amber-300 select-all">{createdInviteCode}</span>
               </div>
             )}
             {formError && (
-              <p className="mt-2 text-xs text-red-400">{formError}</p>
+              <p className="mt-2 text-xs text-rose-400">{formError}</p>
             )}
           </section>
 
           {/* Join League */}
-          <section className="ui-surface-card p-5 sm:p-6">
-            <h2 className="mb-2 flex items-center gap-2 text-base font-bold text-cyan-300">
-              <span>🔑</span> ПРИЄДНАТИСЯ ЗА КОДОМ
+          <section className="bg-[#0A1430]/95 border border-[#162544] hover:border-[#0297DE]/50 rounded-2xl p-6 sm:p-7 shadow-2xl backdrop-blur-xl transition-all">
+            <h2 className="mb-2 flex items-center gap-2 text-base font-bold text-white">
+              <span className="text-[#0297DE]">🔑</span> ПРИЄДНАТИСЯ ЗА КОДОМ
             </h2>
-            <p className="mb-4 text-xs text-gray-400">
+            <p className="mb-4 text-xs text-slate-400">
               Введи код ліги, яким з тобою поділився організатор.
             </p>
-            <form onSubmit={handleJoinLeague} className="space-y-3">
+            <form onSubmit={handleJoinLeague} className="space-y-3.5">
               <input
                 type="text"
                 placeholder="Введи код ліги (напр. 007480...)"
@@ -378,12 +382,12 @@ export default function LeaguesPage() {
                 onChange={(e) => setInviteCodeInput(e.target.value)}
                 required
                 disabled={isJoining}
-                className="h-11 min-h-[44px] w-full rounded-[var(--radius-sm)] border border-[var(--surface-border)] bg-[#07090e] px-3.5 text-sm uppercase text-cyan-200 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-50"
+                className="h-11 min-h-[44px] w-full rounded-xl border border-[#162544] bg-[#060A17] px-3.5 text-sm uppercase text-white placeholder-slate-500 outline-none transition focus:border-[#0297DE] focus:ring-1 focus:ring-[#0297DE] disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={isJoining || !inviteCodeInput.trim()}
-                className="btn-interactive h-11 min-h-[44px] w-full rounded-[var(--radius-sm)] border border-cyan-600/80 bg-cyan-950/40 px-4 text-xs font-bold uppercase tracking-wider text-cyan-300 shadow-lg hover:bg-cyan-900/50 hover:text-white"
+                className="btn-interactive h-11 min-h-[44px] w-full rounded-xl bg-[#0297DE] hover:bg-[#15a2e8] px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_20px_rgba(2,151,222,0.35)] transition-all hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isJoining ? "Приєднання..." : "Приєднатися"}
               </button>
@@ -392,16 +396,16 @@ export default function LeaguesPage() {
               <p className="mt-3 text-center text-xs text-emerald-400">{joinStatus}</p>
             )}
             {joinError && (
-              <p className="mt-2 text-xs text-red-400">{joinError}</p>
+              <p className="mt-2 text-xs text-rose-400">{joinError}</p>
             )}
           </section>
         </div>
 
         {/* Leagues List */}
-        <section className="ui-surface-card p-5 sm:p-8">
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
-            <h2 className="flex items-center gap-2 text-lg font-bold text-cyan-300">
-              <span>🏆</span> ДОСТУПНІ ЛІГИ ({leagues.length})
+        <section className="bg-[#0A1430]/95 border border-[#162544] rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-[#162544] pb-4">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-white">
+              <span className="text-[#0297DE]">🏆</span> ДОСТУПНІ ЛІГИ ({leagues.length})
             </h2>
             <span className="text-xs text-slate-400">[ Оберіть лігу для прогнозів ]</span>
           </div>
@@ -411,11 +415,11 @@ export default function LeaguesPage() {
               ⚡ Завантаження ліг...
             </p>
           ) : loadError ? (
-            <p className="text-center text-sm text-red-400">{loadError}</p>
+            <p className="text-center text-sm text-rose-400">{loadError}</p>
           ) : leagues.length === 0 ? (
             <div className="py-12 text-center">
-              <p className="text-gray-400">Поки немає жодної ліги.</p>
-              <p className="mt-1 text-xs text-gray-600">Створіть першу лігу вище!</p>
+              <p className="text-slate-400">Поки немає жодної ліги.</p>
+              <p className="mt-1 text-xs text-slate-500">Створіть першу лігу вище!</p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -423,34 +427,32 @@ export default function LeaguesPage() {
                 <Link
                   key={league.id}
                   href={`/leagues/${league.id}`}
-                  className="animate-card-in group relative flex items-center justify-between overflow-hidden rounded-[var(--radius-lg)] border border-[var(--surface-border)] bg-[var(--surface)] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-[var(--shadow-main)]"
+                  className="animate-card-in group relative flex items-center justify-between overflow-hidden rounded-2xl border border-[#162544] bg-[#060A17]/90 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#0297DE] hover:shadow-[0_8px_25px_rgba(2,151,222,0.2)]"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-800/80 bg-cyan-950/40 text-2xl shadow-inner group-hover:scale-110 transition-transform">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#0297DE]/30 bg-[#0A1430] text-2xl shadow-inner group-hover:scale-110 transition-transform">
                       ⚽
                     </div>
                     <div>
-                      <h3 className="text-base font-black text-white group-hover:text-cyan-300 transition-colors">
+                      <h3 className="text-base font-bold text-white group-hover:text-[#0297DE] transition-colors">
                         {league.title}
                       </h3>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-bold">
-                        <span className="rounded bg-slate-800/80 px-2 py-0.5 text-slate-300">
+                        <span className="rounded-lg bg-[#0A1430] border border-[#162544] px-2 py-0.5 text-slate-300">
                           Матчі
                         </span>
-                        <span className="rounded bg-slate-800/80 px-2 py-0.5 text-slate-300">
+                        <span className="rounded-lg bg-[#0A1430] border border-[#162544] px-2 py-0.5 text-slate-300">
                           Ставки
                         </span>
-                        <span className="rounded bg-emerald-950/60 border border-emerald-600/40 px-2 py-0.5 text-emerald-300">
+                        <span className="rounded-lg bg-emerald-950/60 border border-emerald-600/40 px-2 py-0.5 text-emerald-300">
                           Таблиця
                         </span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 font-mono text-xs font-bold text-cyan-400 group-hover:text-cyan-300 transition">
+                  <div className="flex items-center gap-1 font-mono text-xs font-bold text-[#0297DE] group-hover:translate-x-1 transition-all">
                     <span className="hidden sm:inline">Вхід</span>
-                    <span className="text-base transition-transform group-hover:translate-x-1">
-                      →
-                    </span>
+                    <span className="text-base">→</span>
                   </div>
                 </Link>
               ))}
@@ -459,7 +461,7 @@ export default function LeaguesPage() {
         </section>
 
         {/* Footer */}
-        <p className="mt-8 text-center text-xs text-gray-600">
+        <p className="mt-8 text-center text-xs text-slate-500">
           Matchday · Football Prediction League System · 2026
         </p>
       </div>
