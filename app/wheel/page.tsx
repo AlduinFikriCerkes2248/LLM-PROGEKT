@@ -162,7 +162,7 @@ export default function WheelPage() {
   const sectorAngle = 360 / prizes.length;
 
   return (
-    <main className="min-h-screen flex-1 bg-[#050813] px-4 py-6 font-sans text-slate-100 sm:px-8 sm:py-10 relative overflow-hidden select-none">
+    <main className="min-h-screen flex-1 bg-transparent px-4 py-6 font-sans text-slate-100 sm:px-8 sm:py-10 relative overflow-hidden select-none">
       {/* М'яке фонове дифузне світіння */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[12%] left-1/2 -translate-x-1/2 w-[650px] h-[350px] bg-gradient-to-b from-[#FC7340]/20 via-[#0297DE]/10 to-transparent blur-[130px] rounded-full" />

@@ -62,7 +62,7 @@ export default function FluxHero() {
   const primaryActionUrl = isAuthenticated ? "/leagues" : "/login";
 
   return (
-    <div className="min-h-screen w-full bg-[#050813] text-white font-sans selection:bg-[#FC7340] selection:text-white flex flex-col justify-between px-4 sm:px-8 py-5 sm:py-7 overflow-x-hidden relative select-none">
+    <div className="min-h-screen w-full bg-transparent text-white font-sans selection:bg-[#FC7340] selection:text-white flex flex-col justify-between px-4 sm:px-8 py-5 sm:py-7 overflow-x-hidden relative select-none">
       {/* М'яке фонове дифузне світіння */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[14%] left-1/2 -translate-x-1/2 w-[700px] h-[360px] bg-gradient-to-b from-[#FC7340]/20 via-[#0297DE]/10 to-transparent blur-[120px] rounded-full" />
