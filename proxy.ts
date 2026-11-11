@@ -43,7 +43,11 @@ export async function proxy(request: NextRequest) {
   );
 
   if (!user && !isPublic && request.nextUrl.pathname !== "/") {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const redirectResponse = NextResponse.redirect(new URL("/login", request.url));
+    response.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+    });
+    return redirectResponse;
   }
 
   return response;
