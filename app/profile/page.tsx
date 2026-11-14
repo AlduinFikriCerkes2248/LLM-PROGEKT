@@ -249,6 +249,17 @@ export default function ProfilePage() {
                 <span>Онлайн PvP</span>
               </Link>
             </li>
+            <li>
+              <Link
+                href="/achievements"
+                className="flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-[#9aa9be] hover:text-white hover:bg-[rgba(13,21,34,0.8)] transition-all ml-1.5"
+              >
+                <svg className="w-[18px] h-[18px] text-[#f59e0b] shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0 0 11 15.9V19H7v2h10v-2h-4v-3.1c2.42-.36 4.3-2.31 4.61-4.96C20.08 10.63 22 8.55 22 6V5h-3zm-14 3V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z" />
+                </svg>
+                <span>Досягнення</span>
+              </Link>
+            </li>
 
             {/* Активний пункт: ПРОФІЛЬ */}
             <li className="relative">
