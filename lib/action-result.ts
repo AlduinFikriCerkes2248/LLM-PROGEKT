@@ -1,18 +1,16 @@
+// Результат серверної дії (практична робота 6: додано коди 429 і 503). Не змінюйте цей файл.
+// status — код із таблиці точок доступу:
+//   200 — виконано; 201 — створено; 400 — невалідні дані; 401 — не увійшов;
+//   403 — немає права на дію; 404 — запису немає або він недоступний цьому користувачу;
+//   429 — вичерпано ліміт викликів (окремий стан інтерфейсу, а не помилка);
+//   503 — функція тимчасово недоступна: модель не відповіла, відповіла не за схемою або ключа немає.
 export type ActionResult = {
-  status: 200 | 201 | 400 | 401 | 403 | 404;
+  status: 200 | 201 | 400 | 401 | 403 | 404 | 429 | 503;
   message?: string;
   fieldErrors?: Record<string, string>;
   id?: string;
 };
-
+// true, якщо база відмовила через політики доступу або права ролі.
 export function isAccessDenied(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const msg = (error as { message?: string }).message ?? "";
-  const code = (error as { code?: string }).code ?? "";
-  return (
-    code === "42501" ||
-    msg.toLowerCase().includes("row-level security") ||
-    msg.toLowerCase().includes("permission denied") ||
-    msg.toLowerCase().includes("access denied")
-  );
+  return error instanceof Error && /row-level security|permission denied/i.test(error.message);
 }

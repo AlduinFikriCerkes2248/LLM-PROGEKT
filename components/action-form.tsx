@@ -1,36 +1,46 @@
 "use client";
-
-import React, { useActionState } from "react";
+// Форма, що показує відповідь серверної дії (практична робота 6). Не змінюйте цей файл.
+// Як використовувати: замість <form action={дія}> напишіть <ActionForm action={дія}>.
+// Нове в ПР 6: ліміт (429) показується окремим жовтим блоком із поясненням, а не червоною помилкою;
+// успішна відповідь (200, 201) з повідомленням показується зеленим рядком.
+import { useActionState, type ReactNode } from "react";
 import type { ActionResult } from "@/lib/action-result";
-
-type ActionFormProps = {
-  action: (previous: ActionResult | null, formData: FormData) => Promise<ActionResult>;
-  children: React.ReactNode;
+type Action = (previous: ActionResult | null, formData: FormData) => Promise<ActionResult>;
+export function ActionForm({
+  action,
+  children,
+  className,
+}: {
+  action: Action;
+  children: ReactNode;
   className?: string;
-};
-
-export function ActionForm({ action, children, className }: ActionFormProps) {
-  const [state, formAction] = useActionState(action, null);
-
+}) {
+  const [result, formAction, pending] = useActionState(action, null);
   return (
     <form action={formAction} className={className}>
-      {children}
-      {state?.message && (
-        <div
-          className={`mt-2 text-sm ${
-            state.status >= 400 ? "text-rose-400" : "text-emerald-400"
-          }`}
-        >
-          {state.message}
+      <fieldset disabled={pending} className="contents">
+        {children}
+      </fieldset>
+      {pending ? <p className="text-sm text-gray-500">Виконується…</p> : null}
+      {result && result.status === 429 ? (
+        <div role="status" className="rounded border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">
+          <p className="font-semibold">Ліміт вичерпано</p>
+          {result.message ? <p>{result.message}</p> : null}
         </div>
-      )}
-      {state?.fieldErrors && (
-        <ul className="mt-1 text-xs text-rose-400">
-          {Object.entries(state.fieldErrors).map(([field, err]) => (
-            <li key={field}>{err}</li>
-          ))}
-        </ul>
-      )}
+      ) : null}
+      {result && result.status >= 400 && result.status !== 429 ? (
+        <div role="alert" className="text-sm text-red-600">
+          {result.message ? <p>{result.message}</p> : null}
+          {result.fieldErrors
+            ? Object.entries(result.fieldErrors).map(([field, text]) => <p key={field}>{text}</p>)
+            : null}
+        </div>
+      ) : null}
+      {result && result.status < 400 && result.message ? (
+        <p role="status" className="text-sm text-green-700">
+          {result.message}
+        </p>
+      ) : null}
     </form>
   );
 }
