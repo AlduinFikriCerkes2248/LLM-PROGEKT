@@ -1,5 +1,7 @@
 "use client";
 import { DemoNoticeBadge } from "../../demo-banner";
+import { ActionForm } from "@/components/action-form";
+import { generateMatchPreviewAction } from "./actions";
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -26,6 +28,7 @@ type Match = {
   status: "planned" | "live" | "finished" | "cancelled";
   home_score: number | null;
   away_score: number | null;
+  venue?: string | null;
   external_id?: string | null;
   result_source?: "manual" | "auto" | null;
   last_synced_at?: string | null;
@@ -1107,6 +1110,46 @@ export default function LeagueDetailsPage() {
                             )}
                           </div>
                         </div>
+
+                        {/* ШІ-прев'ю та аналітика */}
+                        {match.venue && match.venue.startsWith("ШІ-прев'ю") && (
+                          <div className="mt-4 rounded-xl border border-indigo-500/40 bg-indigo-950/30 p-3.5 text-xs text-indigo-200">
+                            <div className="flex items-center gap-2 font-bold text-indigo-300 mb-1">
+                              <span>🤖</span> ШІ-аналітика матчу:
+                            </div>
+                            <p className="leading-relaxed">{match.venue}</p>
+                          </div>
+                        )}
+
+                        {/* Форма генерації ШІ-прев'ю */}
+                        {!isFinished && !isCancelled && (
+                          <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/50 p-3.5">
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                                <span>🤖</span> ШІ-прев'ю поєдинку
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-sans">Gemini 2.5 Flash</span>
+                            </div>
+                            <ActionForm action={generateMatchPreviewAction}>
+                              <input type="hidden" name="match_id" value={match.id} />
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <input
+                                  type="text"
+                                  name="tactical_focus"
+                                  maxLength={300}
+                                  placeholder="Тактичний фокус (напр.: акцент на захист, контратаки, погода)..."
+                                  className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                                />
+                                <button
+                                  type="submit"
+                                  className="rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0"
+                                >
+                                  <span>✨</span> Згенерувати ШІ-прев'ю
+                                </button>
+                              </div>
+                            </ActionForm>
+                          </div>
+                        )}
 
                         {/* Повідомлення при скасуванні */}
                         {isCancelled && (
