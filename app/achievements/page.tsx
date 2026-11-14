@@ -11,6 +11,13 @@ import {
 } from "@/lib/achievements-data";
 import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "@/lib/supabase/client";
 import { triggerSteamAchievement } from "@/components/steam-achievement-notification";
+import {
+  PROMO_EASTER_EGGS,
+  PromoEasterEgg,
+  loadRedeemedPromos,
+  saveRedeemedPromos,
+  findPromoEasterEgg,
+} from "@/lib/promocodes-data";
 
 export default function AchievementsPage() {
   const [achievements, setAchievements] = useState<AchievementItem[]>([]);
@@ -20,10 +27,20 @@ export default function AchievementsPage() {
   const [hohlyantsi, setHohlyantsi] = useState<number | null>(null);
   const [claimedModal, setClaimedModal] = useState<AchievementItem | null>(null);
 
+  // Стан для розділу промокодів та великодок
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [redeemedPromos, setRedeemedPromos] = useState<string[]>([]);
+  const [promoFeedback, setPromoFeedback] = useState<{
+    type: "success" | "error" | "info";
+    text: string;
+  } | null>(null);
+  const [activeEasterEgg, setActiveEasterEgg] = useState<PromoEasterEgg | null>(null);
+
   // 1. Завантаження балансу та стану досягнень
   useEffect(() => {
     const list = loadAchievementsState();
     setAchievements(list);
+    setRedeemedPromos(loadRedeemedPromos());
 
     async function loadBalances() {
       const client = getSupabaseClient();
@@ -177,6 +194,104 @@ export default function AchievementsPage() {
       xp: 2000,
       soundType: "default",
     });
+  };
+
+  const handleActivatePromo = async (codeToActivate?: string) => {
+    const code = (codeToActivate || promoCodeInput).trim().toUpperCase();
+    if (!code) {
+      setPromoFeedback({ type: "error", text: "Будь ласка, введіть промокод або назву пасхалки!" });
+      return;
+    }
+
+    const egg = findPromoEasterEgg(code);
+    if (!egg) {
+      setPromoFeedback({
+        type: "error",
+        text: `❌ Промокод «${code}» не знайдено! Спробуйте одну з підказок нижче.`,
+      });
+      return;
+    }
+
+    const alreadyClaimed = redeemedPromos.includes(egg.code);
+    if (alreadyClaimed) {
+      setPromoFeedback({
+        type: "info",
+        text: `ℹ️ Пасхалку «${egg.code}» вже було активовано раніше! Відкриваємо анімацію...`,
+      });
+      setActiveEasterEgg(egg);
+      return;
+    }
+
+    // Додаємо до списку активованих
+    const updatedRedeemed = [...redeemedPromos, egg.code];
+    setRedeemedPromos(updatedRedeemed);
+    saveRedeemedPromos(updatedRedeemed);
+
+    // Нараховуємо монети та бонуси
+    const addedCoins = egg.reward.coins;
+    const addedBonuses = egg.reward.bonuses;
+    const newCoins = (balance ?? 1088233) + addedCoins;
+    const newBonuses = (hohlyantsi ?? 45) + addedBonuses;
+
+    setBalance(newCoins);
+    setHohlyantsi(newBonuses);
+
+    try {
+      localStorage.setItem("matchday:coins", newCoins.toString());
+      localStorage.setItem("matchday:hohlyantsi", newBonuses.toString());
+      localStorage.setItem("matchday_coins", newCoins.toString());
+      localStorage.setItem("matchday_hohlyantsi", newBonuses.toString());
+      const curXp = parseInt(localStorage.getItem("matchday:bj_xp") || "0", 10);
+      localStorage.setItem("matchday:bj_xp", (curXp + egg.reward.xp).toString());
+    } catch {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      const { data: authData } = await client.auth.getUser();
+      if (authData?.user) {
+        await client
+          .from("profiles")
+          .update({
+            coins: newCoins,
+            hohlyantsi: newBonuses,
+          })
+          .eq("id", authData.user.id);
+      }
+    }
+
+    // Відтворюємо фірмовий звук пасхалки
+    try {
+      const audioPath =
+        egg.soundType === "marchenko"
+          ? "/sounds/marchenko_achievement.mp3"
+          : "/sounds/steam_achievement.mp3";
+      const audio = new Audio(audioPath);
+      audio.volume = 1.0;
+      audio.play().catch(() => {});
+    } catch {}
+
+    // Викликаємо Steam Toast
+    triggerSteamAchievement({
+      id: "promo_" + egg.code.toLowerCase(),
+      title: egg.name,
+      desc: `Активовано пасхалку «${egg.code}»!`,
+      rarity: "legendary",
+      iconType: egg.soundType === "marchenko" ? "marchenko" : "crate",
+      coins: egg.reward.coins,
+      bonuses: egg.reward.bonuses,
+      xp: egg.reward.xp,
+      soundType: egg.soundType === "marchenko" ? "marchenko" : "default",
+    });
+
+    window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
+
+    // Відкриваємо модалку святкування з GIF
+    setActiveEasterEgg(egg);
+    setPromoFeedback({
+      type: "success",
+      text: `🎉 ПАСХАЛКУ РОЗБЛОКОВАНО! Отримано +${egg.reward.coins.toLocaleString()} монет та подарунки!`,
+    });
+    setPromoCodeInput("");
   };
 
   const formattedBalance = balance !== null ? balance.toLocaleString() : "1,088,233";
@@ -553,11 +668,249 @@ export default function AchievementsPage() {
           })}
         </div>
 
+        {/* ========================================================================= */}
+        {/* 6. РОЗДІЛ: СЕКРЕТНІ ПРОМОКОДИ ТА ВЕЛИКОДКИ (EASTER EGGS)                  */}
+        {/* ========================================================================= */}
+        <div className="mt-14 rounded-3xl border border-[rgba(8,191,234,0.3)] bg-gradient-to-br from-[#0c1422] via-[#09101c] to-[#070b14] p-6 sm:p-8 shadow-[0_12px_45px_rgba(0,0,0,0.7)] relative overflow-hidden">
+          {/* Декоративні кутові відблиски */}
+          <div className="absolute top-0 right-0 w-[240px] h-[240px] bg-gradient-to-br from-[#08bfea]/10 via-[#f59e0b]/10 to-transparent blur-[70px] pointer-events-none" />
+
+          {/* Заголовок розділу */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-6 mb-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400/20 via-orange-500/20 to-transparent border border-amber-500/40 text-3xl shadow-[0_0_20px_rgba(245,158,11,0.25)]">
+                🎁
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300">
+                    СЕКРЕТНИЙ РОЗДІЛ
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    5 унікальних великодок
+                  </span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1">
+                  Промокоди та Великодки <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">(Easter Eggs)</span>
+                </h3>
+              </div>
+            </div>
+
+            <div className="text-xs text-slate-400 max-w-sm">
+              Вводьте секретні коди або шукайте пасхалки, щоб отримати <strong className="text-amber-300">подарунки</strong>, <strong className="text-cyan-300">анімовані GIF-меми</strong> та ексклюзивні звуки!
+            </div>
+          </div>
+
+          {/* Форма введення промокоду */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleActivatePromo();
+            }}
+            className="flex flex-col sm:flex-row gap-3 max-w-2xl mb-6"
+          >
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={promoCodeInput}
+                onChange={(e) => setPromoCodeInput(e.target.value)}
+                placeholder="Введіть промокод (напр. MARCHENKO, GOYDA, MATRIX...)"
+                className="w-full px-5 py-3.5 rounded-xl bg-[#070b14] border border-slate-700/80 text-white font-mono placeholder:font-sans placeholder:text-slate-500 text-sm focus:outline-none focus:border-[#08bfea] focus:ring-2 focus:ring-[#08bfea]/25 transition shadow-inner uppercase tracking-wider"
+              />
+              {promoCodeInput && (
+                <button
+                  type="button"
+                  onClick={() => setPromoCodeInput("")}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-sm"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="px-7 py-3.5 rounded-xl bg-gradient-to-r from-[#08bfea] via-[#2cd5fb] to-[#0284c7] hover:brightness-110 active:scale-95 text-[#070b14] font-black uppercase text-xs tracking-wider shadow-[0_0_20px_rgba(8,191,234,0.4)] transition shrink-0 flex items-center justify-center gap-2"
+            >
+              <span>⚡</span>
+              <span>Активувати</span>
+            </button>
+          </form>
+
+          {/* Повідомлення зворотного зв'язку */}
+          {promoFeedback && (
+            <div
+              className={`mb-6 p-3.5 rounded-xl border text-xs font-bold flex items-center gap-2.5 transition animate-in fade-in duration-200 ${
+                promoFeedback.type === "success"
+                  ? "bg-emerald-950/40 border-emerald-500/50 text-emerald-300"
+                  : promoFeedback.type === "error"
+                  ? "bg-rose-950/40 border-rose-500/50 text-rose-300"
+                  : "bg-cyan-950/40 border-cyan-500/50 text-cyan-300"
+              }`}
+            >
+              <span>{promoFeedback.type === "success" ? "✓" : promoFeedback.type === "error" ? "✕" : "ℹ"}</span>
+              <span>{promoFeedback.text}</span>
+            </div>
+          )}
+
+          {/* Швидкі підказки до великодок */}
+          <div className="mb-6">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2.5">
+              💡 Секретні підказки (натисніть, щоб підставити код):
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {PROMO_EASTER_EGGS.map((egg) => {
+                const isClaimed = redeemedPromos.includes(egg.code);
+                return (
+                  <button
+                    key={egg.code}
+                    type="button"
+                    onClick={() => {
+                      setPromoCodeInput(egg.code);
+                      handleActivatePromo(egg.code);
+                    }}
+                    title={egg.secretHint}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-mono transition ${
+                      isClaimed
+                        ? "bg-emerald-950/30 border-emerald-500/40 text-emerald-300 hover:border-emerald-400"
+                        : "bg-slate-900/60 border-slate-800 text-slate-300 hover:border-amber-500/60 hover:text-amber-300 active:scale-95"
+                    }`}
+                  >
+                    <span>{egg.badgeTag}</span>
+                    {isClaimed ? (
+                      <span className="text-[10px] text-emerald-400 font-sans font-bold">✓ Розкрито</span>
+                    ) : (
+                      <span className="text-[10px] text-amber-400/80 font-sans font-bold">? Підказка</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Вітрина відкритих пасхалок */}
+          <div>
+            <div className="flex items-center justify-between mb-3 text-xs">
+              <span className="font-bold text-slate-400 uppercase tracking-wider">
+                Розблоковані Великодки:
+              </span>
+              <span className="text-amber-400 font-mono font-bold">
+                {redeemedPromos.length} / {PROMO_EASTER_EGGS.length}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {PROMO_EASTER_EGGS.map((egg) => {
+                const isClaimed = redeemedPromos.includes(egg.code);
+                return (
+                  <div
+                    key={egg.code}
+                    onClick={() => {
+                      if (isClaimed) setActiveEasterEgg(egg);
+                    }}
+                    className={`p-3.5 rounded-xl border transition flex items-center gap-3 select-none ${
+                      isClaimed
+                        ? "bg-[#0a121e] border-amber-500/40 cursor-pointer hover:border-amber-400 hover:scale-[1.02] shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+                        : "bg-slate-900/40 border-slate-800/80 opacity-60 cursor-default"
+                    }`}
+                  >
+                    {/* Прев'ю ГІФКИ або замка */}
+                    <div className="w-12 h-12 rounded-lg bg-black/60 border border-slate-700/60 shrink-0 overflow-hidden flex items-center justify-center">
+                      {isClaimed ? (
+                        <img
+                          src={egg.gifUrl}
+                          alt={egg.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-slate-600 text-lg">🔒</span>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-black text-white truncate">
+                          {isClaimed ? egg.name : "Секретна пасхалка"}
+                        </h4>
+                        {isClaimed && (
+                          <span className="text-[9px] text-amber-400 font-bold ml-1">▶ GIF</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                        {isClaimed ? `+${egg.reward.coins.toLocaleString()} 🪙` : egg.secretHint}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
         {/* Футер */}
         <p className="mt-12 text-center text-xs text-slate-600">
           Matchday Achievements System · Рівні складності та винагороди оновлюються автоматично · 2026
         </p>
       </div>
+
+      {/* ========================================================================= */}
+      {/* МОДАЛЬНЕ ВІКНО СВЯТКУВАННЯ ПАСХАЛКИ (GIF + ЗВУК + ПОДАРУНКИ)              */}
+      {/* ========================================================================= */}
+      {activeEasterEgg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative max-w-lg w-full rounded-2xl border-2 border-amber-500 bg-gradient-to-b from-[#181105] via-[#0d121c] to-[#070b14] p-6 text-center shadow-[0_0_70px_rgba(245,158,11,0.5)] animate-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Світловий спалах зверху */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[350px] h-[120px] bg-amber-400/20 blur-[60px] pointer-events-none" />
+
+            <div className="inline-block rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-wider text-amber-300 border-amber-500/60 bg-amber-500/10 mb-3">
+              🎉 ВЕЛИКОДКУ РОЗБЛОКОВАНО! 🎁
+            </div>
+
+            {/* АНІМОВАНА ГІФКА */}
+            <div className="relative mx-auto my-3 w-full h-[210px] rounded-xl overflow-hidden border-2 border-amber-400/60 shadow-[0_0_30px_rgba(245,158,11,0.35)] bg-black">
+              <img
+                src={activeEasterEgg.gifUrl}
+                alt={activeEasterEgg.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            <h3 className="text-2xl font-black text-white mt-3">
+              {activeEasterEgg.name}
+            </h3>
+            <p className="mt-1 text-xs text-slate-300 max-w-md mx-auto">
+              {activeEasterEgg.desc}
+            </p>
+
+            {/* Блок з подарунками */}
+            <div className="my-4 rounded-xl bg-black/70 border border-amber-500/40 p-4 space-y-1.5 font-mono shadow-inner">
+              <div className="text-2xl font-black text-amber-300 drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]">
+                +{activeEasterEgg.reward.coins.toLocaleString()} МОНЕТ 🪙
+              </div>
+              {activeEasterEgg.reward.bonuses > 0 && (
+                <div className="text-sm font-bold text-cyan-300">
+                  +{activeEasterEgg.reward.bonuses} БОНУСІВ 🔷
+                </div>
+              )}
+              <div className="text-xs font-bold text-emerald-400">
+                +{activeEasterEgg.reward.xp} XP ДОСВІДУ ⚡
+              </div>
+              {activeEasterEgg.reward.title && (
+                <div className="pt-2 border-t border-slate-800 text-xs font-extrabold text-amber-400">
+                  👑 {activeEasterEgg.reward.title}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setActiveEasterEgg(null)}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-black font-black uppercase tracking-wider text-xs shadow-lg shadow-amber-500/30 hover:brightness-110 active:scale-95 transition"
+            >
+              🎁 Забрати всі подарунки ✓
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Модальне вікно при успішному заборі винагороди */}
       {claimedModal && (
