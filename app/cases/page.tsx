@@ -7,12 +7,15 @@ import {
   getSupabaseClient,
   PROFILE_UPDATED_EVENT,
 } from "../../lib/supabase/client";
+import CaseBoxGraphic, { CaseTier } from "../../components/case-box-graphic";
 
-type CaseType = "starter" | "pro";
+type CaseType = CaseTier;
 
 type CaseItem = {
   id: CaseType;
+  rpcType: string;
   title: string;
+  tierNumber: string;
   tagline: string;
   coinsDisplay: string;
   xpDisplay: string;
@@ -21,39 +24,52 @@ type CaseItem = {
   badgeColor: string;
   boxColor: string;
   glowColor: string;
-  icon: string;
 };
-
-
 
 const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 const CASES: CaseItem[] = [
   {
     id: "starter",
-    title: "Кейс 1",
-    tagline: "Швидкий стартовий набір монет та очок досвіду.",
+    rpcType: "khokhlov",
+    title: "Кейс 1 · Стартовий",
+    tierNumber: "Tier I",
+    tagline: "Швидкий стартовий набір монет та очок досвіду для нових агентів.",
     coinsDisplay: "500 - 800 монет",
     xpDisplay: "+60 XP",
     hohlyantsiPrice: 5,
     badge: "СТАРТОВИЙ",
-    badgeColor: "border-emerald-600/50 bg-emerald-950/40 text-emerald-300",
-    boxColor: "from-emerald-950 via-slate-900 to-black border-emerald-700/60",
-    glowColor: "rgba(16,185,129,0.15)",
-    icon: "CASE I",
+    badgeColor: "border-emerald-500/50 bg-emerald-950/60 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]",
+    boxColor: "from-emerald-950/80 via-[#0d1620] to-[#070b12] border-emerald-600/50 hover:border-emerald-400",
+    glowColor: "rgba(16,185,129,0.25)",
   },
   {
     id: "pro",
-    title: "Кейс 2",
-    tagline: "Солідний запас монет для великої гри.",
+    rpcType: "marchenko",
+    title: "Кейс 2 · Професійний",
+    tierNumber: "Tier II",
+    tagline: "Солідний бойовий запас монет для великої гри в турнірах та лігах.",
     coinsDisplay: "20 000 - 25 000 монет",
     xpDisplay: "+400 XP",
     hohlyantsiPrice: 25,
     badge: "ПРОФЕСІЙНИЙ",
-    badgeColor: "border-cyan-600/50 bg-cyan-950/40 text-cyan-300",
-    boxColor: "from-cyan-950 via-slate-900 to-black border-cyan-500/60",
-    glowColor: "rgba(6,182,212,0.25)",
-    icon: "CASE II",
+    badgeColor: "border-cyan-500/50 bg-cyan-950/60 text-cyan-300 shadow-[0_0_12px_rgba(8,191,234,0.3)]",
+    boxColor: "from-cyan-950/80 via-[#0d1620] to-[#070b12] border-cyan-500/50 hover:border-cyan-400",
+    glowColor: "rgba(8,191,234,0.3)",
+  },
+  {
+    id: "legendary",
+    rpcType: "admin",
+    title: "Кейс 3 · Легендарний VIP",
+    tierNumber: "Tier III",
+    tagline: "Елітний хайролер-кейс із шансом вибити до 1 000 000 монет та отримати максимальний статус.",
+    coinsDisplay: "До 1 000 000 монет",
+    xpDisplay: "+5 000 XP VIP",
+    hohlyantsiPrice: 100,
+    badge: "👑 ЛЕГЕНДАРНИЙ VIP",
+    badgeColor: "border-amber-500/60 bg-amber-950/60 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.4)]",
+    boxColor: "from-amber-950/80 via-[#181109] to-[#070b12] border-amber-500/60 hover:border-amber-400",
+    glowColor: "rgba(245,158,11,0.35)",
   },
 ];
 
@@ -61,8 +77,10 @@ export default function CasesPage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [hohlyantsi, setHohlyantsi] = useState<number | null>(null);
   const [isOpening, setIsOpening] = useState(false);
+  const [hoveredCase, setHoveredCase] = useState<CaseType | null>(null);
   const [openedReward, setOpenedReward] = useState<{
     box: string;
+    tier?: CaseType;
     coins: number;
     xp: number;
     costMessage?: string;
@@ -174,15 +192,24 @@ export default function CasesPage() {
     setOpenedReward(null);
 
     try {
-      const { data, error } = await client.rpc("open_loot_box", {
+      let { data, error } = await client.rpc("open_loot_box", {
         p_box_type: "starter",
       });
+
+      if (error && (error.message?.includes("invalid_box_type") || error.code === "P0001")) {
+        const retryRes = await client.rpc("open_loot_box", {
+          p_box_type: "khokhlov",
+        });
+        data = retryRes.data;
+        error = retryRes.error;
+      }
 
       if (error) throw error;
 
       if (data && data.success) {
         setOpenedReward({
-          box: "Кейс 1",
+          box: "Кейс 1 · Стартовий",
+          tier: "starter",
           coins: data.coins,
           xp: data.xp,
           costMessage: "Безкоштовний щоденний бонус",
@@ -216,7 +243,6 @@ export default function CasesPage() {
       }
     } catch (err: unknown) {
       console.error("Помилка відкриття кейсу:", formatErrorMessage(err));
-      setErrorMessage(formatErrorMessage(err, "Не вдалося відкрити кейс."));
       setErrorMessage("Не вдалося відкрити кейс. Переконайтеся, що ви увійшли у систему.");
     } finally {
       setIsOpening(false);
@@ -241,9 +267,17 @@ export default function CasesPage() {
     setOpenedReward(null);
 
     try {
-      const { data, error } = await client.rpc("buy_case_with_hohlyantsi", {
+      let { data, error } = await client.rpc("buy_case_with_hohlyantsi", {
         p_box_type: caseItem.id,
       });
+
+      if (error && (error.message?.includes("invalid_box_type") || error.code === "P0001")) {
+        const retryRes = await client.rpc("buy_case_with_hohlyantsi", {
+          p_box_type: caseItem.rpcType,
+        });
+        data = retryRes.data;
+        error = retryRes.error;
+      }
 
       if (error) {
         if (error.message.includes("insufficient_hohlyantsi")) {
@@ -254,10 +288,11 @@ export default function CasesPage() {
 
       if (data && data.success) {
         setOpenedReward({
-          box: "Кейс 1",
+          box: caseItem.title,
+          tier: caseItem.id,
           coins: data.coins_reward,
           xp: data.xp_reward,
-          costMessage: `Куплено за ${data.cost} Бонусів`,
+          costMessage: `Куплено за ${data.cost || caseItem.hohlyantsiPrice} Бонусів`,
         });
 
         try {
@@ -274,11 +309,10 @@ export default function CasesPage() {
       }
     } catch (err: unknown) {
       console.error("Помилка купівлі кейсу:", formatErrorMessage(err));
-      setErrorMessage(formatErrorMessage(err, "Не вдалося придбати кейс."));
       setErrorMessage(
         err instanceof Error
           ? err.message
-          : "Помилка при купівлі кейсу за Бонуси. Перевірте базу даних."
+          : "Помилка при купівлі кейсу за Бонуси. Перевірте баланс або базу даних."
       );
     } finally {
       setIsOpening(false);
@@ -364,24 +398,31 @@ export default function CasesPage() {
         </header>
 
         {/* Щоденна нагорода Banner */}
-        <div className="mb-10 rounded-2xl border border-emerald-600/40 bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-950 p-6 shadow-2xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <span className="text-xs font-bold uppercase text-emerald-400 tracking-wider">
-                 БЕЗКОШТОВНИЙ ЩОДЕННИЙ БОНУС (1 РАЗ НА ДОБУ)
-              </span>
-              <h2 className="text-xl font-bold text-white mt-1">
-                Безкоштовний «Кейс 1»
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Заходь щодня та отримуй 500-800 монет і +60 XP безкоштовно.
-              </p>
+        <div className="mb-10 rounded-2xl border border-emerald-600/40 bg-gradient-to-r from-emerald-950/50 via-[#0d1620] to-[#070b12] p-6 shadow-2xl relative overflow-hidden">
+          <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-emerald-500/10 to-transparent pointer-events-none" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
+            <div className="flex items-center gap-5">
+              <div className="shrink-0 p-1.5 rounded-2xl bg-black/40 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                <CaseBoxGraphic tier="starter" size={72} />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold uppercase text-emerald-400 tracking-wider flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  БЕЗКОШТОВНИЙ ЩОДЕННИЙ БОНУС (1 РАЗ НА ДОБУ)
+                </span>
+                <h2 className="text-xl font-bold text-white mt-1">
+                  Безкоштовний «Кейс 1 · Стартовий»
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Заходь щодня та отримуй 500-800 монет і +60 XP безкоштовно.
+                </p>
+              </div>
             </div>
             <button
               type="button"
               onClick={handleOpenDailyCase}
               disabled={isOpening || dailyClaimed}
-              className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-emerald-600/20 transition hover:from-emerald-500 hover:to-teal-400 disabled:cursor-not-allowed disabled:opacity-40"
+              className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-emerald-600/25 transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isOpening
                 ? "Відкриття..."
@@ -394,16 +435,19 @@ export default function CasesPage() {
 
         {/* Modal-like Reward Alert */}
         {openedReward && (
-          <div className="mb-10 animate-in fade-in zoom-in duration-300 rounded-2xl border-2 border-yellow-500 bg-gradient-to-b from-yellow-950/60 to-black p-6 text-center shadow-[0_0_50px_rgba(245,158,11,0.3)]">
-            <h3 className="mt-2 text-lg font-bold text-amber-300 uppercase">
-              КЕЙС «{openedReward.box}» ВІДКРИТО!
+          <div className="mb-10 animate-in fade-in zoom-in duration-300 rounded-2xl border-2 border-amber-500 bg-gradient-to-b from-[#1c1409] via-[#0d1017] to-black p-6 text-center shadow-[0_0_60px_rgba(245,158,11,0.4)]">
+            <div className="flex justify-center mb-3">
+              <CaseBoxGraphic tier={openedReward.tier || "starter"} size={110} />
+            </div>
+            <h3 className="mt-2 text-xl font-black text-amber-300 uppercase tracking-wide">
+              «{openedReward.box}» ВІДКРИТО!
             </h3>
             {openedReward.costMessage && (
-              <p className="text-xs font-bold text-slate-400 mt-0.5">
+              <p className="text-xs font-bold text-slate-400 mt-1">
                 {openedReward.costMessage}
               </p>
             )}
-            <p className="mt-2 text-3xl font-black text-white">
+            <p className="mt-3 text-3xl sm:text-4xl font-black text-white tracking-tight drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
               +{openedReward.coins.toLocaleString()} МОНЕТ
             </p>
             <p className="text-sm font-bold text-emerald-400 mt-1">
@@ -411,7 +455,7 @@ export default function CasesPage() {
             </p>
             <button
               onClick={() => setOpenedReward(null)}
-              className="mt-4 rounded-lg bg-yellow-500 px-6 py-1.5 text-xs font-bold text-black uppercase hover:bg-yellow-400 transition"
+              className="mt-5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-8 py-2.5 text-xs font-extrabold text-black uppercase tracking-wider hover:brightness-110 shadow-lg shadow-amber-500/30 transition active:scale-95"
             >
               Чудово, забрати
             </button>
@@ -424,38 +468,50 @@ export default function CasesPage() {
           </p>
         )}
 
-        {/* Cases Grid */}
+        {/* Cases Grid (3 однакових стильних кейси) */}
         <div className="grid gap-6 sm:grid-cols-3">
           {CASES.map((c) => (
             <div
               key={c.id}
-              className={`relative flex flex-col justify-between overflow-hidden rounded-2xl border-2 bg-gradient-to-b ${c.boxColor} p-6 shadow-xl transition hover:-translate-y-1`}
-              style={{ boxShadow: `0 10px 30px ${c.glowColor}` }}
+              onMouseEnter={() => setHoveredCase(c.id)}
+              onMouseLeave={() => setHoveredCase(null)}
+              className={`relative flex flex-col justify-between overflow-hidden rounded-2xl border-2 bg-gradient-to-b ${c.boxColor} p-6 shadow-xl transition-all duration-300 hover:-translate-y-2`}
+              style={{ boxShadow: `0 14px 35px ${c.glowColor}` }}
             >
               <div>
-                <span className={`inline-block rounded-md border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider mb-4 ${c.badgeColor}`}>
-                  {c.badge}
-                </span>
-
-                <div className="my-6 text-center">
-                  <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-2xl bg-black/40 border border-slate-700/60 text-5xl shadow-inner">
-                    {c.icon}
-                  </div>
+                <div className="flex items-center justify-between mb-4">
+                  <span className={`inline-block rounded-md border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${c.badgeColor}`}>
+                    {c.badge}
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-400 font-bold">
+                    {c.tierNumber}
+                  </span>
                 </div>
 
-                <h3 className="text-lg font-bold text-white text-center">{c.title}</h3>
-                <p className="mt-2 text-xs text-slate-400 text-center leading-relaxed">
+                {/* ОДНОТИПНА СТИЛЬНА ВЕКТОРНА ІЛЮСТРАЦІЯ КЕЙСА */}
+                <div className="my-5 flex items-center justify-center">
+                  <CaseBoxGraphic
+                    tier={c.id}
+                    size={155}
+                    isHovered={hoveredCase === c.id}
+                  />
+                </div>
+
+                <h3 className="text-lg font-black text-white text-center tracking-tight">
+                  {c.title}
+                </h3>
+                <p className="mt-2 text-xs text-slate-400 text-center leading-relaxed min-h-[36px]">
                   {c.tagline}
                 </p>
 
-                <div className="mt-6 rounded-xl border border-slate-800 bg-black/50 p-3 space-y-1.5 font-mono text-center">
-                  <div className="text-sm font-bold text-amber-400">{c.coinsDisplay}</div>
-                  <div className="text-xs font-semibold text-emerald-400">{c.xpDisplay}</div>
-                  <div className="text-[11px] text-slate-300 pt-1 border-t border-slate-800 flex items-center justify-center gap-1 font-bold">
-                    <span>Ціна:</span>
-                    <span className="text-slate-100">{c.hohlyantsiPrice}</span>
-                    <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-slate-400 text-[8px] font-black text-slate-950">Б</span>
-                    <span>Бонусів</span>
+                <div className="mt-6 rounded-xl border border-slate-800 bg-black/60 p-3.5 space-y-1.5 font-mono text-center shadow-inner">
+                  <div className="text-sm font-black text-amber-400 tracking-wide">{c.coinsDisplay}</div>
+                  <div className="text-xs font-bold text-emerald-400">{c.xpDisplay}</div>
+                  <div className="text-[11px] text-slate-300 pt-2 border-t border-slate-800 flex items-center justify-center gap-1.5 font-bold">
+                    <span className="text-slate-400">Ціна:</span>
+                    <span className="text-white text-sm font-extrabold">{c.hohlyantsiPrice}</span>
+                    <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-400 text-[9px] font-black text-slate-950">Б</span>
+                    <span className="text-slate-300">Бонусів</span>
                   </div>
                 </div>
               </div>
@@ -465,7 +521,13 @@ export default function CasesPage() {
                   type="button"
                   onClick={() => handleBuyWithHohlyantsi(c)}
                   disabled={isOpening || (hohlyantsi !== null && hohlyantsi < c.hohlyantsiPrice)}
-                  className="w-full rounded-xl bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 py-3 font-mono text-xs font-bold uppercase tracking-wider text-white shadow-lg transition hover:brightness-110 active:scale-95 disabled:opacity-40"
+                  className={`w-full rounded-xl py-3 font-mono text-xs font-black uppercase tracking-wider shadow-lg transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
+                    c.id === "starter"
+                      ? "bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-950/40"
+                      : c.id === "pro"
+                      ? "bg-gradient-to-r from-cyan-600 via-sky-600 to-cyan-600 hover:from-cyan-500 hover:to-sky-500 text-white shadow-cyan-950/40"
+                      : "bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-extrabold shadow-[0_0_20px_rgba(245,158,11,0.4)]"
+                  }`}
                 >
                   {isOpening
                     ? "Відкриття..."
