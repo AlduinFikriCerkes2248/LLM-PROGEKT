@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import ThemeToggle from "../../components/theme-toggle";
 import { getSupabaseClient } from "../../lib/supabase/client";
 
 type Leader = {
@@ -379,6 +380,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3.5">
+            <ThemeToggle />
             <span className="text-lg cursor-pointer hover:scale-110 transition-transform">
               🔔
             </span>

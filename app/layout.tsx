@@ -25,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="uk"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#050813] relative overflow-x-hidden">
+      <body className="min-h-full flex flex-col bg-[var(--background)] text-[var(--text-main)] transition-colors duration-300 relative overflow-x-hidden">
         <SideWaves />
         <AuthStatusIndicator />
         {children}

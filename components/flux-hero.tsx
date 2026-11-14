@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import ThemeToggle from "./theme-toggle";
 import { getSupabaseClient } from "../lib/supabase/client";
 
 export default function FluxHero() {
@@ -65,8 +66,9 @@ export default function FluxHero() {
           </Link>
         </nav>
 
-        {/* Кнопка "Почати безкоштовно" */}
-        <div className="flex items-center">
+        {/* Кнопка "Почати безкоштовно" та перемикач теми */}
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Link
             href={primaryActionUrl}
             className="btn-interactive min-h-[38px] bg-gradient-to-r from-[#FC7340] to-[#FF5E3A] hover:from-[#ff8153] hover:to-[#ff6f4c] text-white text-xs font-semibold px-5 py-2.5 rounded-full shadow-[0_0_20px_rgba(252,115,64,0.45)] transition-all hover:scale-105 active:scale-95"

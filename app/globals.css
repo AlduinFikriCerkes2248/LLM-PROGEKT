@@ -32,6 +32,21 @@
   --shadow-orange: 0 0 20px -3px rgba(255, 122, 36, 0.35);
 }
 
+html.light,
+[data-theme="light"] {
+  --background: #f1f5f9;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --card-hover: #f8fafc;
+  --border: rgba(65, 140, 190, 0.28);
+  --border-cyan: rgba(8, 191, 234, 0.6);
+  --border-orange: rgba(255, 122, 36, 0.6);
+  --text-main: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 0 1px 1px rgba(65, 140, 190, 0.18);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
