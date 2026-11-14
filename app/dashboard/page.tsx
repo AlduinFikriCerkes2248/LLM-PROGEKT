@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import ThemeToggle from "../../components/theme-toggle";
+import MatrixAvatar from "../../components/matrix-avatar";
 import { getSupabaseClient } from "../../lib/supabase/client";
 
 type Leader = {
@@ -29,6 +30,30 @@ export default function DashboardPage() {
   const [xp, setXp] = useState<number>(50);
   const [joinDate, setJoinDate] = useState<string>("20.10.2026");
   const [leaderTab, setLeaderTab] = useState<"all" | "month" | "week">("all");
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("matchday_theme") : null;
+    const isLight =
+      (typeof document !== "undefined" && document.documentElement.classList.contains("light")) ||
+      saved === "light";
+    setTheme(isLight ? "light" : "dark");
+
+    function handleThemeChange(e: Event) {
+      const customEvent = e as CustomEvent<{ theme: "dark" | "light" }>;
+      if (customEvent.detail?.theme) {
+        setTheme(customEvent.detail.theme);
+      } else {
+        const isNowLight = document.documentElement.classList.contains("light");
+        setTheme(isNowLight ? "light" : "dark");
+      }
+    }
+
+    window.addEventListener("matchday:theme_change", handleThemeChange);
+    return () => {
+      window.removeEventListener("matchday:theme_change", handleThemeChange);
+    };
+  }, []);
   const [featuredMatch, setFeaturedMatch] = useState<{
     home: string;
     away: string;
@@ -384,14 +409,48 @@ export default function DashboardPage() {
             <span className="text-lg cursor-pointer hover:scale-110 transition-transform">
               🔔
             </span>
+            {/* Віджет профілю з 3D-золотим вигином (референс Image 1) та Matrix-аватаркою */}
             <div
-              title="Обліковий запис"
-              className="flex items-center gap-2 rounded-lg border border-[rgba(65,140,190,0.22)] bg-[rgba(13,21,34,0.85)] px-3 py-1.5 cursor-pointer hover:border-[#08bfea] transition-all"
+              title="Обліковий запис (натисніть на аватар для Matrix-анімації)"
+              className="relative flex items-center gap-2 rounded-2xl p-1 cursor-pointer transition-all shadow-md group"
+              style={{
+                background:
+                  theme === "dark"
+                    ? "linear-gradient(135deg, #1c2230 0%, #11151e 100%)"
+                    : "linear-gradient(135deg, #ffffff 0%, #f4f6fa 100%)",
+                border:
+                  theme === "dark"
+                    ? "1px solid rgba(255, 255, 255, 0.12)"
+                    : "1px solid rgba(0, 0, 0, 0.1)",
+                boxShadow:
+                  theme === "dark"
+                    ? "0 4px 14px rgba(0,0,0,0.5), 0 0 1px 1px rgba(245, 158, 11, 0.25)"
+                    : "0 4px 14px rgba(0,0,0,0.08), 0 0 1px 1px rgba(245, 158, 11, 0.3)",
+              }}
             >
-              <div className="h-7 w-7 rounded-md bg-[rgba(8,191,234,0.25)] border border-[#08bfea] text-[#08bfea] flex items-center justify-center font-black text-xs">
-                {userInitial}
+              {/* Золотий вигин під аватаром */}
+              <div className="relative flex items-center justify-center pl-0.5 pr-1.5">
+                <div
+                  className="absolute -left-1 top-0 bottom-0 w-[38px] rounded-l-xl pointer-events-none"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #facc15 0%, #eab308 50%, #b45309 100%)",
+                    clipPath: "polygon(0 0, 80% 0, 100% 50%, 80% 100%, 0 100%)",
+                  }}
+                />
+                <div className="relative z-10">
+                  <MatrixAvatar
+                    theme={theme}
+                    size={30}
+                    initial={userInitial}
+                  />
+                </div>
               </div>
-              <span className="font-extrabold text-xs text-white">
+
+              <span
+                className="font-extrabold text-xs pr-2 transition-colors"
+                style={{ color: theme === "dark" ? "#f1f5fa" : "#0f172a" }}
+              >
                 {username} ▾
               </span>
             </div>
@@ -656,13 +715,18 @@ export default function DashboardPage() {
                 </Link>
               </div>
 
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-11 w-11 rounded-xl bg-[rgba(8,191,234,0.2)] border border-[#08bfea] text-[#08bfea] flex items-center justify-center font-black text-base shadow-[0_0_12px_rgba(8,191,234,0.2)]">
-                  {userInitial}
+              <div className="flex items-center gap-3.5 mb-4">
+                <div className="relative p-1 rounded-2xl bg-gradient-to-br from-[#facc15]/20 to-transparent border border-amber-400/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                  <MatrixAvatar
+                    theme={theme}
+                    size={42}
+                    initial={userInitial}
+                  />
                 </div>
                 <div>
-                  <div className="font-black text-white text-sm">
+                  <div className="font-black text-white text-sm flex items-center gap-2">
                     {username}
+                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
                   </div>
                   <div className="text-[11px] text-[#9aa9be]">
                     Гравець з {joinDate}

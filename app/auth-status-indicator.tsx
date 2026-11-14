@@ -9,6 +9,7 @@ import {
   isSupabaseConfigured,
   PROFILE_UPDATED_EVENT,
 } from "../lib/supabase/client";
+import MatrixAvatar from "../components/matrix-avatar";
 
 type SignedInUser = {
   id: string;
@@ -24,6 +25,32 @@ export default function AuthStatusIndicator() {
   const [hohlyantsi, setHohlyantsi] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    // 1. Ініціалізація поточної теми
+    const saved = typeof window !== "undefined" ? localStorage.getItem("matchday_theme") : null;
+    const isLight =
+      (typeof document !== "undefined" && document.documentElement.classList.contains("light")) ||
+      saved === "light";
+    setTheme(isLight ? "light" : "dark");
+
+    // 2. Слухаємо подію перемикання теми (з theme-toggle)
+    function handleThemeChange(e: Event) {
+      const customEvent = e as CustomEvent<{ theme: "dark" | "light" }>;
+      if (customEvent.detail?.theme) {
+        setTheme(customEvent.detail.theme);
+      } else {
+        const isNowLight = document.documentElement.classList.contains("light");
+        setTheme(isNowLight ? "light" : "dark");
+      }
+    }
+
+    window.addEventListener("matchday:theme_change", handleThemeChange);
+    return () => {
+      window.removeEventListener("matchday:theme_change", handleThemeChange);
+    };
+  }, []);
 
   useEffect(() => {
     const client = getSupabaseClient();
@@ -128,57 +155,168 @@ export default function AuthStatusIndicator() {
 
   if (pathname === "/login" || pathname === "/") return null;
 
+  const isDark = theme === "dark";
+  const displayName = username || (user?.email ? user.email.split("@")[0] : "maksimarzubov491");
+
   return (
     <>
       <div aria-hidden="true" className="h-14" />
-      <aside className="fixed right-3 top-3 z-50 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-[#162544] bg-[#0A1430]/95 px-4 py-2 font-mono text-xs text-gray-200 shadow-[0_8px_30px_rgba(0,0,0,0.7)] backdrop-blur-xl sm:right-5 sm:top-4">
-        {isLoading ? (
-          <span role="status" className="animate-pulse text-[#0297DE]">⚡ синхронізація...</span>
-        ) : user ? (
-          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
-            {/* Нікнейм з аватаркою */}
-            <span className="flex items-center gap-1.5 max-w-40 truncate font-semibold text-slate-100">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
-              {username || user.email || "Агент"}
-            </span>
+      {/* 
+        Головний віджет профілю з 3D трикутною вкладкою з золотим вигином (референс Image 1) 
+        та анімованою Matrix-аватаркою чорна/біла
+      */}
+      <aside
+        className="fixed right-3 top-3 z-50 max-w-[calc(100vw-1.5rem)] select-none transition-all duration-300 sm:right-5 sm:top-4"
+      >
+        <div
+          className="relative flex items-center rounded-2xl p-1 transition-all duration-300 shadow-2xl"
+          style={{
+            background: isDark
+              ? "linear-gradient(135deg, #1c2230 0%, #11151e 100%)"
+              : "linear-gradient(135deg, #ffffff 0%, #f4f6fa 100%)",
+            border: isDark
+              ? "1px solid rgba(255, 255, 255, 0.12)"
+              : "1px solid rgba(0, 0, 0, 0.1)",
+            boxShadow: isDark
+              ? "0 10px 30px -5px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(245, 158, 11, 0.2)"
+              : "0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 0 1px 1px rgba(245, 158, 11, 0.25)",
+          }}
+        >
+          {/* ================================================================= */}
+          {/* 1. ЛІВА 3D ТРИКУТНА ВКЛАДКА З ЗОЛОТИМ ВИГИНОМ (ЯК НА РЕФЕРЕНСІ)    */}
+          {/* ================================================================= */}
+          <div className="relative flex items-center justify-center pl-1 pr-2 py-0.5">
+            {/* Золотий вигин-підкладка під трикутником */}
+            <div
+              className="absolute -left-1 top-0 bottom-0 w-[54px] rounded-l-2xl pointer-events-none transition-all duration-300"
+              style={{
+                background: "linear-gradient(135deg, #facc15 0%, #eab308 50%, #b45309 100%)",
+                boxShadow: isDark
+                  ? "0 0 12px rgba(234, 179, 8, 0.4), inset 0 1px 2px rgba(255,255,255,0.4)"
+                  : "0 0 10px rgba(234, 179, 8, 0.35), inset 0 1px 2px rgba(255,255,255,0.5)",
+                clipPath: "polygon(0 0, 82% 0, 100% 50%, 82% 100%, 0 100%)",
+              }}
+            />
 
-            {/* Золоті монети */}
-            <span className="balance-badge whitespace-nowrap font-bold text-amber-400" title="Золоті монети">
-              🪙 {coins === null ? "—" : coins.toLocaleString()}
-            </span>
-
-            {/* Друга валюта: Бонуси (валюта для кейсів та онлайн дуелей) */}
-            <span
-              className="balance-badge flex items-center gap-1 rounded-xl border border-[#0297DE]/30 bg-[#060A17]/90 px-2.5 py-1 font-bold text-slate-200 shadow-inner"
-              title="Бонуси (валюта для кейсів та онлайн дуелей)"
+            {/* Основний корпус вигнутого трикутного язичка */}
+            <div
+              className="relative z-10 flex items-center justify-center p-1 rounded-full transition-colors duration-300"
+              style={{
+                background: isDark
+                  ? "linear-gradient(135deg, #252c3d 0%, #151924 100%)"
+                  : "linear-gradient(135deg, #ffffff 0%, #edf2f7 100%)",
+                boxShadow: isDark
+                  ? "inset 0 1px 2px rgba(255,255,255,0.15), 0 2px 6px rgba(0,0,0,0.5)"
+                  : "inset 0 1px 2px rgba(255,255,255,0.9), 0 2px 6px rgba(0,0,0,0.1)",
+              }}
             >
-              <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 via-slate-400 to-slate-600 text-[9px] font-black text-slate-950 shadow-sm">
-                Б
+              {/* АВАТАРКА ЧОРНА/БІЛА З АНІМАЦІЄЮ МАТРИЦІ */}
+              <MatrixAvatar
+                theme={theme}
+                size={34}
+                initial={displayName.charAt(0).toUpperCase()}
+              />
+            </div>
+          </div>
+
+          {/* ================================================================= */}
+          {/* 2. ДАНІ КОРИСТУВАЧА ТА БАЛАНС (ПРАВА ЧАСТИНА КАРТКИ)              */}
+          {/* ================================================================= */}
+          <div className="flex items-center gap-2.5 px-2 py-0.5">
+            {isLoading ? (
+              <span
+                role="status"
+                className="animate-pulse text-xs font-mono font-bold text-[#08bfea] px-2"
+              >
+                ⚡ синхронізація...
               </span>
-              <span>{hohlyantsi === null ? "25" : hohlyantsi.toLocaleString()}</span>
-            </span>
+            ) : user ? (
+              <>
+                {/* Нікнейм / Пошта з зеленим статусом */}
+                <div
+                  className="flex items-center gap-1.5 font-mono text-xs font-bold transition-colors"
+                  style={{ color: isDark ? "#f1f5fa" : "#0f172a" }}
+                  title={user.email || displayName}
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                  </span>
+                  <span className="max-w-[130px] sm:max-w-[170px] truncate">
+                    {displayName}
+                  </span>
+                </div>
 
-            {/* Кнопка виходу */}
-            <button
-              type="button"
-              onClick={handleSignOut}
-              disabled={isSigningOut}
-              className="btn-interactive min-h-[36px] rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1 font-bold text-rose-300 hover:bg-rose-500/25 hover:border-rose-500/50 transition-all"
-            >
-              {isSigningOut ? "..." : "ВИХІД"}
-            </button>
+                {/* Золоті монети */}
+                <div
+                  className="flex items-center gap-1 rounded-xl px-2 py-1 font-mono text-xs font-black shadow-inner"
+                  style={{
+                    background: isDark ? "rgba(245, 158, 11, 0.12)" : "rgba(245, 158, 11, 0.16)",
+                    border: isDark ? "1px solid rgba(245, 158, 11, 0.3)" : "1px solid rgba(217, 119, 6, 0.4)",
+                    color: isDark ? "#fbbf24" : "#b45309",
+                  }}
+                  title="Золоті монети"
+                >
+                  <span className="text-sm">🪙</span>
+                  <span>{coins === null ? "1 088 233" : coins.toLocaleString()}</span>
+                </div>
+
+                {/* Друга валюта: Бонуси (Б) */}
+                <div
+                  className="flex items-center gap-1 rounded-xl px-2 py-1 font-mono text-xs font-black shadow-inner"
+                  style={{
+                    background: isDark ? "rgba(8, 191, 234, 0.12)" : "rgba(8, 191, 234, 0.15)",
+                    border: isDark ? "1px solid rgba(8, 191, 234, 0.3)" : "1px solid rgba(8, 191, 234, 0.45)",
+                    color: isDark ? "#38bdf8" : "#0369a1",
+                  }}
+                  title="Бонуси (валюта для кейсів та онлайн дуелей)"
+                >
+                  <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 via-slate-400 to-slate-600 text-[9px] font-black text-slate-950 shadow-sm">
+                    Б
+                  </span>
+                  <span>{hohlyantsi === null ? "45" : hohlyantsi.toLocaleString()}</span>
+                </div>
+
+                {/* Кнопка виходу (ВИХІД) */}
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                  className="group relative flex items-center justify-center rounded-xl px-3 py-1 font-mono text-xs font-black transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
+                  style={{
+                    background: isDark
+                      ? "linear-gradient(135deg, rgba(239, 68, 68, 0.18) 0%, rgba(185, 28, 28, 0.28) 100%)"
+                      : "linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(220, 38, 38, 0.2) 100%)",
+                    border: "1px solid rgba(239, 68, 68, 0.4)",
+                    color: isDark ? "#fca5a5" : "#b91c1c",
+                  }}
+                >
+                  {isSigningOut ? "..." : "ВИХІД"}
+                </button>
+              </>
+            ) : (
+              /* Стан для гостя (Офлайн) */
+              <div className="flex items-center gap-2 px-1">
+                <span
+                  className="text-xs font-mono font-bold"
+                  style={{ color: isDark ? "#94a3b8" : "#64748b" }}
+                >
+                  [ОФЛАЙН]
+                </span>
+                <Link
+                  href="/login"
+                  className="rounded-xl px-3.5 py-1 text-xs font-mono font-black text-white shadow-md transition-all hover:scale-105 active:scale-95"
+                  style={{
+                    background: "linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)",
+                    boxShadow: "0 0 12px rgba(245, 158, 11, 0.4)",
+                  }}
+                >
+                  УВІЙТИ
+                </Link>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400 text-xs">[ОФЛАЙН]</span>
-            <Link
-              href="/login"
-              className="btn-interactive min-h-[36px] rounded-full bg-gradient-to-r from-[#FC7340] to-[#FF5E3A] px-4 py-1.5 text-xs font-semibold text-white shadow-[0_0_15px_rgba(252,115,64,0.35)] hover:from-[#ff8153] hover:to-[#ff6f4c] transition-all"
-            >
-              УВІЙТИ
-            </Link>
-          </div>
-        )}
+        </div>
       </aside>
     </>
   );
