@@ -9,6 +9,7 @@ import {
   isSupabaseConfigured,
   PROFILE_UPDATED_EVENT,
 } from "../../lib/supabase/client";
+import { trackAchievement } from "@/lib/achievements-tracker";
 
 type GameResult = "blackjack" | "win" | "lose" | "push" | null;
 
@@ -306,12 +307,25 @@ export default function BlackjackPage() {
       const nextStreak = winStreak + 1;
       setWinStreak(nextStreak);
       localStorage.setItem("matchday:streak", nextStreak.toString());
+      trackAchievement("blackjack_21", 1, "set");
+      if (betAmount >= 40000) {
+        trackAchievement("highroller_bj", Math.floor(betAmount * 2.5), "max");
+      }
+      if (nextStreak >= 5) {
+        trackAchievement("win_streak", nextStreak, "max");
+      }
     } else if (outcome === "win") {
       delta = Math.min(1000, Math.max(25, Math.floor(betAmount / 2)));
       saveXp(xp + delta);
       const nextStreak = winStreak + 1;
       setWinStreak(nextStreak);
       localStorage.setItem("matchday:streak", nextStreak.toString());
+      if (betAmount >= 50000) {
+        trackAchievement("highroller_bj", betAmount * 2, "max");
+      }
+      if (nextStreak >= 5) {
+        trackAchievement("win_streak", nextStreak, "max");
+      }
     } else if (outcome === "push") {
       delta = 10;
       saveXp(xp + delta);
@@ -322,6 +336,8 @@ export default function BlackjackPage() {
       saveXp(xp - lostXp);
       setWinStreak(0);
       localStorage.setItem("matchday:streak", "0");
+      // Трекінг втрати валюти для ачівки "Везунчик По Полній" (+200000)
+      trackAchievement("lucky_loss_200k", betAmount, "increment");
     }
 
     const nextLevelInfo = getLevelInfo(Math.max(0, xp + delta));

@@ -61,7 +61,17 @@ export default function AchievementsPage() {
       void loadBalances();
     };
     window.addEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
-    return () => window.removeEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
+    const handleAchievementsUpdate = () => {
+      setAchievements(loadAchievementsState());
+    };
+    window.addEventListener("matchday:achievements_updated", handleAchievementsUpdate);
+    window.addEventListener("storage", handleAchievementsUpdate);
+
+    return () => {
+      window.removeEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
+      window.removeEventListener("matchday:achievements_updated", handleAchievementsUpdate);
+      window.removeEventListener("storage", handleAchievementsUpdate);
+    };
   }, []);
 
   // 2. Фільтрація досягнень

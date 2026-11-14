@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import AuthStatusIndicator from "./auth-status-indicator";
 import SideWaves from "./side-waves";
 import SteamAchievementNotification from "@/components/steam-achievement-notification";
+import GlobalAchievementTracker from "@/components/global-achievement-tracker";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <SideWaves />
         <AuthStatusIndicator />
         <SteamAchievementNotification />
+        <GlobalAchievementTracker />
         {children}
       </body>
     </html>

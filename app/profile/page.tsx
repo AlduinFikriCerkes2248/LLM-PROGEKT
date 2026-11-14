@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import ThemeToggle from "../../components/theme-toggle";
+import { trackAchievement } from "@/lib/achievements-tracker";
 import MatrixAvatar from "../../components/matrix-avatar";
 import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "../../lib/supabase/client";
 
@@ -175,6 +176,15 @@ export default function ProfilePage() {
             .then(() => {});
         }
       });
+    }
+
+    // Відстеження досягнень профілю
+    trackAchievement("profile_avatar", 1, "set");
+
+    // Відстеження Марченка в полях профілю
+    const fullProfileText = `${username} ${bio} ${customStatus}`.toLowerCase();
+    if (fullProfileText.includes("марченк") || fullProfileText.includes("marchenk")) {
+      trackAchievement("great_marchenko", 1, "increment");
     }
 
     setIsSavedNotice(true);
