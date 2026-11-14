@@ -3,6 +3,7 @@
 import { DemoNoticeBadge } from "../../demo-banner";
 import { ActionForm } from "@/components/action-form";
 import { generateMatchPreviewAction } from "./actions";
+import AiChipIcon from "@/components/ai-chip-icon";
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -1218,8 +1219,9 @@ export default function LeagueDetailsPage() {
                             {/* ШІ-прев'ю від Gemini, якщо вже збережено */}
                             {match.venue && match.venue !== "Головна арена" && (
                               <div className="mt-3.5 rounded-xl border border-indigo-500/40 bg-gradient-to-r from-indigo-950/30 via-[#0d1522] to-cyan-950/30 p-3.5 text-xs">
-                                <div className="flex items-center gap-1.5 font-bold text-indigo-300 mb-1">
-                                  ШІ-аналітика матчу (Gemini):
+                                <div className="flex items-center gap-2 font-bold text-indigo-300 mb-1">
+                                  <AiChipIcon size={18} glowColor="#818cf8" active />
+                                  <span>ШІ-аналітика матчу (Gemini Neural Engine):</span>
                                 </div>
                                 <p className="text-slate-200 leading-relaxed font-sans">
                                   {match.venue}
@@ -1276,7 +1278,12 @@ export default function LeagueDetailsPage() {
                                       : "border border-indigo-500/40 bg-indigo-950/30 text-indigo-300 hover:bg-indigo-900/50"
                                   }`}
                                 >
-                                  <span></span> ШІ-аналітика
+                                  <AiChipIcon
+                                    size={16}
+                                    glowColor={activeTab === "ai" ? "#ffffff" : "#818cf8"}
+                                    active={activeTab === "ai"}
+                                  />
+                                  <span>ШІ-аналітика</span>
                                 </button>
                               )}
 
@@ -1545,8 +1552,9 @@ export default function LeagueDetailsPage() {
                             {activeTab === "ai" && (
                               <div className="mt-4 rounded-xl border border-indigo-500/40 bg-[#070b14]/90 p-4 animate-fade-in">
                                 <div className="flex items-center justify-between mb-2">
-                                  <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-                                    <span></span> ШІ-аналітика Gemini
+                                  <span className="text-xs font-bold text-indigo-300 flex items-center gap-2">
+                                    <AiChipIcon size={20} glowColor="#818cf8" active />
+                                    <span>ШІ-аналітика Gemini Neural Engine</span>
                                   </span>
                                   <button
                                     type="button"
@@ -1582,9 +1590,10 @@ export default function LeagueDetailsPage() {
                                     />
                                     <button
                                       type="submit"
-                                      className="btn-cyan text-xs shrink-0 flex items-center gap-1.5"
+                                      className="btn-cyan text-xs shrink-0 flex items-center gap-2"
                                     >
-                                      <span></span> Згенерувати ШІ-прев&apos;ю
+                                      <AiChipIcon size={16} glowColor="#ffffff" active />
+                                      <span>Згенерувати ШІ-прев&apos;ю</span>
                                     </button>
                                   </div>
                                 </ActionForm>

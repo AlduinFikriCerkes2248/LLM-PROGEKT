@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import ThemeToggle from "../../components/theme-toggle";
 import MatrixAvatar from "../../components/matrix-avatar";
+import AiChipIcon from "../../components/ai-chip-icon";
 import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "../../lib/supabase/client";
 
 type Leader = {
@@ -491,8 +492,13 @@ export default function DashboardPage() {
                 <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-1.5">
                   Привіт, {username}!
                 </h1>
-                <p className="text-xs sm:text-sm text-[#9aa9be] max-w-lg leading-relaxed">
-                  Ласкаво просимо до MATCHDAY — твого футбольного простору прогнозів, AI-аналітики та турнірів із друзями.
+                <p className="text-xs sm:text-sm text-[#9aa9be] max-w-lg leading-relaxed flex items-center gap-1.5 flex-wrap">
+                  Ласкаво просимо до MATCHDAY — твого простору прогнозів,
+                  <span className="inline-flex items-center gap-1 text-[#08bfea] font-bold">
+                    <AiChipIcon size={16} glowColor="#08bfea" active />
+                    AI-аналітики
+                  </span>
+                  та турнірів із друзями.
                 </p>
               </div>
             </section>
@@ -619,13 +625,19 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Футер матчу */}
-                <div className="flex items-center justify-between border-t border-[rgba(65,140,190,0.22)] pt-3.5 mt-4">
-                  <span className="text-xs text-[#9aa9be]">
-                    📊 Прогнозів:{" "}
-                    <strong className="text-white">
-                      {featuredMatch.predictionsCount}
-                    </strong>
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[rgba(65,140,190,0.22)] pt-3.5 mt-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-[#9aa9be]">
+                      📊 Прогнозів:{" "}
+                      <strong className="text-white">
+                        {featuredMatch.predictionsCount}
+                      </strong>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-300 border border-indigo-500/30 bg-indigo-950/40 px-2.5 py-0.5 rounded-md shadow-inner">
+                      <AiChipIcon size={14} glowColor="#818cf8" active />
+                      ШІ-аналітика Gemini
+                    </span>
+                  </div>
                   <Link
                     href="/leagues"
                     className="bg-[#08bfea] hover:bg-[#2cd5fb] text-[#070b14] font-extrabold text-xs px-4 py-2 rounded-lg shadow-[0_4px_14px_rgba(8,191,234,0.4)] transition-all hover:scale-[1.02]"
