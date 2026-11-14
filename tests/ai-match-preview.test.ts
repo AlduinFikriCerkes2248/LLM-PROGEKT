@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateMatchPreviewAction } from "@/app/leagues/[id]/actions";
 import { modelDisabled, modelReplies, sentToModel } from "./helpers/model";
 import { submit } from "./helpers/submit";
@@ -8,6 +8,11 @@ describe("Функція на базі моделі: ШІ-прев'ю матчу
     match_id: "00000000-0000-0000-0000-000000000001",
     tactical_focus: "акцент на оборону",
   };
+
+  beforeEach(() => {
+    vi.stubEnv("AI_USER_LIMIT_PER_HOUR", "1000000");
+    sentToModel.length = 0;
+  });
 
   it("Т1: невалідний формат відповіді — 2 виклики (повтор), статус 503 і жодного запису", async () => {
     // Д1: порожній або не-JSON текст
