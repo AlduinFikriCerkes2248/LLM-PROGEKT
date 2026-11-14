@@ -1,181 +1,215 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 
-// Набір фірмових символів хвилі: # № ! ; / " * ·
-const ASCII_PALETTE = ["#", "№", "!", ";", "/", "\"", "*", "·"];
-
 export default function SideWaves() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const pathname = usePathname();
-  const [frame, setFrame] = useState(0);
-  const [viewportHeight, setViewportHeight] = useState(1000);
-
-  useEffect(() => {
-    let animId: number;
-    const animate = () => {
-      setFrame((prev) => (prev + 1) % 100000);
-      animId = requestAnimationFrame(animate);
-    };
-    animId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animId);
-  }, []);
-
-  useEffect(() => {
-    const updateHeight = () => {
-      if (typeof window !== "undefined") {
-        setViewportHeight(window.innerHeight || 1000);
-      }
-    };
-    updateHeight();
-    window.addEventListener("resize", updateHeight);
-    return () => window.removeEventListener("resize", updateHeight);
-  }, []);
-
-  // Крім логіна ("крім логіна" - за запитом користувача)
   const isLoginPage = pathname === "/login" || pathname?.startsWith("/login");
 
-  // Кількість колонок з кожного боку (великі, широкі, помітні)
-  const columnsCount = 14;
+  useEffect(() => {
+    if (isLoginPage) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  // Висота одного символьного рядка (px)
-  const rowHeightPx = 15;
-  const maxRows = Math.max(45, Math.ceil(viewportHeight / rowHeightPx));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-  const columns = useMemo(() => {
-    return Array.from({ length: columnsCount }).map((_, i) => {
-      // i = 0 - це крайній стовпчик впритик до самого краю екрана
-      const edgeWeight = 1 - (i / (columnsCount - 1)) * 0.45;
-      return {
-        index: i,
-        basePeak: Math.floor(maxRows * edgeWeight),
-      };
-    });
-  }, [columnsCount, maxRows]);
+    let animId: number;
+    let width = 0;
+    let height = 0;
+    let time = 0;
+
+    const resize = () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+
+    // Параметри 3D-сітки океанських хвиль
+    const ROWS = 42; // лінії вглиб (від горизонту до переднього плану)
+    const COLS = 76; // стовпці по ширині (зліва направо)
+
+    const render = () => {
+      time += 0.015;
+      ctx.clearRect(0, 0, width, height);
+
+      // 1. М'яке фонове дифузне сяйво (синій зліва, помаранчевий справа як на референсі)
+      const blueGlow = ctx.createRadialGradient(
+        width * 0.12,
+        height * 0.72,
+        30,
+        width * 0.12,
+        height * 0.72,
+        width * 0.45,
+      );
+      blueGlow.addColorStop(0, "rgba(8, 191, 234, 0.18)");
+      blueGlow.addColorStop(0.5, "rgba(2, 132, 199, 0.07)");
+      blueGlow.addColorStop(1, "transparent");
+      ctx.fillStyle = blueGlow;
+      ctx.fillRect(0, 0, width, height);
+
+      const orangeGlow = ctx.createRadialGradient(
+        width * 0.85,
+        height * 0.62,
+        40,
+        width * 0.85,
+        height * 0.62,
+        width * 0.52,
+      );
+      orangeGlow.addColorStop(0, "rgba(255, 122, 36, 0.22)");
+      orangeGlow.addColorStop(0.45, "rgba(234, 88, 12, 0.09)");
+      orangeGlow.addColorStop(1, "transparent");
+      ctx.fillStyle = orangeGlow;
+      ctx.fillRect(0, 0, width, height);
+
+      // 2. Розрахунок точок 3D хвильового полотна моря
+      const points: {
+        x: number;
+        y: number;
+        size: number;
+        r: number;
+        g: number;
+        b: number;
+        alpha: number;
+      }[][] = [];
+
+      for (let r = 0; r < ROWS; r++) {
+        const rowPoints: typeof points[0] = [];
+        const v = r / (ROWS - 1); // 0 = горизонт, 1 = передній план
+        const depth = Math.pow(v, 1.45); // нелінійний розподіл глибини
+
+        for (let c = 0; c < COLS; c++) {
+          const u = c / (COLS - 1); // 0 = лівий край, 1 = правий край
+
+          // Формула ландшафту згідно з референс-зображенням:
+          // Лівий блакитний гребінь хвилі
+          const leftCrest = Math.exp(-Math.pow((u - 0.12) * 4.2, 2)) * 65;
+
+          // Правий високий помаранчевий гребінь хвилі
+          const rightCrest = Math.exp(-Math.pow((u - 0.88) * 3.4, 2)) * 115;
+
+          // Центральна западина
+          const valley = Math.sin(u * Math.PI) * 22;
+
+          // Океанське коливання (хвилі морського прибою)
+          const wave1 = Math.sin(u * 6.5 + time * 1.35 + v * 4.2) * 22;
+          const wave2 = Math.cos(u * 4.4 - time * 0.85 + v * 5.0) * 16;
+          const wave3 = Math.sin((u + v) * 5.2 + time * 1.7) * 10;
+          const swell = wave1 + wave2 + wave3;
+
+          // Повна висота точки
+          const elevation = (leftCrest + rightCrest - valley + swell) * (0.35 + 0.65 * depth);
+
+          // 3D проекція на площину екрана
+          const horizonY = height * 0.44;
+          const foregroundY = height * 0.98;
+          const baseY = horizonY + (foregroundY - horizonY) * depth;
+          const screenX = width * (0.02 + u * 0.96);
+          const screenY = baseY - elevation;
+
+          // Градієнт кольорів (блакитний зліва -> вогняно-помаранчевий справа)
+          let red = 8;
+          let green = 191;
+          let blue = 234;
+
+          const colorMix = Math.max(0, Math.min(1, (u - 0.32) / 0.38));
+          if (colorMix > 0) {
+            red = Math.round(8 + (255 - 8) * colorMix);
+            green = Math.round(191 + (122 - 191) * colorMix);
+            blue = Math.round(234 + (36 - 234) * colorMix);
+          }
+
+          // Яскравість і прозорість залежно від гребеня хвилі
+          const crestFactor = Math.max(0, elevation / 90);
+          const baseAlpha = 0.12 + depth * 0.48 + crestFactor * 0.4;
+          const alpha = Math.min(0.95, Math.max(0.08, baseAlpha));
+
+          // Розмір частинки (ефект боке глибини)
+          const size = Math.max(
+            0.65,
+            (0.75 + depth * 2.5 + crestFactor * 1.2) * (width > 768 ? 1 : 0.8),
+          );
+
+          rowPoints.push({
+            x: screenX,
+            y: screenY,
+            size,
+            r: red,
+            g: green,
+            b: blue,
+            alpha,
+          });
+        }
+        points.push(rowPoints);
+      }
+
+      // 3. Малювання тонких з'єднувальних ниток хвилі (ефект сітки/тканини світла)
+      ctx.lineWidth = 0.6;
+      for (let r = 0; r < ROWS; r += 2) {
+        ctx.beginPath();
+        const row = points[r];
+        for (let c = 0; c < COLS; c++) {
+          const pt = row[c];
+          if (c === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        }
+        const v = r / (ROWS - 1);
+        ctx.strokeStyle = `rgba(100, 180, 240, ${0.03 + v * 0.07})`;
+        ctx.stroke();
+      }
+
+      // 4. Малювання сяючих частинок (чарунок) моря
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const pt = points[r][c];
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${pt.r}, ${pt.g}, ${pt.b}, ${pt.alpha})`;
+          ctx.fill();
+
+          // Сяйво для великих частинок на гребенях (Bloom effect)
+          if (pt.size > 2.0 && pt.alpha > 0.6) {
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, pt.size * 2.2, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${pt.r}, ${pt.g}, ${pt.b}, ${pt.alpha * 0.22})`;
+            ctx.fill();
+          }
+        }
+      }
+
+      animId = requestAnimationFrame(render);
+    };
+
+    animId = requestAnimationFrame(render);
+
+    return () => {
+      window.removeEventListener("resize", resize);
+      cancelAnimationFrame(animId);
+    };
+  }, [isLoginPage]);
 
   if (isLoginPage) return null;
-
-  const t = frame * 0.045;
 
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-10 overflow-hidden select-none"
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden select-none"
     >
-      {/* ============================================================== */}
-      {/* 1. ЛІВА ХВИЛЯ: ВПРИТИК ДО ЛІВОГО КРАЮ, З САМОГО НИЗУ ДО ВЕРХУ  */}
-      {/*    Колір: Electric Blue (#0297DE)                              */}
-      {/* ============================================================== */}
-      <div className="absolute left-0 inset-y-0 flex items-end gap-[3px] sm:gap-1.5 md:gap-2 pl-0 sm:pl-1 pb-0 opacity-85 sm:opacity-95">
-        {columns.map((col) => {
-          const wave1 = Math.sin(t + col.index * 0.32);
-          const wave2 = Math.cos(t * 0.7 - col.index * 0.22);
-          const noise = (wave1 + wave2) * 0.5;
-
-          // Динамічна висота піку основної хвилі
-          const peakHeight = Math.max(15, Math.min(Math.floor(col.basePeak + noise * 7), maxRows));
-
-          // Генеруємо символи для кожного рядка ВІД САМОГО НИЗУ (row = 0) ДО САМОГО ВЕРХУ (row = maxRows - 1)
-          const rows: { char: string; opacity: number }[] = [];
-          for (let row = 0; row < maxRows; row++) {
-            if (row < peakHeight) {
-              // Основна потужна хвиля від низу
-              const ratio = row / peakHeight;
-              let charIndex = Math.floor(ratio * ASCII_PALETTE.length);
-              if (charIndex >= ASCII_PALETTE.length) charIndex = ASCII_PALETTE.length - 1;
-              const char = ASCII_PALETTE[charIndex];
-              const opacity = Math.max(0.3, 1 - ratio * 0.65);
-              rows.push({ char, opacity });
-            } else {
-              // Верхня продовжена хвиля до самої стелі монітора (без прогалин)
-              const topRatio = (row - peakHeight) / Math.max(1, maxRows - peakHeight);
-              const charIdx = (col.index + row + Math.floor(frame * 0.3)) % ASCII_PALETTE.length;
-              const char = ASCII_PALETTE[charIdx];
-              const opacity = Math.max(0.12, 0.35 - topRatio * 0.2);
-              rows.push({ char, opacity });
-            }
-          }
-
-          return (
-            <div
-              key={col.index}
-              className="flex h-full flex-col-reverse items-center justify-start font-mono text-[11px] sm:text-[13px] md:text-[15px] font-bold leading-[11px] sm:leading-[13px] md:leading-[15px] text-[#0297DE] transition-all duration-75"
-              style={{
-                filter: "drop-shadow(0 0 8px rgba(2,151,222,0.85)) drop-shadow(0 0 16px rgba(2,151,222,0.4))",
-              }}
-            >
-              {rows.map((r, rowIdx) => (
-                <span
-                  key={rowIdx}
-                  className="inline-block"
-                  style={{ opacity: r.opacity }}
-                >
-                  {r.char}
-                </span>
-              ))}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ============================================================== */}
-      {/* 2. ПРАВА ХВИЛЯ: ВПРИТИК ДО ПРАВОГО КРАЮ, З САМОГО НИЗУ ДО ВЕРХУ*/}
-      {/*    Колір: Coral Orange (#FC7340) та Electric Blue              */}
-      {/* ============================================================== */}
-      <div className="absolute right-0 inset-y-0 flex flex-row-reverse items-end gap-[3px] sm:gap-1.5 md:gap-2 pr-0 sm:pr-1 pb-0 opacity-85 sm:opacity-95">
-        {columns.map((col) => {
-          const wave1 = Math.sin(t * 0.95 + col.index * 0.35);
-          const wave2 = Math.cos(t * 0.65 - col.index * 0.25);
-          const noise = (wave1 + wave2) * 0.5;
-
-          const peakHeight = Math.max(15, Math.min(Math.floor(col.basePeak + noise * 7), maxRows));
-
-          const isCoral = col.index < 8;
-          const colorClass = isCoral ? "text-[#FC7340]" : "text-[#0297DE]";
-          const shadowColor = isCoral
-            ? "drop-shadow(0 0 8px rgba(252,115,64,0.9)) drop-shadow(0 0 16px rgba(252,115,64,0.45))"
-            : "drop-shadow(0 0 8px rgba(2,151,222,0.85)) drop-shadow(0 0 16px rgba(2,151,222,0.4))";
-
-          // Генеруємо символи для кожного рядка ВІД САМОГО НИЗУ ДО САМОГО ВЕРХУ
-          const rows: { char: string; opacity: number }[] = [];
-          for (let row = 0; row < maxRows; row++) {
-            if (row < peakHeight) {
-              const ratio = row / peakHeight;
-              let charIndex = Math.floor(ratio * ASCII_PALETTE.length);
-              if (charIndex >= ASCII_PALETTE.length) charIndex = ASCII_PALETTE.length - 1;
-              const char = ASCII_PALETTE[charIndex];
-              const opacity = Math.max(0.3, 1 - ratio * 0.65);
-              rows.push({ char, opacity });
-            } else {
-              const topRatio = (row - peakHeight) / Math.max(1, maxRows - peakHeight);
-              const charIdx = (col.index + row + Math.floor(frame * 0.3)) % ASCII_PALETTE.length;
-              const char = ASCII_PALETTE[charIdx];
-              const opacity = Math.max(0.12, 0.35 - topRatio * 0.2);
-              rows.push({ char, opacity });
-            }
-          }
-
-          return (
-            <div
-              key={col.index}
-              className={`flex h-full flex-col-reverse items-center justify-start font-mono text-[11px] sm:text-[13px] md:text-[15px] font-bold leading-[11px] sm:leading-[13px] md:leading-[15px] ${colorClass} transition-all duration-75`}
-              style={{
-                filter: shadowColor,
-              }}
-            >
-              {rows.map((r, rowIdx) => (
-                <span
-                  key={rowIdx}
-                  className="inline-block"
-                  style={{ opacity: r.opacity }}
-                >
-                  {r.char}
-                </span>
-              ))}
-            </div>
-          );
-        })}
-      </div>
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 h-full w-full pointer-events-none"
+      />
     </div>
   );
 }
