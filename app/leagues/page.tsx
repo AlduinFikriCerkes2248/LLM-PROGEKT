@@ -405,7 +405,7 @@ export default function LeaguesPage() {
         <section className="bg-[#0A1430]/95 border border-[#162544] rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-[#162544] pb-4">
             <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-              <span className="text-[#0297DE]">MD</span> ДОСТУПНІ ЛІГИ ({leagues.length})
+              ДОСТУПНІ ЛІГИ ({leagues.length})
             </h2>
             <span className="text-xs text-slate-400">[ Оберіть лігу для прогнозів ]</span>
           </div>

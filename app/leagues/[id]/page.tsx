@@ -790,12 +790,14 @@ export default function LeagueDetailsPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="group flex items-center gap-2.5 transition"
+              className="group flex items-center gap-2 cursor-pointer transition"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 font-black text-black shadow-md shadow-cyan-500/30">
-                MD
+              <div className="flex items-center gap-1">
+                <span className="w-1 h-3.5 bg-[#08BFEA] rounded-full group-hover:h-4 transition-all" />
+                <span className="w-1 h-4.5 bg-[#08BFEA] rounded-full group-hover:h-5 transition-all" />
+                <span className="w-1 h-3.5 bg-[#08BFEA] rounded-full group-hover:h-4 transition-all" />
               </div>
-              <span className="font-black text-base tracking-[0.16em] uppercase text-white group-hover:text-cyan-400 transition">
+              <span className="font-bold text-sm sm:text-base tracking-[0.16em] uppercase text-white group-hover:text-cyan-400 transition ml-1">
                 MATCHDAY
               </span>
             </Link>

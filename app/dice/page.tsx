@@ -336,11 +336,13 @@ export default function DicePage() {
         {/* НАВІГАЦІЯ */}
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
           <div className="flex items-center gap-3">
-            <Link href="/" className="group flex items-center gap-2.5 transition">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 font-black text-xs text-black shadow-md shadow-orange-500/30">
-                MD
+            <Link href="/" className="group flex items-center gap-2 cursor-pointer transition">
+              <div className="flex items-center gap-1">
+                <span className="w-1 h-3.5 bg-[#08BFEA] rounded-full group-hover:h-4 transition-all" />
+                <span className="w-1 h-4.5 bg-[#08BFEA] rounded-full group-hover:h-5 transition-all" />
+                <span className="w-1 h-3.5 bg-[#08BFEA] rounded-full group-hover:h-4 transition-all" />
               </div>
-              <span className="font-black text-base tracking-[0.16em] uppercase text-white group-hover:text-orange-400 transition">
+              <span className="font-bold text-sm sm:text-base tracking-[0.16em] uppercase text-white group-hover:text-cyan-400 transition ml-1">
                 MATCHDAY
               </span>
             </Link>
