@@ -60,6 +60,23 @@ export function validateMatchPreview(raw: unknown): MatchPreviewResult {
   };
 }
 
+export function sanitizeTacticalFocus(input: string): string {
+  let cleaned = input.trim().slice(0, 300);
+  // Захист від маніпуляцій інструкціями (Prompt Injection)
+  const forbiddenPatterns = [
+    /ignore\s+(previous|all)\s+instructions/gi,
+    /забудь\s+(всі|попередні)\s+інструкції/gi,
+    /system\s*:/gi,
+    /<script/gi,
+  ];
+
+  for (const pattern of forbiddenPatterns) {
+    cleaned = cleaned.replace(pattern, "[вилучено]");
+  }
+
+  return cleaned;
+}
+
 export function normalizeFocus(input: string): string {
   return input.trim().toLowerCase().replace(/\s+/g, " ");
 }
