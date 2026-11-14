@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import ThemeToggle from "../../components/theme-toggle";
 import MatrixAvatar from "../../components/matrix-avatar";
-import { getSupabaseClient } from "../../lib/supabase/client";
+import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "../../lib/supabase/client";
 
 type Leader = {
   rank: number;
@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const [joinDate, setJoinDate] = useState<string>("20.10.2026");
   const [leaderTab, setLeaderTab] = useState<"all" | "month" | "week">("all");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem("matchday_theme") : null;
@@ -38,6 +39,9 @@ export default function DashboardPage() {
       (typeof document !== "undefined" && document.documentElement.classList.contains("light")) ||
       saved === "light";
     setTheme(isLight ? "light" : "dark");
+
+    const savedAv = typeof window !== "undefined" ? localStorage.getItem("matchday_avatar_url") : null;
+    if (savedAv) setAvatarUrl(savedAv);
 
     function handleThemeChange(e: Event) {
       const customEvent = e as CustomEvent<{ theme: "dark" | "light" }>;
@@ -49,9 +53,24 @@ export default function DashboardPage() {
       }
     }
 
+    function handleProfileUpdate(e: Event) {
+      const custom = e as CustomEvent<{ avatar_url?: string; username?: string }>;
+      if (custom.detail?.avatar_url !== undefined) {
+        setAvatarUrl(custom.detail.avatar_url);
+      } else {
+        const up = localStorage.getItem("matchday_avatar_url");
+        setAvatarUrl(up);
+      }
+      if (custom.detail?.username) {
+        setUsername(custom.detail.username);
+      }
+    }
+
     window.addEventListener("matchday:theme_change", handleThemeChange);
+    window.addEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
     return () => {
       window.removeEventListener("matchday:theme_change", handleThemeChange);
+      window.removeEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
     };
   }, []);
   const [featuredMatch, setFeaturedMatch] = useState<{
@@ -324,10 +343,10 @@ export default function DashboardPage() {
               </Link>
             </li>
 
-            {/* 10. Профіль / Авторизація (Людина) */}
+            {/* 10. Профіль (Конфігурація користувача та аватарки) */}
             <li>
               <Link
-                href="/login"
+                href="/profile"
                 className="group flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-[#9aa9be] hover:text-white hover:bg-[rgba(13,21,34,0.8)] transition-all ml-1.5"
               >
                 <svg className="w-[18px] h-[18px] text-[#9aa9be] group-hover:text-[#08bfea] transition-colors shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -410,9 +429,10 @@ export default function DashboardPage() {
               🔔
             </span>
             {/* Віджет профілю з 3D-золотим вигином (референс Image 1) та Matrix-аватаркою */}
-            <div
-              title="Обліковий запис (натисніть на аватар для Matrix-анімації)"
-              className="relative flex items-center gap-2 rounded-2xl p-1 cursor-pointer transition-all shadow-md group"
+            <Link
+              href="/profile"
+              title="Перейти до налаштувань профілю"
+              className="relative flex items-center gap-2 rounded-2xl p-1 cursor-pointer transition-all shadow-md group hover:scale-105 active:scale-95"
               style={{
                 background:
                   theme === "dark"
@@ -442,18 +462,19 @@ export default function DashboardPage() {
                   <MatrixAvatar
                     theme={theme}
                     size={30}
+                    src={avatarUrl}
                     initial={userInitial}
                   />
                 </div>
               </div>
 
               <span
-                className="font-extrabold text-xs pr-2 transition-colors"
+                className="font-extrabold text-xs pr-2 transition-colors group-hover:text-[#08bfea]"
                 style={{ color: theme === "dark" ? "#f1f5fa" : "#0f172a" }}
               >
                 {username} ▾
               </span>
-            </div>
+            </Link>
           </div>
         </header>
 
@@ -708,7 +729,7 @@ export default function DashboardPage() {
                   <span className="text-purple-400">👤</span> ВАШ ПРОФІЛЬ
                 </h3>
                 <Link
-                  href="/login"
+                  href="/profile"
                   className="text-[11px] text-[#08bfea] font-semibold hover:underline"
                 >
                   Редагувати
@@ -720,6 +741,7 @@ export default function DashboardPage() {
                   <MatrixAvatar
                     theme={theme}
                     size={42}
+                    src={avatarUrl}
                     initial={userInitial}
                   />
                 </div>

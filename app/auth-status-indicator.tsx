@@ -26,6 +26,7 @@ export default function AuthStatusIndicator() {
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     // 1. Ініціалізація поточної теми
@@ -34,6 +35,10 @@ export default function AuthStatusIndicator() {
       (typeof document !== "undefined" && document.documentElement.classList.contains("light")) ||
       saved === "light";
     setTheme(isLight ? "light" : "dark");
+
+    const savedAvatar =
+      typeof window !== "undefined" ? localStorage.getItem("matchday_avatar_url") : null;
+    if (savedAvatar) setCustomAvatarUrl(savedAvatar);
 
     // 2. Слухаємо подію перемикання теми (з theme-toggle)
     function handleThemeChange(e: Event) {
@@ -46,9 +51,21 @@ export default function AuthStatusIndicator() {
       }
     }
 
+    function handleProfileUpdate(e: Event) {
+      const custom = e as CustomEvent<{ avatar_url?: string; username?: string }>;
+      if (custom.detail?.avatar_url !== undefined) {
+        setCustomAvatarUrl(custom.detail.avatar_url);
+      } else {
+        const up = localStorage.getItem("matchday_avatar_url");
+        setCustomAvatarUrl(up);
+      }
+    }
+
     window.addEventListener("matchday:theme_change", handleThemeChange);
+    window.addEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
     return () => {
       window.removeEventListener("matchday:theme_change", handleThemeChange);
+      window.removeEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
     };
   }, []);
 
@@ -210,10 +227,11 @@ export default function AuthStatusIndicator() {
                   : "inset 0 1px 2px rgba(255,255,255,0.9), 0 2px 6px rgba(0,0,0,0.1)",
               }}
             >
-              {/* АВАТАРКА ЧОРНА/БІЛА З АНІМАЦІЄЮ МАТРИЦІ */}
+              {/* АВАТАРКА ЧОРНА/БІЛА З АНІМАЦІЄЮ МАТРИЦІ ТА ПІДТРИМКОЮ КАСТОМНОГО ЛОГО */}
               <MatrixAvatar
                 theme={theme}
                 size={34}
+                src={customAvatarUrl}
                 initial={displayName.charAt(0).toUpperCase()}
               />
             </div>

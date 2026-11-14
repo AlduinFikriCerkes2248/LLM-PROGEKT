@@ -7,6 +7,7 @@ interface MatrixAvatarProps {
   size?: number;
   initial?: string;
   className?: string;
+  src?: string | null;
   onClick?: () => void;
 }
 
@@ -19,12 +20,18 @@ export default function MatrixAvatar({
   size = 42,
   initial = "M",
   className = "",
+  src = null,
   onClick,
 }: MatrixAvatarProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentDisplayTheme, setCurrentDisplayTheme] = useState<"dark" | "light">(theme);
+  const [imgError, setImgError] = useState(false);
   const prevThemeRef = useRef(theme);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [src]);
 
   // Слухаємо зміну теми для запуску Matrix-анімації
   useEffect(() => {
@@ -240,46 +247,57 @@ export default function MatrixAvatar({
           : "1.5px solid rgba(15, 23, 42, 0.3)",
       }}
     >
-      {/* 1. БАЗОВА АВАТАРКА (ЧОРНА / БІЛА) */}
+      {/* 1. БАЗОВА АВАТАРКА (КАСТОМНА КАРТИНКА АБО ЧОРНА/БІЛА МАТРИЦЯ) */}
       <div
         className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${
           isAnimating ? "opacity-20 scale-95" : "opacity-100 scale-100"
         }`}
       >
-        {/* Векторний кібер-силует агента */}
-        <svg
-          width={Math.round(size * 0.65)}
-          height={Math.round(size * 0.65)}
-          viewBox="0 0 24 24"
-          fill="none"
-          className="transition-colors duration-300"
-        >
-          {/* Голова та плечі */}
-          <path
-            d="M12 2a5 5 0 0 0-5 5v1a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"
-            fill={isDark ? "#ffffff" : "#0f172a"}
+        {src && !imgError ? (
+          <img
+            src={src}
+            alt="Avatar"
+            onError={() => setImgError(true)}
+            className="h-full w-full object-cover rounded-full"
           />
-          {/* Кібер-візор / лінза з відблиском */}
-          <path
-            d="M8.5 6.8h7a1.2 1.2 0 0 1 1.2 1.2v0.4a1.2 1.2 0 0 1-1.2 1.2h-7A1.2 1.2 0 0 1 7.3 8.4V8a1.2 1.2 0 0 1 1.2-1.2z"
-            fill={isDark ? "#22c55e" : "#eab308"}
-          />
-          {/* Плечовий контур */}
-          <path
-            d="M3 20.5c0-3.6 4-6.5 9-6.5s9 2.9 9 6.5V22H3v-1.5z"
-            fill={isDark ? "#ffffff" : "#0f172a"}
-          />
-        </svg>
+        ) : (
+          <>
+            {/* Векторний кібер-силует агента */}
+            <svg
+              width={Math.round(size * 0.65)}
+              height={Math.round(size * 0.65)}
+              viewBox="0 0 24 24"
+              fill="none"
+              className="transition-colors duration-300"
+            >
+              {/* Голова та плечі */}
+              <path
+                d="M12 2a5 5 0 0 0-5 5v1a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"
+                fill={isDark ? "#ffffff" : "#0f172a"}
+              />
+              {/* Кібер-візор / лінза з відблиском */}
+              <path
+                d="M8.5 6.8h7a1.2 1.2 0 0 1 1.2 1.2v0.4a1.2 1.2 0 0 1-1.2 1.2h-7A1.2 1.2 0 0 1 7.3 8.4V8a1.2 1.2 0 0 1 1.2-1.2z"
+                fill={isDark ? "#22c55e" : "#eab308"}
+              />
+              {/* Плечовий контур */}
+              <path
+                d="M3 20.5c0-3.6 4-6.5 9-6.5s9 2.9 9 6.5V22H3v-1.5z"
+                fill={isDark ? "#ffffff" : "#0f172a"}
+              />
+            </svg>
 
-        {/* Сяйво під візором */}
-        <span
-          className="absolute h-1.5 w-1.5 rounded-full pointer-events-none"
-          style={{
-            background: isDark ? "#22c55e" : "#eab308",
-            boxShadow: isDark ? "0 0 8px #22c55e" : "0 0 8px #eab308",
-            top: `${Math.round(size * 0.35)}px`,
-          }}
-        />
+            {/* Сяйво під візором */}
+            <span
+              className="absolute h-1.5 w-1.5 rounded-full pointer-events-none"
+              style={{
+                background: isDark ? "#22c55e" : "#eab308",
+                boxShadow: isDark ? "0 0 8px #22c55e" : "0 0 8px #eab308",
+                top: `${Math.round(size * 0.35)}px`,
+              }}
+            />
+          </>
+        )}
       </div>
 
       {/* 2. ПОЛОТНО МАТРИЧНОГО РОЗПАДУ / СКЛАДАННЯ (CANVAS) */}
