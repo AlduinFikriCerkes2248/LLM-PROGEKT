@@ -1112,12 +1112,12 @@ export default function LeagueDetailsPage() {
                         </div>
 
                         {/* ШІ-прев'ю та аналітика */}
-                        {match.venue && match.venue.startsWith("ШІ-прев'ю") && (
+                        {match.venue && match.venue !== "Головна арена" && (
                           <div className="mt-4 rounded-xl border border-indigo-500/40 bg-indigo-950/30 p-3.5 text-xs text-indigo-200">
                             <div className="flex items-center gap-2 font-bold text-indigo-300 mb-1">
                               <span>🤖</span> ШІ-аналітика матчу:
                             </div>
-                            <p className="leading-relaxed">{match.venue}</p>
+                            <p className="leading-relaxed font-sans">{match.venue}</p>
                           </div>
                         )}
 

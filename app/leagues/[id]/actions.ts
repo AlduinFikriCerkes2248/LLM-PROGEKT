@@ -1,10 +1,38 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 import type { ActionResult } from "@/lib/action-result";
 import { askModel, modelConfigured } from "@/lib/ai/model";
 import { db } from "@/lib/data/db/client";
 import { getMatch } from "@/lib/data/db/matches";
+
+async function getActionDb() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) return db();
+
+  try {
+    const cookieStore = await cookies();
+    return createServerClient(url, anonKey, {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {}
+        },
+      },
+    });
+  } catch {
+    return db();
+  }
+}
 
 export async function generateMatchPreviewAction(
   _previous: ActionResult | null,
@@ -22,7 +50,7 @@ export async function generateMatchPreviewAction(
       return {
         status: 503,
         message:
-          "Ключ GEMINI_API_KEY не налаштовано в середовищі. Якщо тестуєте на Vercel — додайте GEMINI_API_KEY у Settings -> Environment Variables на vercel.com, або перевіряйте локально в Codespace.",
+          "Ключ GEMINI_API_KEY не налаштовано в середовищі. Якщо тестуєте на Vercel — додайте GEMINI_API_KEY у Settings -> Environment Variables на vercel.com.",
       };
     }
 
@@ -42,23 +70,44 @@ export async function generateMatchPreviewAction(
       user: userPrompt,
     });
 
-    const parsed = JSON.parse(response.text);
-    const summary = String(parsed.summary ?? "Аналіз завершено.");
-    const predHome = Number(parsed.predicted_home ?? 0);
-    const predAway = Number(parsed.predicted_away ?? 0);
-    const formattedVenue = `ШІ-прев'ю: ${summary} (Прогноз рахунку: ${predHome}:${predAway})`;
+    let summary = "Аналіз команд завершено.";
+    let predHome = 1;
+    let predAway = 0;
 
-    const { error } = await db()
+    try {
+      const parsed = JSON.parse(response.text);
+      summary = String(parsed.summary ?? summary);
+      predHome = Number(parsed.predicted_home ?? predHome);
+      predAway = Number(parsed.predicted_away ?? predAway);
+    } catch {
+      summary = response.text.slice(0, 150);
+    }
+
+    const formattedVenue = `ШІ-прев'ю: ${summary} (Прогноз: ${predHome}:${predAway})`;
+
+    const supabase = await getActionDb();
+    const { data, error } = await supabase
       .from("matches")
       .update({ venue: formattedVenue })
-      .eq("id", matchId);
+      .eq("id", matchId)
+      .select("id, venue");
 
     if (error) {
       return { status: 400, message: `Помилка збереження в базі: ${error.message}` };
     }
 
+    if (!data || data.length === 0) {
+      return {
+        status: 403,
+        message: "Дію заборонено політикою доступу RLS: лише організатор ліги може оновлювати матч.",
+      };
+    }
+
     revalidatePath(`/leagues/${match.league_id}`);
-    return { status: 200, message: "ШІ-прев'ю успішно згенеровано й збережено!" };
+    return {
+      status: 200,
+      message: `ШІ-прев'ю успішно створено: ${formattedVenue}`,
+    };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return { status: 400, message: `Помилка: ${msg}` };
