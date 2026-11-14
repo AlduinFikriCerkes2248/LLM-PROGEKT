@@ -10,6 +10,7 @@ import {
   saveAchievementsState,
 } from "@/lib/achievements-data";
 import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "@/lib/supabase/client";
+import { triggerSteamAchievement } from "@/components/steam-achievement-notification";
 
 export default function AchievementsPage() {
   const [achievements, setAchievements] = useState<AchievementItem[]>([]);
@@ -123,8 +124,49 @@ export default function AchievementsPage() {
       }
     }
 
+    // Запускаємо спливаюче повідомлення у стилі Steam із фірмовим звуком!
+    triggerSteamAchievement({
+      id: item.id,
+      title: item.title,
+      desc: item.desc,
+      rarity: item.rarity,
+      iconType: item.iconType,
+      coins: item.reward.coins,
+      bonuses: item.reward.bonuses,
+      xp: item.reward.xp,
+      soundType: item.id === "great_marchenko" ? "marchenko" : "default",
+    });
+
     window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
     setClaimedModal(item);
+  };
+
+  const testMarchenkoSound = () => {
+    triggerSteamAchievement({
+      id: "great_marchenko",
+      title: "Овеликий Марченко",
+      desc: "Поставити як гравця в змаганнях 5 разів!",
+      rarity: "epic",
+      iconType: "marchenko",
+      coins: 50000,
+      bonuses: 100,
+      xp: 800,
+      soundType: "marchenko",
+    });
+  };
+
+  const testStandardSound = () => {
+    triggerSteamAchievement({
+      id: "lucky_loss_200k",
+      title: "Везунчик По Полній",
+      desc: "Проєбати +200 000 валюти в азартних іграх",
+      rarity: "mythic",
+      iconType: "skull-loss",
+      coins: 200000,
+      bonuses: 300,
+      xp: 2000,
+      soundType: "default",
+    });
   };
 
   const formattedBalance = balance !== null ? balance.toLocaleString() : "1,088,233";
@@ -215,6 +257,26 @@ export default function AchievementsPage() {
               <p className="mt-2 text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
                 Виконуйте завдання у прогнозах, міні-іграх та PvP дуелях. Отримуйте сотні тисяч монет, рідкісні бонуси та ексклюзивні титули!
               </p>
+
+              {/* Кнопки тестування спливаючих сповіщень у стилі Steam */}
+              <div className="mt-4 flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={testMarchenkoSound}
+                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-600/30 border border-amber-500/50 text-amber-300 text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95"
+                >
+                  <span>👑</span>
+                  <span>Тест Steam: Марченко (Мяу)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={testStandardSound}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 hover:text-white text-xs font-medium transition flex items-center gap-1.5 active:scale-95"
+                >
+                  <span>🔔</span>
+                  <span>Тест Steam: Дзвін</span>
+                </button>
+              </div>
             </div>
 
             {/* Карточка загального прогресу */}
