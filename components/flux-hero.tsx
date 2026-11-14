@@ -104,6 +104,9 @@ export default function FluxHero() {
 
         {/* Навігаційне меню точно як на референсі */}
         <nav className="hidden md:flex items-center gap-7 text-xs font-medium text-slate-300">
+          <Link href="/dashboard" className="hover:text-white transition-colors">
+            Головна панель
+          </Link>
           <Link href="/leagues" className="hover:text-white transition-colors">
             Ліги прогнозів
           </Link>

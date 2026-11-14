@@ -375,7 +375,7 @@ export default function LeaguesPage() {
 
           <nav className="flex flex-wrap items-center gap-2">
             <Link
-              href="/"
+              href="/dashboard"
               className="rounded-lg border border-[rgba(65,140,190,0.22)] bg-[rgba(13,21,34,0.85)] hover:border-[#08bfea] hover:bg-[rgba(20,34,54,0.9)] px-3.5 py-1.5 text-xs font-bold text-slate-200 hover:text-white transition"
             >
               Головна
