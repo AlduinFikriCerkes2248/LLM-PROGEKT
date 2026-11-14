@@ -106,7 +106,7 @@ export async function generateMatchPreviewAction(
       return {
         status: 503,
         message:
-          "Ключ GEMINI_API_KEY не налаштовано в середовищі. Функція ШІ-прев'ю тимчасово вимкнена.",
+          "Ключ провайдера моделі не задано. Функція ШІ-прев'ю тимчасово вимкнена.",
       };
     }
 
