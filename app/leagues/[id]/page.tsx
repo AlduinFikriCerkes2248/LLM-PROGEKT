@@ -195,6 +195,7 @@ export default function LeagueDetailsPage() {
   const router = useRouter();
 
   const [details, setDetails] = useState<LeagueDetails | null>(null);
+  const [sessionToken, setSessionToken] = useState<string>("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isAuthResolved, setIsAuthResolved] = useState(
     !isSupabaseConfigured,
@@ -392,8 +393,9 @@ export default function LeagueDetailsPage() {
     const client = getSupabaseClient();
     if (!client) return;
 
-    client.auth.getUser().then(({ data }) => {
-      setCurrentUserId(data.user?.id ?? null);
+    client.auth.getSession().then(({ data }) => {
+      setSessionToken(data.session?.access_token ?? "");
+      setCurrentUserId(data.session?.user?.id ?? null);
       setIsAuthResolved(true);
     });
   }, []);
@@ -1132,6 +1134,7 @@ export default function LeagueDetailsPage() {
                             </div>
                             <ActionForm action={generateMatchPreviewAction}>
                               <input type="hidden" name="match_id" value={match.id} />
+                              <input type="hidden" name="access_token" value={sessionToken} />
                               <div className="flex flex-col sm:flex-row gap-2">
                                 <input
                                   type="text"

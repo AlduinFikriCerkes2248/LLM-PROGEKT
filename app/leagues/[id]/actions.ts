@@ -3,15 +3,26 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import type { ActionResult } from "@/lib/action-result";
 import { askModel, modelConfigured } from "@/lib/ai/model";
 import { db } from "@/lib/data/db/client";
 import { getMatch } from "@/lib/data/db/matches";
 
-async function getActionDb() {
+async function getActionDb(accessToken?: string) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) return db();
+
+  if (accessToken && accessToken.trim()) {
+    return createClient(url, anonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken.trim()}`,
+        },
+      },
+    });
+  }
 
   try {
     const cookieStore = await cookies();
@@ -41,6 +52,7 @@ export async function generateMatchPreviewAction(
   try {
     const matchId = String(formData.get("match_id") ?? "");
     const tacticalFocus = String(formData.get("tactical_focus") ?? "").trim();
+    const accessToken = String(formData.get("access_token") ?? "").trim();
 
     if (!matchId) {
       return { status: 400, message: "Не вказано ідентифікатор матчу." };
@@ -85,7 +97,7 @@ export async function generateMatchPreviewAction(
 
     const formattedVenue = `ШІ-прев'ю: ${summary} (Прогноз: ${predHome}:${predAway})`;
 
-    const supabase = await getActionDb();
+    const supabase = await getActionDb(accessToken);
     const { data, error } = await supabase
       .from("matches")
       .update({ venue: formattedVenue })
@@ -106,7 +118,7 @@ export async function generateMatchPreviewAction(
     revalidatePath(`/leagues/${match.league_id}`);
     return {
       status: 200,
-      message: `ШІ-прев'ю успішно створено: ${formattedVenue}`,
+      message: `ШІ-прев'ю успішно збережено: ${formattedVenue}`,
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
