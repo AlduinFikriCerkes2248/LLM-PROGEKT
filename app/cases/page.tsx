@@ -40,7 +40,7 @@ const CASES: CaseItem[] = [
     badgeColor: "border-emerald-600/50 bg-emerald-950/40 text-emerald-300",
     boxColor: "from-emerald-950 via-slate-900 to-black border-emerald-700/60",
     glowColor: "rgba(16,185,129,0.15)",
-    icon: "📦",
+    icon: "CASE I",
   },
   {
     id: "pro",
@@ -53,7 +53,7 @@ const CASES: CaseItem[] = [
     badgeColor: "border-cyan-600/50 bg-cyan-950/40 text-cyan-300",
     boxColor: "from-cyan-950 via-slate-900 to-black border-cyan-500/60",
     glowColor: "rgba(6,182,212,0.25)",
-    icon: "💼",
+    icon: "CASE II",
   },
 ];
 
@@ -117,13 +117,13 @@ export default function CasesPage() {
                 href="/blackjack"
                 className="rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-1 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition"
               >
-                🃏 Блекджек
+                Блекджек
               </Link>
               <Link
                 href="/wheel"
                 className="rounded-lg border border-purple-800 bg-purple-950/30 px-3 py-1 text-xs font-bold text-purple-300 hover:bg-purple-900/40 transition"
               >
-                🎡 Колесо
+                Колесо
               </Link>
             </div>
           </div>
@@ -232,7 +232,7 @@ export default function CasesPage() {
     }
 
     if (hohlyantsi !== null && hohlyantsi < caseItem.hohlyantsiPrice) {
-      setErrorMessage(`Недостатньо Бонусів! Потрібно: ${caseItem.hohlyantsiPrice} 🔘`);
+      setErrorMessage(`Недостатньо Бонусів! Потрібно: ${caseItem.hohlyantsiPrice} бонусів`);
       return;
     }
 
@@ -318,34 +318,34 @@ export default function CasesPage() {
               href="/leagues"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🏆 Мої ліги
+              MD Мої ліги
             </Link>
             <Link
               href="/online"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🌐 Онлайн PvP
+              Онлайн PvP
             </Link>
             <Link
               href="/wheel"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🎡 Колесо
+              Колесо
             </Link>
             <Link
               href="/blackjack"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🃏 Блекджек
+              Блекджек
             </Link>
             <Link
               href="/dice"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🎲 Кості
+              Кості
             </Link>
             <div className="rounded-xl bg-[#060A17] border border-amber-500/40 px-3 py-1 text-xs font-bold text-amber-300">
-              🪙 {balance === null ? "—" : `${balance.toLocaleString()} монет`}
+               {balance === null ? "—" : `${balance.toLocaleString()} монет`}
             </div>
           </div>
         </div>
@@ -353,7 +353,7 @@ export default function CasesPage() {
         {/* Header */}
         <header className="mb-10 text-center">
           <div className="inline-block rounded-full border border-amber-600/40 bg-amber-950/20 px-4 py-1 text-xs text-amber-300 font-bold mb-3">
-            🎁 СЕКРЕТНІ КЕЙСИ ТА ВАЛЮТА «БОНУСИ»
+            Секретні кейси та бонуси
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
             КЕЙСИ ТА КВЕСТИ
@@ -368,7 +368,7 @@ export default function CasesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <span className="text-xs font-bold uppercase text-emerald-400 tracking-wider">
-                ⚡ БЕЗКОШТОВНИЙ ЩОДЕННИЙ БОНУС (1 РАЗ НА ДОБУ)
+                 БЕЗКОШТОВНИЙ ЩОДЕННИЙ БОНУС (1 РАЗ НА ДОБУ)
               </span>
               <h2 className="text-xl font-bold text-white mt-1">
                 Безкоштовний «Кейс 1»
@@ -387,7 +387,7 @@ export default function CasesPage() {
                 ? "Відкриття..."
                 : dailyClaimed
                   ? "Вже забрано сьогодні"
-                  : "🎁 Забрати безкоштовно"}
+                  : "Забрати безкоштовно"}
             </button>
           </div>
         </div>
@@ -395,7 +395,6 @@ export default function CasesPage() {
         {/* Modal-like Reward Alert */}
         {openedReward && (
           <div className="mb-10 animate-in fade-in zoom-in duration-300 rounded-2xl border-2 border-yellow-500 bg-gradient-to-b from-yellow-950/60 to-black p-6 text-center shadow-[0_0_50px_rgba(245,158,11,0.3)]">
-            <span className="text-4xl">🎉</span>
             <h3 className="mt-2 text-lg font-bold text-amber-300 uppercase">
               КЕЙС «{openedReward.box}» ВІДКРИТО!
             </h3>

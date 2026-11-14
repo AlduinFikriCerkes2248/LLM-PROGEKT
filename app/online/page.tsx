@@ -872,7 +872,7 @@ export default function OnlinePage() {
       });
 
       if (error) throw error;
-      setMessage("⚡ Суперник не зробив хід вчасно (60 сек). Зараховано технічну перемогу, банк виплачено!");
+      setMessage(" Суперник не зробив хід вчасно (60 сек). Зараховано технічну перемогу, банк виплачено!");
       window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
 
       const { data: viewData } = await client.rpc("pvp_view", { p_duel_id: liveBjMatch.duel_id });
@@ -925,13 +925,13 @@ export default function OnlinePage() {
                 href="/blackjack"
                 className="rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition"
               >
-                🃏 Блекджек
+                Блекджек
               </Link>
               <Link
                 href="/wheel"
                 className="rounded-lg border border-purple-800 bg-purple-950/30 px-3 py-1.5 text-xs font-bold text-purple-300 hover:bg-purple-900/40 transition"
               >
-                🎡 Колесо
+                Колесо
               </Link>
             </div>
           </div>
@@ -1029,38 +1029,38 @@ export default function OnlinePage() {
               href="/leagues"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🏆 Мої ліги
+              MD Мої ліги
             </Link>
             <Link
               href="/wheel"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🎡 Колесо
+              Колесо
             </Link>
             <Link
               href="/cases"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🎁 Кейси
+              Кейси
             </Link>
             <Link
               href="/blackjack"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🃏 Блекджек
+              Блекджек
             </Link>
             <Link
               href="/dice"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🎲 Кості
+              Кості
             </Link>
             <div className="rounded-xl bg-[#060A17] border border-amber-500/40 px-3 py-1 text-xs font-bold text-amber-300">
-              🪙 {currentUser ? currentUser.coins.toLocaleString() : "—"} монет
+               {currentUser ? currentUser.coins.toLocaleString() : "—"} монет
             </div>
             {currentUser && (
               <div className="rounded-xl bg-[#060A17] border border-blue-500/40 px-3 py-1 text-xs font-bold text-blue-300">
-                🔷 {currentUser.hohlyantsi.toLocaleString()} хохл.
+                {currentUser.hohlyantsi.toLocaleString()} бонусів
               </div>
             )}
           </div>
@@ -1069,7 +1069,7 @@ export default function OnlinePage() {
         {/* Header */}
         <header className="mb-8 text-center">
           <div className="inline-block rounded-full border border-indigo-500/40 bg-indigo-950/30 px-4 py-1 text-xs text-indigo-300 font-bold mb-3">
-            ⚔️ ІНТЕРАКТИВНІ ОНЛАЙН ДУЕЛІ (TURN-BASED PVP)
+            Онлайн-дуелі PvP
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
             ОНЛАЙН АРЕНА
@@ -1105,8 +1105,8 @@ export default function OnlinePage() {
                 </span>
               </div>
               <div className="rounded-xl border border-amber-500/50 bg-amber-950/40 px-4 py-1.5 text-xs font-black text-amber-300">
-                💰 БАНК ДУЕЛІ: {liveBjMatch.pot.toLocaleString()}{" "}
-                {liveBjMatch.currency === "coins" ? "🪙 Монет" : "🔘 Бонусів"}
+                 БАНК ДУЕЛІ: {liveBjMatch.pot.toLocaleString()}{" "}
+                {liveBjMatch.currency === "coins" ? " монет" : "бонусів"}
               </div>
             </div>
 
@@ -1114,7 +1114,7 @@ export default function OnlinePage() {
             <div className="my-6 rounded-3xl border border-slate-800 bg-[#0b0e14]/80 p-5 text-center">
               <div className="flex items-center justify-between mb-3 text-xs">
                 <span className="font-bold text-slate-400 flex items-center gap-1.5">
-                  <span>👤 Опонент:</span>
+                  <span>Опонент:</span>
                   <span className="text-white font-black">{oppName}</span>
                 </span>
                 <span className="text-purple-400 font-bold">
@@ -1122,7 +1122,7 @@ export default function OnlinePage() {
                     ? `Сума: ${oppScore}`
                     : liveBjMatch.current_turn === (amIChallenger ? liveBjMatch.opponent_id : liveBjMatch.challenger_id)
                     ? "⏳ Робить хід..."
-                    : "✓ Чекає вашого ходу (карти закриті 🂠)"}
+                    : "✓ Чекає вашого ходу (карти закриті)"}
                 </span>
               </div>
 
@@ -1137,7 +1137,7 @@ export default function OnlinePage() {
               {liveBjMatch.status === "playing" ? (
                 isMyTurn ? (
                   <div className="inline-block rounded-2xl border-2 border-emerald-400 bg-emerald-950/70 px-6 py-2.5 text-base font-black text-emerald-300 uppercase shadow-[0_0_30px_rgba(16,185,129,0.4)] animate-pulse">
-                    ⚡ ВАШ ХІД! Оберіть: взяти ще карту чи зупинитися
+                     ВАШ ХІД! Оберіть: взяти ще карту чи зупинитися
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-3">
@@ -1162,13 +1162,13 @@ export default function OnlinePage() {
               ) : (
                 /* ФІНАЛЬНИЙ РЕЗУЛЬТАТ МАТЧУ */
                 <div className="rounded-3xl border-2 border-amber-500 bg-gradient-to-r from-amber-950/80 via-black to-amber-950/80 p-6 text-center shadow-[0_0_50px_rgba(245,158,11,0.4)]">
-                  <span className="text-4xl">🏆</span>
+                  <span className="text-4xl">MD</span>
                   <h3 className="mt-2 text-2xl font-black uppercase text-white">
                     {liveBjMatch.winner_id === currentUser?.id
-                      ? "🎉 ВИ ПЕРЕМОГЛИ В ДУЕЛІ!"
+                      ? "ВИ ПЕРЕМОГЛИ В ДУЕЛІ!"
                       : liveBjMatch.winner_id === null
-                      ? "🤝 НІЧИЯ! СТАВКИ ПОВЕРНЕНО"
-                      : `💀 ПЕРЕМІГ ${liveBjMatch.winner_name}!`}
+                      ? "Нічия. Ставки повернено"
+                      : `ПЕРЕМІГ ${liveBjMatch.winner_name}!`}
                   </h3>
                   <p className="mt-2 text-sm text-slate-300">
                     Ваші очки: <span className="text-cyan-400 font-bold">{myScore}</span> · Очки
@@ -1189,11 +1189,11 @@ export default function OnlinePage() {
             <div className="my-6 rounded-3xl border-2 border-cyan-800/50 bg-[#0d121c]/90 p-5 text-center">
               <div className="flex items-center justify-between mb-3 text-xs">
                 <span className="font-bold text-cyan-300 flex items-center gap-1.5">
-                  <span>🟢 Ви:</span>
+                  <span>Ви:</span>
                   <span className="text-white font-black">{currentUser?.username}</span>
                 </span>
                 <span className="rounded-lg bg-cyan-950/80 border border-cyan-500/50 px-3 py-1 font-black text-cyan-300 text-sm">
-                  СУМА КАРТ: {myScore} {myScore > 21 ? "(💥 ПЕРЕБІР!)" : myScore === 21 ? "(🔥 21!)" : ""}
+                  СУМА КАРТ: {myScore} {myScore > 21 ? "(Перебір очок)" : myScore === 21 ? "(Серія: 21!)" : ""}
                 </span>
               </div>
 
@@ -1212,7 +1212,7 @@ export default function OnlinePage() {
                   disabled={!isMyTurn || isActing}
                   className="h-16 w-full sm:w-60 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 border-b-4 border-emerald-900 font-sans text-base font-black uppercase tracking-wider text-white shadow-[0_10px_25px_rgba(16,185,129,0.3)] hover:brightness-110 active:translate-y-1 transition disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {isActing ? "..." : "🃏 ВЗЯТИ КАРТУ (HIT)"}
+                  {isActing ? "..." : " ВЗЯТИ КАРТУ (HIT)"}
                 </button>
 
                 <button
@@ -1221,7 +1221,7 @@ export default function OnlinePage() {
                   disabled={!isMyTurn || isActing}
                   className="h-16 w-full sm:w-60 rounded-2xl bg-gradient-to-r from-amber-600 to-yellow-500 border-b-4 border-amber-900 font-sans text-base font-black uppercase tracking-wider text-black shadow-[0_10px_25px_rgba(245,158,11,0.3)] hover:brightness-110 active:translate-y-1 transition disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {isActing ? "..." : "✋ ЗУПИНИТИСЯ (STAND)"}
+                  {isActing ? "..." : "Зупинитися"}
                 </button>
               </div>
             )}
@@ -1234,7 +1234,7 @@ export default function OnlinePage() {
         {activeDiceDuel && (
           <section className="mb-10 rounded-3xl border-4 border-red-800 bg-[#120d14] p-6 text-center animate-in zoom-in-95">
             <span className="text-xs font-black uppercase tracking-widest text-red-400 block mb-3">
-              🎲 РЕЗУЛЬТАТ ДУЕЛІ В КОСТІ
+               РЕЗУЛЬТАТ ДУЕЛІ В КОСТІ
             </span>
             <div className="grid grid-cols-2 gap-4 my-4">
               <div className="rounded-2xl border border-slate-700 bg-black/60 p-4">
@@ -1247,7 +1247,7 @@ export default function OnlinePage() {
               </div>
             </div>
             <div className="my-4 text-lg font-black text-amber-300">
-              {activeDiceDuel.winner_id ? `🏆 Переможець: ${activeDiceDuel.winner_name}!` : "🤝 Нічия!"}
+              {activeDiceDuel.winner_id ? `Переможець: ${activeDiceDuel.winner_name}!` : "Нічия"}
             </div>
             <button
               type="button"
@@ -1266,7 +1266,7 @@ export default function OnlinePage() {
           <section className="mb-10 space-y-3">
             <h2 className="text-xs font-bold uppercase tracking-widest text-amber-400 flex items-center gap-2">
               <span className="animate-ping inline-block h-2 w-2 rounded-full bg-amber-400" />
-              🔔 ВАМ ПРИЙШОВ ВИКЛИК НА ГРУ ({incomingInvites.length})
+              Вхідний виклик на гру ({incomingInvites.length})
             </h2>
             {incomingInvites.map((inv) => (
               <div
@@ -1275,13 +1275,13 @@ export default function OnlinePage() {
               >
                 <div>
                   <span className="text-xs font-black uppercase text-amber-300">
-                    {inv.game_type === "blackjack" ? "🃏 БЛЕКДЖЕК (ЖИВИЙ СТІЛ)" : "🎲 ДУЕЛЬ В КОСТІ"}
+                    {inv.game_type === "blackjack" ? " БЛЕКДЖЕК (ЖИВИЙ СТІЛ)" : " ДУЕЛЬ В КОСТІ"}
                   </span>
                   <div className="text-base font-bold text-white mt-1">
                     Гравець <span className="text-amber-400 font-black">{inv.challenger_name}</span> кличе вас грати!
                   </div>
                   <div className="text-xs text-slate-300 mt-1">
-                    Ставка: <span className="font-black text-white">{inv.stake} {inv.currency === "coins" ? "🪙 Монет" : "🔘 Бонусів"}</span>
+                    Ставка: <span className="font-black text-white">{inv.stake} {inv.currency === "coins" ? " монет" : "бонусів"}</span>
                   </div>
                 </div>
 
@@ -1292,7 +1292,7 @@ export default function OnlinePage() {
                     disabled={acceptingDuelId === inv.id}
                     className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 py-2.5 font-sans text-xs font-black uppercase tracking-wider text-white shadow-lg hover:from-emerald-500 hover:to-teal-400 transition"
                   >
-                    {acceptingDuelId === inv.id ? "Приймаємо..." : "⚔️ ПРИЙНЯТИ"}
+                    {acceptingDuelId === inv.id ? "Приймаємо..." : "Прийняти виклик"}
                   </button>
                   <button
                     type="button"
@@ -1357,7 +1357,7 @@ export default function OnlinePage() {
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 text-xl font-bold">
-                    {player.isBot ? "🤖" : "👤"}
+                    {player.isBot ? "Бот" : "Гравець"}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -1365,9 +1365,9 @@ export default function OnlinePage() {
                       <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
                     </div>
                     <div className="flex items-center gap-2 mt-1 text-xs">
-                      <span className="text-amber-400 font-bold">🪙 {player.coins.toLocaleString()}</span>
+                      <span className="text-amber-400 font-bold"> {player.coins.toLocaleString()}</span>
                       <span className="text-slate-400">·</span>
-                      <span className="text-slate-300 font-bold">🔘 {player.hohlyantsi} Б</span>
+                      <span className="text-slate-300 font-bold">{player.hohlyantsi} бонусів</span>
                     </div>
                   </div>
                 </div>
@@ -1377,7 +1377,7 @@ export default function OnlinePage() {
                   onClick={() => setIsChallenging(player)}
                   className="btn-interactive min-h-[44px] rounded-xl border border-cyan-500/60 bg-cyan-950/40 px-4 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-900/70 hover:text-white"
                 >
-                  ⚔️ Виклик
+                  Викликати
                 </button>
               </div>
             ))}
@@ -1390,7 +1390,7 @@ export default function OnlinePage() {
             <div className="w-full max-w-md rounded-3xl border-2 border-indigo-500/80 bg-[#0e121a] p-6 shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <h3 className="text-base font-bold text-white">
-                  ⚔️ ВИКЛИКАТИ: <span className="text-indigo-400">{isChallenging.username}</span>
+                  Викликати гравця: <span className="text-indigo-400">{isChallenging.username}</span>
                 </h3>
                 <button
                   type="button"
@@ -1416,7 +1416,7 @@ export default function OnlinePage() {
                         : "border-slate-800 bg-slate-900 text-slate-400"
                     }`}
                   >
-                    🃏 Блекджек (Стіл)
+                    Блекджек (Стіл)
                   </button>
                   <button
                     type="button"
@@ -1427,7 +1427,7 @@ export default function OnlinePage() {
                         : "border-slate-800 bg-slate-900 text-slate-400"
                     }`}
                   >
-                    🎲 Кості
+                    Кості
                   </button>
                 </div>
               </div>
@@ -1450,7 +1450,7 @@ export default function OnlinePage() {
                         : "border-slate-800 bg-slate-900 text-slate-400"
                     }`}
                   >
-                    🪙 Золоті Монети
+                     Золоті монети
                   </button>
                   <button
                     type="button"
@@ -1464,7 +1464,7 @@ export default function OnlinePage() {
                         : "border-slate-800 bg-slate-900 text-slate-400"
                     }`}
                   >
-                    🔘 Бонуси
+                    Бонуси
                   </button>
                 </div>
               </div>
@@ -1511,7 +1511,7 @@ export default function OnlinePage() {
                   disabled={isSubmitting}
                   className="w-2/3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 py-3 font-sans text-xs font-black uppercase text-white shadow-lg hover:from-indigo-500 hover:to-purple-500 transition active:scale-95 disabled:opacity-50"
                 >
-                  {isSubmitting ? "Надсилаємо..." : "🚀 Відправити приглос"}
+                  {isSubmitting ? "Надсилаємо..." : "Надіслати запрошення"}
                 </button>
               </div>
             </div>

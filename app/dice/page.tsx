@@ -275,18 +275,18 @@ export default function DicePage() {
 
           const isWin = Boolean(data.won);
           if (isWin) {
-            setDealerSpeech("ТОЧНО В ЦІЛЬ! Чудовий кидок долі, вітаю з виграшем!");
+            setDealerSpeech("Точний прогноз! Чудовий кидок, вітаю з виграшем!");
             setGameResult({
               win: true,
               payout: data.payout - bet,
-              message: `🎉 ПЕРЕМОГА! Сума ${data.sum} (${data.dice1}+${data.dice2}). Виплата: +${data.payout.toLocaleString()} монет!`,
+              message: `Перемога! Сума ${data.sum} (${data.dice1} + ${data.dice2}). Виплата: +${data.payout.toLocaleString()} монет`,
             });
           } else {
-            setDealerSpeech("Цього разу кістки випали інакше. Допивай колу і кидай знову!");
+            setDealerSpeech("Цього разу випала інша сума. Спробуйте змінити ставку.");
             setGameResult({
               win: false,
               payout: 0,
-              message: `💀 Програш. Випало ${data.sum} (${data.dice1}+${data.dice2}). Спробуй ще раз!`,
+              message: `Не випало. Сума ${data.sum} (${data.dice1} + ${data.dice2}). Спробуйте ще раз.`,
             });
           }
 
@@ -337,8 +337,8 @@ export default function DicePage() {
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
           <div className="flex items-center gap-3">
             <Link href="/" className="group flex items-center gap-2.5 transition">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 font-black text-black shadow-md shadow-orange-500/30">
-                🏆
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 font-black text-xs text-black shadow-md shadow-orange-500/30">
+                MD
               </div>
               <span className="font-black text-base tracking-[0.16em] uppercase text-white group-hover:text-orange-400 transition">
                 MATCHDAY
@@ -346,27 +346,27 @@ export default function DicePage() {
             </Link>
             <span className="text-[var(--text-secondary)]/50">/</span>
             <span className="text-xs font-semibold text-orange-400">
-              🎲 Dice: Roll of Fate
+              Кості
             </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/dashboard" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              🏠 Дашборд
+              Дашборд
             </Link>
             <Link href="/leagues" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              ⚽ Ліги
+              Ліги
             </Link>
             <Link href="/blackjack" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              🃏 Блекджек
+              Блекджек
             </Link>
             <Link href="/wheel" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              🎡 Колесо
+              Колесо
             </Link>
 
             {balance !== null && (
               <div className="ml-2 flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/40 px-3 py-1.5 text-xs font-black text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
-                <span>🪙</span>
+                <span className="text-[10px] uppercase tracking-wider text-amber-400/80 font-bold">Баланс:</span>
                 <span>{balance.toLocaleString()} монет</span>
               </div>
             )}
@@ -420,8 +420,8 @@ export default function DicePage() {
 
           {/* 1. ДВІ ВЕЛИКІ 3D-КІСТКИ В ЦЕНТРІ */}
           <div className="relative z-10 flex flex-col items-center">
-            <span className="text-xs font-black uppercase tracking-widest text-orange-400/80 mb-6">
-              🎲 Центральна зона кидка
+            <span className="text-xs font-bold uppercase tracking-widest text-orange-400/80 mb-6">
+              Центральна зона кидка
             </span>
 
             <div className="flex items-center justify-center gap-6 sm:gap-10 mb-6">
@@ -439,8 +439,8 @@ export default function DicePage() {
                 {isRolling ? "..." : currentSum}
               </span>
               {!isRolling && dice1 === dice2 && (
-                <span className="ml-2 rounded bg-orange-500/20 border border-orange-500/50 px-2 py-0.5 text-[10px] font-black text-orange-300 uppercase">
-                  ДУБЛЬ!
+                <span className="ml-2 rounded bg-orange-500/20 border border-orange-500/50 px-2 py-0.5 text-[10px] font-bold text-orange-300 uppercase">
+                  Дубль
                 </span>
               )}
             </div>
@@ -450,7 +450,7 @@ export default function DicePage() {
               <div className="mt-5 animate-fade-in">
                 {gameResult.win ? (
                   <div className="rounded-xl border border-emerald-500/50 bg-emerald-950/80 px-6 py-2.5 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-                    <span className="text-sm font-black text-emerald-300">
+                    <span className="text-sm font-bold text-emerald-300">
                       {gameResult.message}
                     </span>
                   </div>
@@ -470,9 +470,9 @@ export default function DicePage() {
                 type="button"
                 disabled={isRolling}
                 onClick={() => void handleRollDice()}
-                className="btn-orange text-base sm:text-lg font-black uppercase tracking-wider py-4 px-12 rounded-full shadow-[0_8px_30px_rgba(255,122,36,0.55)] transition-all hover:scale-105 active:scale-95 disabled:opacity-60"
+                className="btn-orange text-base sm:text-lg font-bold uppercase tracking-wider py-4 px-12 rounded-full shadow-[0_8px_30px_rgba(255,122,36,0.55)] transition-all hover:scale-105 active:scale-95 disabled:opacity-60"
               >
-                {isRolling ? "🎲 Кубики летять..." : "🎲 КИНУТИ КУБИКИ (ROLL DICE)"}
+                {isRolling ? "Кубики котяться..." : "Кинути кубики"}
               </button>
             </div>
           </div>
@@ -596,8 +596,8 @@ export default function DicePage() {
             ==================================================================== */}
         <section className="matchday-card p-6">
           <div className="mb-4 flex items-center justify-between border-b border-[var(--border)] pb-3">
-            <h3 className="text-xs font-black uppercase text-amber-300 tracking-wider flex items-center gap-2">
-              <span>📜</span> Історія останніх кидків долі
+            <h3 className="text-xs font-bold uppercase text-amber-300 tracking-wider">
+              Історія останніх кидків
             </h3>
             <span className="text-xs text-[var(--text-secondary)]">
               Останні {rollHistory.length} раундів
@@ -611,7 +611,7 @@ export default function DicePage() {
                 className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[#070b14] p-3 text-xs"
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-base font-black text-white">
+                  <span className="font-mono text-base font-bold text-white">
                     {item.dice1} + {item.dice2}
                   </span>
                   <span className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-slate-300">
@@ -621,11 +621,11 @@ export default function DicePage() {
 
                 <div className="text-right">
                   <span
-                    className={`font-black text-xs block ${
+                    className={`font-bold text-xs block ${
                       item.won ? "text-emerald-400" : "text-rose-400"
                     }`}
                   >
-                    {item.won ? `+${item.payout} 🪙` : "0 🪙"}
+                    {item.won ? `+${item.payout} монет` : "0"}
                   </span>
                   <span className="text-[9px] text-[var(--text-secondary)]">
                     {BET_LABELS[item.bet].split(" ")[0]}
@@ -639,14 +639,14 @@ export default function DicePage() {
         {/* Зала слави Костей */}
         {leaderboard.length > 0 && (
           <section className="matchday-card mt-8 p-6">
-            <h3 className="text-sm font-black uppercase text-amber-300 tracking-wider mb-4 flex items-center gap-2">
-              <span>🏆</span> Зала слави Костей Matchday
+            <h3 className="text-xs font-bold uppercase text-amber-300 tracking-wider mb-4">
+              Таблиця лідерів костей
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs font-mono">
                 <thead className="border-b border-[var(--border)] text-[var(--text-secondary)]">
                   <tr>
-                    <th className="pb-2">#</th>
+                    <th className="pb-2">Позиція</th>
                     <th className="pb-2">Гравець</th>
                     <th className="pb-2 text-right">Баланс монет</th>
                   </tr>
@@ -655,11 +655,11 @@ export default function DicePage() {
                   {leaderboard.slice(0, 5).map((entry, idx) => (
                     <tr key={entry.username} className="hover:bg-slate-800/20">
                       <td className="py-2.5 font-bold text-slate-400">
-                        {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`}
+                        #{idx + 1}
                       </td>
                       <td className="py-2.5 font-bold text-white">{entry.username}</td>
                       <td className="py-2.5 text-right font-black text-amber-300">
-                        {entry.coins.toLocaleString()} 🪙
+                        {entry.coins.toLocaleString()} монет
                       </td>
                     </tr>
                   ))}

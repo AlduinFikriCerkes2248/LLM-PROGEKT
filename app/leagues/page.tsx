@@ -277,31 +277,31 @@ export default function LeaguesPage() {
               href="/online"
               className="rounded-xl border border-[#0297DE]/40 bg-[#0A1430] hover:bg-[#121e3d] hover:border-[#0297DE] px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition shadow-[0_0_12px_rgba(2,151,222,0.15)]"
             >
-              🌐 Онлайн PvP
+              Онлайн PvP
             </Link>
             <Link
               href="/wheel"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#FC7340]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🎡 Колесо фортуни
+              Колесо фортуни
             </Link>
             <Link
               href="/cases"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🎁 Кейси та квести
+              Кейси та квести
             </Link>
             <Link
               href="/blackjack"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🃏 Блекджек
+              Блекджек
             </Link>
             <Link
               href="/dice"
               className="rounded-xl border border-[#162544] bg-[#0A1430] hover:border-[#0297DE]/60 px-3.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white transition"
             >
-              🎲 Кості
+              Кості
             </Link>
           </div>
         </div>
@@ -332,11 +332,11 @@ export default function LeaguesPage() {
         <div className="mb-10 grid gap-6 sm:grid-cols-2">
           {/* Create League */}
           <section className="bg-[#0A1430]/95 border border-[#162544] hover:border-[#0297DE]/50 rounded-2xl p-6 sm:p-7 shadow-2xl backdrop-blur-xl transition-all">
-            <h2 className="mb-2 flex items-center gap-2 text-base font-bold text-white">
-              <span className="text-[#FC7340]">➕</span> СТВОРИТИ ЛІГУ
+            <h2 className="mb-2 text-base font-bold text-white">
+              Створити лігу
             </h2>
             <p className="mb-4 text-xs text-slate-400">
-              Створи свою лігу для друзів та отримуй код запрошення.
+              Створіть свою лігу для друзів та отримайте код запрошення.
             </p>
             <form onSubmit={handleCreateLeague} className="space-y-3.5">
               <input
@@ -368,11 +368,11 @@ export default function LeaguesPage() {
 
           {/* Join League */}
           <section className="bg-[#0A1430]/95 border border-[#162544] hover:border-[#0297DE]/50 rounded-2xl p-6 sm:p-7 shadow-2xl backdrop-blur-xl transition-all">
-            <h2 className="mb-2 flex items-center gap-2 text-base font-bold text-white">
-              <span className="text-[#0297DE]">🔑</span> ПРИЄДНАТИСЯ ЗА КОДОМ
+            <h2 className="mb-2 text-base font-bold text-white">
+              Приєднатися за кодом
             </h2>
             <p className="mb-4 text-xs text-slate-400">
-              Введи код ліги, яким з тобою поділився організатор.
+              Введіть код ліги, яким з вами поділився організатор.
             </p>
             <form onSubmit={handleJoinLeague} className="space-y-3.5">
               <input
@@ -405,14 +405,14 @@ export default function LeaguesPage() {
         <section className="bg-[#0A1430]/95 border border-[#162544] rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-[#162544] pb-4">
             <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-              <span className="text-[#0297DE]">🏆</span> ДОСТУПНІ ЛІГИ ({leagues.length})
+              <span className="text-[#0297DE]">MD</span> ДОСТУПНІ ЛІГИ ({leagues.length})
             </h2>
             <span className="text-xs text-slate-400">[ Оберіть лігу для прогнозів ]</span>
           </div>
 
           {isLoading ? (
             <p className="py-8 text-center text-slate-400 animate-pulse">
-              ⚡ Завантаження ліг...
+               Завантаження ліг...
             </p>
           ) : loadError ? (
             <p className="text-center text-sm text-rose-400">{loadError}</p>
@@ -431,7 +431,7 @@ export default function LeaguesPage() {
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#0297DE]/30 bg-[#0A1430] text-2xl shadow-inner group-hover:scale-110 transition-transform">
-                      ⚽
+                      
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-white group-hover:text-[#0297DE] transition-colors">

@@ -793,7 +793,7 @@ export default function LeagueDetailsPage() {
               className="group flex items-center gap-2.5 transition"
             >
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 font-black text-black shadow-md shadow-cyan-500/30">
-                🏆
+                MD
               </div>
               <span className="font-black text-base tracking-[0.16em] uppercase text-white group-hover:text-cyan-400 transition">
                 MATCHDAY
@@ -814,38 +814,38 @@ export default function LeagueDetailsPage() {
               href="/online"
               className="btn-ghost text-xs py-1.5 px-3 rounded-lg"
             >
-              🌐 Онлайн PvP
+              Онлайн PvP
             </Link>
             <Link
               href="/wheel"
               className="btn-ghost text-xs py-1.5 px-3 rounded-lg"
             >
-              🎡 Колесо
+              Колесо
             </Link>
             <Link
               href="/cases"
               className="btn-ghost text-xs py-1.5 px-3 rounded-lg"
             >
-              🎁 Кейси
+              Кейси
             </Link>
             <Link
               href="/blackjack"
               className="btn-ghost text-xs py-1.5 px-3 rounded-lg"
             >
-              🃏 Блекджек
+              Блекджек
             </Link>
             <Link
               href="/dice"
               className="btn-ghost text-xs py-1.5 px-3 rounded-lg"
             >
-              🎲 Кості
+              Кості
             </Link>
 
             {/* Баланс монет у шапці */}
             {details?.currentBalance !== null &&
               details?.currentBalance !== undefined && (
                 <div className="ml-2 flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/40 px-3 py-1.5 text-xs font-black text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
-                  <span>🪙</span>
+                  <span></span>
                   <span>{details.currentBalance.toLocaleString()}</span>
                 </div>
               )}
@@ -862,8 +862,8 @@ export default function LeagueDetailsPage() {
           </div>
         ) : notFound ? (
           <div className="matchday-card mx-auto mt-12 max-w-lg p-10 text-center">
-            <span className="text-5xl">🔍</span>
-            <h1 className="mt-4 text-2xl font-black text-white">
+            <div className="text-4xl font-mono font-bold text-cyan-400 mb-2">404</div>
+            <h1 className="mt-2 text-2xl font-black text-white">
               ЛІГУ НЕ ЗНАЙДЕНО
             </h1>
             <p className="mt-2 text-xs text-[var(--text-secondary)]">
@@ -928,12 +928,12 @@ export default function LeagueDetailsPage() {
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                 <div>
                   <div className="flex flex-wrap items-center gap-2.5 mb-2">
-                    <span className="badge-scheduled">⚽ Ліга прогнозів</span>
+                    <span className="badge-scheduled">Ліга прогнозів</span>
                     <span className="rounded-md border border-[var(--border)] bg-[#0d1522] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--text-secondary)]">
-                      👥 {details.members.length} учасників
+                      {details.members.length} учасників
                     </span>
                     <span className="rounded-md border border-[var(--border)] bg-[#0d1522] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--text-secondary)]">
-                      📅 {details.matches.length} матчів
+                      {details.matches.length} матчів
                     </span>
                   </div>
 
@@ -942,7 +942,7 @@ export default function LeagueDetailsPage() {
                   </h1>
 
                   <p className="mt-2 text-xs text-[var(--text-secondary)] flex items-center gap-1.5">
-                    <span>👑 Організатор:</span>
+                    <span>Організатор:</span>
                     <span className="font-bold text-white">
                       {details.owner?.username ?? "Організатор"}
                     </span>
@@ -972,7 +972,7 @@ export default function LeagueDetailsPage() {
                       className="btn-cyan text-xs py-1.5 px-3 rounded-lg"
                       title="Скопіювати код запрошення"
                     >
-                      📋 Копіювати
+                      Копіювати
                     </button>
                   </div>
 
@@ -983,7 +983,7 @@ export default function LeagueDetailsPage() {
                       onClick={() => setIsAddMatchModalOpen(true)}
                       className="btn-orange text-xs py-2 px-4 rounded-xl flex items-center gap-1.5 shadow-lg"
                     >
-                      <span>➕</span> Додати матч
+                      Додати матч
                     </button>
                   )}
                 </div>
@@ -1052,7 +1052,7 @@ export default function LeagueDetailsPage() {
                 {/* Порожній стан */}
                 {filteredMatches.length === 0 ? (
                   <div className="matchday-card p-12 text-center">
-                    <span className="text-4xl">⚽</span>
+                    <span className="text-4xl"></span>
                     <h3 className="mt-3 text-base font-bold text-white">
                       {matchFilter === "all"
                         ? "У цій лізі поки немає матчів"
@@ -1071,7 +1071,7 @@ export default function LeagueDetailsPage() {
                         onClick={() => setIsAddMatchModalOpen(true)}
                         className="btn-cyan mt-4 text-xs"
                       >
-                        ➕ Додати перший матч
+                        Додати перший матч
                       </button>
                     )}
                   </div>
@@ -1130,7 +1130,7 @@ export default function LeagueDetailsPage() {
                               )}
                             </div>
                             <div className="flex items-center gap-1.5 text-[var(--text-secondary)] font-medium">
-                              <span>🕒</span>
+                              
                               <span>{formatMatchTime(match.match_time)}</span>
                             </div>
                           </div>
@@ -1176,7 +1176,7 @@ export default function LeagueDetailsPage() {
                             <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border)]/60 pt-3 text-xs text-[var(--text-secondary)]">
                               <div className="flex flex-wrap items-center gap-3">
                                 <span>
-                                  📊 Прогнозів:{" "}
+                                  Прогнозів:{" "}
                                   <strong className="text-white">
                                     {
                                       details.predictions.filter(
@@ -1187,7 +1187,7 @@ export default function LeagueDetailsPage() {
                                 </span>
                                 {totalPool > 0 && (
                                   <span>
-                                    🪙 Пул:{" "}
+                                     Пул:{" "}
                                     <strong className="text-amber-300">
                                       {totalPool} монет
                                     </strong>
@@ -1198,16 +1198,16 @@ export default function LeagueDetailsPage() {
                               <div className="flex flex-wrap items-center gap-2">
                                 {ownPrediction && (
                                   <span className="rounded-full border border-emerald-500/40 bg-emerald-950/40 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
-                                    🎯 Ваш прогноз:{" "}
+                                    Ваш прогноз:{" "}
                                     {ownPrediction.predicted_home_score} :{" "}
                                     {ownPrediction.predicted_away_score}
                                   </span>
                                 )}
                                 {ownBet && (
                                   <span className="rounded-full border border-amber-500/40 bg-amber-950/40 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
-                                    💰 Ставка:{" "}
+                                    Ставка:{" "}
                                     {getBetPickLabel(ownBet.pick, match)} (
-                                    {ownBet.stake} 🪙)
+                                    {ownBet.stake} )
                                   </span>
                                 )}
                               </div>
@@ -1217,7 +1217,7 @@ export default function LeagueDetailsPage() {
                             {match.venue && match.venue !== "Головна арена" && (
                               <div className="mt-3.5 rounded-xl border border-indigo-500/40 bg-gradient-to-r from-indigo-950/30 via-[#0d1522] to-cyan-950/30 p-3.5 text-xs">
                                 <div className="flex items-center gap-1.5 font-bold text-indigo-300 mb-1">
-                                  <span>🤖</span> ШІ-аналітика матчу (Gemini):
+                                  ШІ-аналітика матчу (Gemini):
                                 </div>
                                 <p className="text-slate-200 leading-relaxed font-sans">
                                   {match.venue}
@@ -1240,7 +1240,7 @@ export default function LeagueDetailsPage() {
                                       : "border border-emerald-500/40 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-900/50"
                                   }`}
                                 >
-                                  <span>🎯</span>
+                                  <span></span>
                                   {ownPrediction
                                     ? "Змінити прогноз"
                                     : "Зробити прогноз"}
@@ -1258,7 +1258,7 @@ export default function LeagueDetailsPage() {
                                       : "border border-amber-500/40 bg-amber-950/30 text-amber-300 hover:bg-amber-900/50"
                                   }`}
                                 >
-                                  <span>💰</span>
+                                  <span></span>
                                   {ownBet ? "Ваша ставка" : "Ставка монет"}
                                 </button>
                               )}
@@ -1274,7 +1274,7 @@ export default function LeagueDetailsPage() {
                                       : "border border-indigo-500/40 bg-indigo-950/30 text-indigo-300 hover:bg-indigo-900/50"
                                   }`}
                                 >
-                                  <span>✨</span> ШІ-аналітика
+                                  <span></span> ШІ-аналітика
                                 </button>
                               )}
 
@@ -1289,7 +1289,7 @@ export default function LeagueDetailsPage() {
                                       : "btn-ghost"
                                   }`}
                                 >
-                                  <span>👥</span> Прогнози (
+                                  <span></span> Прогнози (
                                   {visiblePredictions.length})
                                 </button>
                               )}
@@ -1305,7 +1305,7 @@ export default function LeagueDetailsPage() {
                                       : "border border-slate-700 bg-slate-900/80 text-slate-300 hover:text-white"
                                   }`}
                                 >
-                                  <span>⚙️</span> Керування
+                                  <span>️</span> Керування
                                 </button>
                               )}
                             </div>
@@ -1379,7 +1379,7 @@ export default function LeagueDetailsPage() {
                                   >
                                     {busyAction === `prediction-${match.id}`
                                       ? "Збереження..."
-                                      : "✓ Підтвердити прогноз"}
+                                      : "Підтвердити прогноз"}
                                   </button>
                                 </div>
                               </form>
@@ -1458,7 +1458,7 @@ export default function LeagueDetailsPage() {
                                               <strong className="text-amber-300">
                                                 {pickPool}
                                               </strong>{" "}
-                                              🪙
+                                              
                                             </div>
                                             <div className="text-[10px] text-cyan-400 font-bold">
                                               Множник: {multiplier}
@@ -1544,7 +1544,7 @@ export default function LeagueDetailsPage() {
                               <div className="mt-4 rounded-xl border border-indigo-500/40 bg-[#070b14]/90 p-4 animate-fade-in">
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-                                    <span>✨</span> ШІ-аналітика Gemini
+                                    <span></span> ШІ-аналітика Gemini
                                   </span>
                                   <button
                                     type="button"
@@ -1582,7 +1582,7 @@ export default function LeagueDetailsPage() {
                                       type="submit"
                                       className="btn-cyan text-xs shrink-0 flex items-center gap-1.5"
                                     >
-                                      <span>✨</span> Згенерувати ШІ-прев&apos;ю
+                                      <span></span> Згенерувати ШІ-прев&apos;ю
                                     </button>
                                   </div>
                                 </ActionForm>
@@ -1663,7 +1663,7 @@ export default function LeagueDetailsPage() {
                                                 "Гравець"}
                                             </span>
                                             <span className="font-bold text-amber-400">
-                                              {bet.stake} 🪙 (
+                                              {bet.stake}  (
                                               {getBetPickLabel(
                                                 bet.pick,
                                                 match,
@@ -1752,7 +1752,7 @@ export default function LeagueDetailsPage() {
                                       >
                                         {busyAction === `result-${match.id}`
                                           ? "Збереження..."
-                                          : "🏁 Зафіксувати"}
+                                          : "Зафіксувати результат"}
                                       </button>
                                     </div>
                                   </form>
@@ -1795,7 +1795,7 @@ export default function LeagueDetailsPage() {
                                     }
                                     className="rounded-lg border border-rose-800/80 bg-rose-950/40 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-900/60 transition"
                                   >
-                                    ✕ Видалити матч
+                                    Видалити матч
                                   </button>
                                 </div>
                               </div>
@@ -1831,8 +1831,8 @@ export default function LeagueDetailsPage() {
                           </div>
                           <span className="text-[11px] text-[var(--text-secondary)]">
                             {currentUserMember.role === "owner"
-                              ? "👑 Організатор"
-                              : "⚽ Учасник ліги"}
+                              ? "Організатор"
+                              : "Учасник ліги"}
                           </span>
                         </div>
                       </div>
@@ -1873,7 +1873,7 @@ export default function LeagueDetailsPage() {
                 <div className="matchday-card p-5">
                   <div className="mb-4 flex items-center justify-between border-b border-[var(--border)] pb-3">
                     <h2 className="text-sm font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <span>🏆</span> Таблиця лідерів
+                      <span>MD</span> Таблиця лідерів
                     </h2>
                     <span className="text-xs text-[var(--text-secondary)] font-bold">
                       {details.members.length} гравців
@@ -1890,11 +1890,11 @@ export default function LeagueDetailsPage() {
                         const isMe = member.user_id === currentUserId;
                         const medal =
                           idx === 0
-                            ? "🥇"
+                            ? "#1"
                             : idx === 1
-                              ? "🥈"
+                              ? "#2"
                               : idx === 2
-                                ? "🥉"
+                                ? "#3"
                                 : null;
 
                         return (
@@ -1949,7 +1949,7 @@ export default function LeagueDetailsPage() {
                 {/* Блок правил нарахування очок */}
                 <div className="matchday-panel p-5 text-xs space-y-2.5">
                   <span className="text-[11px] font-black uppercase text-white tracking-wider block">
-                    📜 Правила турніру ліги
+                    Правила турніру ліги
                   </span>
                   <div className="space-y-1.5 text-[var(--text-secondary)]">
                     <p className="flex items-start gap-1.5">
@@ -1961,7 +1961,7 @@ export default function LeagueDetailsPage() {
                       <span>— за вгаданий підсумок (переможець або нічия).</span>
                     </p>
                     <p className="flex items-start gap-1.5">
-                      <span className="text-amber-400 font-bold">🪙 Ставки</span>
+                      <span className="text-amber-400 font-bold"> Ставки</span>
                       <span>
                         — виграш пропорційно до вашої частки у переможному пулі.
                       </span>
@@ -1989,7 +1989,7 @@ export default function LeagueDetailsPage() {
                       >
                         {busyAction === "delete-league"
                           ? "Видалення ліги..."
-                          : "🗑️ Видалити лігу назавжди"}
+                          : "Видалити лігу назавжди"}
                       </button>
                     ) : (
                       <button
@@ -2000,7 +2000,7 @@ export default function LeagueDetailsPage() {
                       >
                         {busyAction === "leave-league"
                           ? "Вихід..."
-                          : "🚪 Покинути лігу"}
+                          : "Покинути лігу"}
                       </button>
                     )}
                   </div>
@@ -2018,7 +2018,7 @@ export default function LeagueDetailsPage() {
                 <div className="matchday-card w-full max-w-lg p-6 sm:p-8 border-cyan-500/40 shadow-2xl relative">
                   <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 mb-5">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">⚽</span>
+                      <span className="text-xl"></span>
                       <h2 className="text-lg font-black text-white uppercase tracking-wider">
                         Додати матч у лігу
                       </h2>
@@ -2117,7 +2117,7 @@ export default function LeagueDetailsPage() {
                       >
                         {busyAction === "add-match"
                           ? "Додаємо..."
-                          : "⚽ Створити матч"}
+                          : "Створити матч"}
                       </button>
                     </div>
                   </form>

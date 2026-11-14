@@ -11,11 +11,11 @@ import {
 
 const prizes = [10, 20, 50, 100, 500] as const;
 const wheelSectors = [
-  { prize: 10, label: "10 🪙", color: "#08BFEA", bgGradient: "from-cyan-500/30 to-cyan-700/20", title: "Стандарт" },
-  { prize: 20, label: "20 🪙", color: "#FF7A24", bgGradient: "from-orange-500/30 to-orange-700/20", title: "Подвійний" },
-  { prize: 50, label: "50 🪙", color: "#10B981", bgGradient: "from-emerald-500/30 to-emerald-700/20", title: "Везунчик" },
-  { prize: 100, label: "100 🪙", color: "#8B5CF6", bgGradient: "from-purple-500/30 to-purple-700/20", title: "Епічний" },
-  { prize: 500, label: "500 🪙", color: "#F59E0B", bgGradient: "from-amber-500/30 to-amber-700/20", title: "ДЖЕКПОТ ★" },
+  { prize: 10, label: "10", color: "#08BFEA", bgGradient: "from-cyan-500/30 to-cyan-700/20", title: "Стандарт" },
+  { prize: 20, label: "20", color: "#FF7A24", bgGradient: "from-orange-500/30 to-orange-700/20", title: "Подвійний" },
+  { prize: 50, label: "50", color: "#10B981", bgGradient: "from-emerald-500/30 to-emerald-700/20", title: "Везунчик" },
+  { prize: 100, label: "100", color: "#8B5CF6", bgGradient: "from-purple-500/30 to-purple-700/20", title: "Епічний" },
+  { prize: 500, label: "500", color: "#F59E0B", bgGradient: "from-amber-500/30 to-amber-700/20", title: "Джекпот" },
 ] as const;
 
 const wheelColors = ["#08BFEA", "#FF7A24", "#10B981", "#8B5CF6", "#F59E0B"];
@@ -174,7 +174,7 @@ export default function WheelPage() {
     setIsSpinning(false);
     if (pendingPrize !== null) {
       setWinningPrize(pendingPrize);
-      setMessage(`🎉 Ви виграли +${pendingPrize} монет!`);
+      setMessage(`Ви виграли +${pendingPrize} монет!`);
       if (balance !== null) {
         setBalance((prev) => (prev !== null ? prev + pendingPrize : pendingPrize));
       }
@@ -200,8 +200,8 @@ export default function WheelPage() {
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
           <div className="flex items-center gap-3">
             <Link href="/" className="group flex items-center gap-2.5 transition">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 font-black text-black shadow-md shadow-amber-500/30">
-                🏆
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 font-black text-xs text-black shadow-md shadow-amber-500/30">
+                MD
               </div>
               <span className="font-black text-base tracking-[0.16em] uppercase text-white group-hover:text-amber-400 transition">
                 MATCHDAY
@@ -209,33 +209,33 @@ export default function WheelPage() {
             </Link>
             <span className="text-[var(--text-secondary)]/50">/</span>
             <span className="text-xs font-semibold text-amber-300">
-              🎡 Колесо фортуни
+              Колесо фортуни
             </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/dashboard" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              🏠 Дашборд
+              Дашборд
             </Link>
             <Link href="/leagues" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              ⚽ Ліги
+              Ліги
             </Link>
             <Link href="/online" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              🌐 Онлайн PvP
+              Онлайн PvP
             </Link>
             <Link href="/cases" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              🎁 Кейси
+              Кейси
             </Link>
             <Link href="/blackjack" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              🃏 Блекджек
+              Блекджек
             </Link>
             <Link href="/dice" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              🎲 Кості
+              Кості
             </Link>
 
             {balance !== null && (
               <div className="ml-2 flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/40 px-3 py-1.5 text-xs font-black text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
-                <span>🪙</span>
+                <span className="text-[10px] uppercase tracking-wider text-amber-400/80 font-bold">Баланс:</span>
                 <span>{balance.toLocaleString()} монет</span>
               </div>
             )}
@@ -316,7 +316,7 @@ export default function WheelPage() {
                         dominantBaseline="central"
                         transform={`rotate(${midAngle + 90}, ${textPos.x}, ${textPos.y})`}
                       >
-                        {prize} 🪙
+                        {prize}
                       </text>
                     </g>
                   );
@@ -332,16 +332,8 @@ export default function WheelPage() {
                   strokeWidth="4"
                   className="shadow-inner"
                 />
-                <circle cx="160" cy="160" r="24" fill="#0d1522" />
-                <text
-                  x="160"
-                  y="160"
-                  fontSize="18"
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                >
-                  ⚽
-                </text>
+                <circle cx="160" cy="160" r="22" fill="#0d1522" />
+                <circle cx="160" cy="160" r="8" fill="#f59e0b" />
               </svg>
             </div>
           </div>
@@ -350,7 +342,7 @@ export default function WheelPage() {
           {winningPrize !== null && (
             <div className="mb-6 animate-fade-in inline-block rounded-2xl border-2 border-amber-400 bg-amber-950/80 px-8 py-3.5 shadow-[0_0_30px_rgba(245,158,11,0.5)]">
               <span className="text-xl sm:text-2xl font-black uppercase text-amber-300 block">
-                🎉 ВИТЯГНУТО {winningPrize} МОНЕТ!
+                Виграно {winningPrize} монет
               </span>
               <span className="text-xs font-bold text-amber-200">
                 Бонус успішно нараховано на ваш баланс.
@@ -370,14 +362,14 @@ export default function WheelPage() {
               type="button"
               onClick={handleSpin}
               disabled={isChecking || isSpinning || canSpin !== true}
-              className="btn-orange text-base font-black uppercase tracking-wider py-4 px-12 rounded-full shadow-[0_8px_30px_rgba(255,122,36,0.5)] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-orange text-base font-bold uppercase tracking-wider py-4 px-12 rounded-full shadow-[0_8px_30px_rgba(255,122,36,0.5)] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isChecking
                 ? "Перевірка доступу..."
                 : isSpinning
-                  ? "⚡ Колесо обертається..."
+                  ? "Колесо обертається..."
                   : canSpin
-                    ? "⚡ КРУТИТИ КОЛЕСО (СПІН)"
+                    ? "Крутити колесо"
                     : "Сьогодні вже крутили"}
             </button>
           </div>
@@ -385,8 +377,8 @@ export default function WheelPage() {
 
         {/* СІТКА СЕКТОРІВ ТА ПРИЗІВ */}
         <section className="matchday-card p-6">
-          <h3 className="text-xs font-black uppercase text-amber-300 tracking-wider mb-4 flex items-center gap-2">
-            <span>🎁</span> Сектори та винагороди колеса
+          <h3 className="text-xs font-bold uppercase text-amber-300 tracking-wider mb-4">
+            Сектори та винагороди колеса
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {wheelSectors.map((sec) => (
@@ -399,7 +391,7 @@ export default function WheelPage() {
                   style={{ backgroundColor: sec.color, boxShadow: `0 0 8px ${sec.color}` }}
                 />
                 <span className="font-mono text-base font-black text-white">
-                  +{sec.prize} 🪙
+                  +{sec.prize}
                 </span>
                 <span className="text-[10px] text-[var(--text-secondary)] font-bold mt-0.5">
                   {sec.title}

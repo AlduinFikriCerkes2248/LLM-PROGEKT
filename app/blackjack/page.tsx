@@ -524,8 +524,8 @@ export default function BlackjackPage() {
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
           <div className="flex items-center gap-3">
             <Link href="/" className="group flex items-center gap-2.5 transition">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 font-black text-black shadow-md shadow-cyan-500/30">
-                🏆
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 font-black text-xs text-black shadow-md shadow-cyan-500/30">
+                MD
               </div>
               <span className="font-black text-base tracking-[0.16em] uppercase text-white group-hover:text-cyan-400 transition">
                 MATCHDAY
@@ -533,27 +533,27 @@ export default function BlackjackPage() {
             </Link>
             <span className="text-[var(--text-secondary)]/50">/</span>
             <span className="text-xs font-semibold text-cyan-300">
-              🃏 Night Table Blackjack
+              Блекджек
             </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/dashboard" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              🏠 Дашборд
+              Дашборд
             </Link>
             <Link href="/leagues" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              ⚽ Ліги
+              Ліги
             </Link>
             <Link href="/dice" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              🎲 Кості
+              Кості
             </Link>
             <Link href="/wheel" className="btn-ghost text-xs py-1.5 px-3 rounded-lg">
-              🎡 Колесо
+              Колесо
             </Link>
 
             {balance !== null && (
               <div className="ml-2 flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/40 px-3 py-1.5 text-xs font-black text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
-                <span>🪙</span>
+                <span className="text-[10px] uppercase tracking-wider text-amber-400/80 font-bold">Баланс:</span>
                 <span>{balance.toLocaleString()} монет</span>
               </div>
             )}
@@ -572,8 +572,8 @@ export default function BlackjackPage() {
                     {currentLevelInfo.title}
                   </span>
                   {winStreak > 1 && (
-                    <span className="rounded-full bg-orange-500/20 border border-orange-500/50 px-2 py-0.5 text-[10px] font-black text-orange-400">
-                      🔥 {winStreak} в ряд
+                    <span className="rounded-full bg-orange-500/20 border border-orange-500/50 px-2.5 py-0.5 text-[10px] font-bold text-orange-400">
+                      Серія перемог: {winStreak}
                     </span>
                   )}
                 </div>
@@ -646,10 +646,10 @@ export default function BlackjackPage() {
               {game.result === "blackjack" && (
                 <div className="inline-block rounded-2xl border-2 border-amber-400 bg-amber-950/80 px-6 py-3 shadow-[0_0_30px_rgba(245,158,11,0.5)]">
                   <span className="text-xl sm:text-2xl font-black uppercase text-amber-300 block">
-                    🏆 BLACKJACK! НАТУРАЛЬНІ 21!
+                    Блекджек — 21 очко
                   </span>
                   <span className="text-xs font-bold text-amber-200">
-                    Виплата: +{game.payout.toLocaleString()} монет!
+                    Виплата: +{game.payout.toLocaleString()} монет
                   </span>
                 </div>
               )}
@@ -657,7 +657,7 @@ export default function BlackjackPage() {
               {game.result === "win" && (
                 <div className="inline-block rounded-2xl border-2 border-emerald-500 bg-emerald-950/80 px-6 py-3 shadow-[0_0_25px_rgba(16,185,129,0.4)]">
                   <span className="text-lg sm:text-xl font-black uppercase text-emerald-300 block">
-                    🎉 ПЕРЕМОГА! ДИЛЕРА ОБІГРАНО!
+                    Перемога гравця
                   </span>
                   <span className="text-xs font-bold text-emerald-200">
                     Виграш: +{game.payout.toLocaleString()} монет
@@ -668,10 +668,10 @@ export default function BlackjackPage() {
               {game.result === "lose" && (
                 <div className="inline-block rounded-2xl border-2 border-rose-600 bg-rose-950/80 px-6 py-3 shadow-[0_0_20px_rgba(225,29,72,0.3)]">
                   <span className="text-base sm:text-lg font-black uppercase text-rose-300 block">
-                    💀 ДИЛЕР ЗАБРАВ БАНК
+                    Перемога дилера
                   </span>
                   <span className="text-xs text-rose-200">
-                    Спробуйте змінити тактику в наступній роздачі.
+                    Спробуйте іншу тактику в наступній роздачі.
                   </span>
                 </div>
               )}
@@ -679,10 +679,10 @@ export default function BlackjackPage() {
               {game.result === "push" && (
                 <div className="inline-block rounded-2xl border-2 border-cyan-500 bg-cyan-950/80 px-6 py-3 shadow-[0_0_20px_rgba(8,191,234,0.3)]">
                   <span className="text-base sm:text-lg font-black uppercase text-cyan-300 block">
-                    ⚖️ НІЧИЯ (PUSH)
+                    Нічия (Push)
                   </span>
                   <span className="text-xs text-cyan-200">
-                    Рівна кількість очок. Ставку повернено.
+                    Рівна кількість очок. Ставку повернуто.
                   </span>
                 </div>
               )}
@@ -709,7 +709,7 @@ export default function BlackjackPage() {
               </span>
               {game && (
                 <span className="rounded-md border border-cyan-500/50 bg-cyan-950/80 px-2.5 py-0.5 font-mono text-sm font-black text-cyan-300 shadow-[0_0_10px_rgba(8,191,234,0.2)]">
-                  {game.player_value} {game.player_value === 21 && "⚡ 21!"}
+                  {game.player_value} {game.player_value === 21 && "(21)"}
                 </span>
               )}
             </div>
@@ -728,7 +728,7 @@ export default function BlackjackPage() {
                   Поточна ставка на столі:
                 </span>
                 <span className="rounded-lg bg-amber-950/60 border border-amber-500/40 px-3 py-1 font-mono text-sm font-black text-amber-300">
-                  🪙 {game.bet.toLocaleString()} монет
+                  {game.bet.toLocaleString()} монет
                 </span>
               </div>
 
@@ -737,28 +737,28 @@ export default function BlackjackPage() {
                   type="button"
                   disabled={isBusy}
                   onClick={() => void handleAction("bj_hit")}
-                  className="btn-cyan flex-1 sm:flex-initial py-3 px-6 text-sm font-black uppercase tracking-wider rounded-xl shadow-lg"
+                  className="btn-cyan flex-1 sm:flex-initial py-3 px-6 text-sm font-bold uppercase tracking-wider rounded-xl shadow-lg"
                 >
-                  ➕ Ще карту (Hit)
+                  Взяти карту
                 </button>
 
                 <button
                   type="button"
                   disabled={isBusy}
                   onClick={() => void handleAction("bj_stand")}
-                  className="btn-orange flex-1 sm:flex-initial py-3 px-6 text-sm font-black uppercase tracking-wider rounded-xl shadow-lg"
+                  className="btn-orange flex-1 sm:flex-initial py-3 px-6 text-sm font-bold uppercase tracking-wider rounded-xl shadow-lg"
                 >
-                  ✋ Досить (Stand)
+                  Зупинитися
                 </button>
 
                 <button
                   type="button"
                   disabled={isBusy || !game.can_double || balance === null || balance < game.bet}
                   onClick={() => void handleAction("bj_double")}
-                  className="btn-ghost flex-1 sm:flex-initial py-3 px-5 text-sm font-black uppercase tracking-wider rounded-xl disabled:opacity-40"
+                  className="btn-ghost flex-1 sm:flex-initial py-3 px-5 text-sm font-bold uppercase tracking-wider rounded-xl disabled:opacity-40"
                   title="Подвоїти ставку та отримати рівно 1 карту"
                 >
-                  ⚡ x2 Double
+                  Подвоїти ставку
                 </button>
               </div>
             </div>
@@ -767,7 +767,7 @@ export default function BlackjackPage() {
             <form onSubmit={handleDeal} className="flex flex-col md:flex-row md:items-center justify-between gap-5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold text-[var(--text-secondary)] mr-2">
-                  Швидкі фішки:
+                  Фішки:
                 </span>
                 {[50, 100, 250, 500, 1000].map((amt) => (
                   <button
@@ -780,7 +780,7 @@ export default function BlackjackPage() {
                         : "border-[var(--border)] bg-[#070b14] text-[var(--text-secondary)] hover:text-white"
                     }`}
                   >
-                    🪙 {amt}
+                    {amt}
                   </button>
                 ))}
               </div>
@@ -804,9 +804,9 @@ export default function BlackjackPage() {
                 <button
                   type="submit"
                   disabled={isBusy}
-                  className="btn-cyan py-3 px-8 text-sm font-black uppercase tracking-wider rounded-xl shadow-lg shrink-0"
+                  className="btn-cyan py-3 px-8 text-sm font-bold uppercase tracking-wider rounded-xl shadow-lg shrink-0"
                 >
-                  {isBusy ? "Роздача..." : "⚡ Роздати карти (Deal)"}
+                  {isBusy ? "Роздача..." : "Роздати карти"}
                 </button>
 
                 {game?.status === "finished" && (
@@ -826,14 +826,14 @@ export default function BlackjackPage() {
         {/* ТАБЛИЦЯ ЛІДЕРІВ БЛЕКДЖЕКУ */}
         {leaderboard.length > 0 && (
           <section className="matchday-card mt-8 p-6">
-            <h3 className="text-sm font-black uppercase text-amber-300 tracking-wider mb-4 flex items-center gap-2">
-              <span>🏆</span> Зала слави Блекджеку Matchday
+            <h3 className="text-xs font-black uppercase text-amber-300 tracking-wider mb-4">
+              Таблиця лідерів блекджеку
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs font-mono">
                 <thead className="border-b border-[var(--border)] text-[var(--text-secondary)]">
                   <tr>
-                    <th className="pb-2">#</th>
+                    <th className="pb-2">Позиція</th>
                     <th className="pb-2">Гравець</th>
                     <th className="pb-2 text-center">Партій</th>
                     <th className="pb-2 text-center">Перемог</th>
@@ -844,13 +844,13 @@ export default function BlackjackPage() {
                   {leaderboard.slice(0, 5).map((entry, idx) => (
                     <tr key={entry.username} className="hover:bg-slate-800/20">
                       <td className="py-2.5 font-bold text-slate-400">
-                        {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`}
+                        #{idx + 1}
                       </td>
                       <td className="py-2.5 font-bold text-white">{entry.username}</td>
                       <td className="py-2.5 text-center text-slate-300">{entry.games}</td>
                       <td className="py-2.5 text-center text-emerald-400 font-bold">{entry.wins}</td>
                       <td className="py-2.5 text-right font-black text-amber-300">
-                        +{entry.net.toLocaleString()} 🪙
+                        +{entry.net.toLocaleString()} монет
                       </td>
                     </tr>
                   ))}
