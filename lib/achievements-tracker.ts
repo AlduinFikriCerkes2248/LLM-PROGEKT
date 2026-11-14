@@ -181,43 +181,54 @@ export function initGlobalAchievementListeners(): () => void {
   window.addEventListener("matchday:theme_change", handleThemeChange);
 
   // 3. Слухач для відстеження написання "Марченко" / "marchenko"
-  let marchenkoDebounceTimer: NodeJS.Timeout | null = null;
-  let lastCheckedInputVal = "";
-
-  const checkInputForMarchenko = (text: string) => {
-    if (!text) return;
-    const lower = text.toLowerCase().trim();
-    if (
-      lower.includes("марченк") ||
-      lower.includes("marchenk") ||
-      lower.includes("марченко") ||
-      lower.includes("marchenko")
-    ) {
-      if (lower !== lastCheckedInputVal) {
-        lastCheckedInputVal = lower;
-        trackAchievement("great_marchenko", 1, "increment");
-      }
-    }
+  const countMarchenkoMatches = (str: string) => {
+    if (!str) return 0;
+    const matches = str.match(/(марченк|marchenk)/gi);
+    return matches ? matches.length : 0;
   };
 
   const handleInputEvent = (e: Event) => {
     const target = e.target as HTMLInputElement | HTMLTextAreaElement | null;
     if (!target || !("value" in target)) return;
 
-    if (marchenkoDebounceTimer) clearTimeout(marchenkoDebounceTimer);
-    marchenkoDebounceTimer = setTimeout(() => {
-      checkInputForMarchenko(target.value);
-    }, 600);
+    const val = target.value || "";
+    const count = countMarchenkoMatches(val);
+    const prev = parseInt(target.getAttribute("data-marchenko-count") || "0", 10);
+    if (count > prev) {
+      const diff = count - prev;
+      target.setAttribute("data-marchenko-count", count.toString());
+      trackAchievement("great_marchenko", diff, "increment");
+    } else if (count < prev) {
+      target.setAttribute("data-marchenko-count", count.toString());
+    }
   };
 
   const handleChangeEvent = (e: Event) => {
     const target = e.target as HTMLInputElement | HTMLTextAreaElement | null;
     if (!target || !("value" in target)) return;
-    checkInputForMarchenko(target.value);
+    const val = target.value || "";
+    const count = countMarchenkoMatches(val);
+    const prev = parseInt(target.getAttribute("data-marchenko-count") || "0", 10);
+    if (count > prev) {
+      target.setAttribute("data-marchenko-count", count.toString());
+      trackAchievement("great_marchenko", count - prev, "increment");
+    }
+  };
+
+  const handleKeydownEvent = (e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      const target = e.target as HTMLInputElement | HTMLTextAreaElement | null;
+      if (!target || !("value" in target)) return;
+      const count = countMarchenkoMatches(target.value || "");
+      if (count > 0) {
+        trackAchievement("great_marchenko", 1, "increment");
+      }
+    }
   };
 
   document.addEventListener("input", handleInputEvent, true);
   document.addEventListener("change", handleChangeEvent, true);
+  document.addEventListener("keydown", handleKeydownEvent as EventListener, true);
 
   // 4. Слухач прямих користувацьких подій трекінгу
   const handleCustomTrack = (e: Event) => {
@@ -250,8 +261,8 @@ export function initGlobalAchievementListeners(): () => void {
     window.removeEventListener("matchday:theme_change", handleThemeChange);
     document.removeEventListener("input", handleInputEvent, true);
     document.removeEventListener("change", handleChangeEvent, true);
+    document.removeEventListener("keydown", handleKeydownEvent as EventListener, true);
     window.removeEventListener("matchday:track_achievement", handleCustomTrack);
     window.removeEventListener("matchday:bet_loss", handleBetLoss);
-    if (marchenkoDebounceTimer) clearTimeout(marchenkoDebounceTimer);
   };
 }

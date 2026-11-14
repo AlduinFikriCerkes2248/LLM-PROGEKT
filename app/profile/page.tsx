@@ -182,9 +182,10 @@ export default function ProfilePage() {
     trackAchievement("profile_avatar", 1, "set");
 
     // Відстеження Марченка в полях профілю
-    const fullProfileText = `${username} ${bio} ${customStatus}`.toLowerCase();
-    if (fullProfileText.includes("марченк") || fullProfileText.includes("marchenk")) {
-      trackAchievement("great_marchenko", 1, "increment");
+    const fullProfileText = `${username} ${bio} ${customStatus}`;
+    const matches = fullProfileText.match(/(марченк|marchenk)/gi);
+    if (matches && matches.length > 0) {
+      trackAchievement("great_marchenko", matches.length, "increment");
     }
 
     setIsSavedNotice(true);
