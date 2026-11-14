@@ -77,7 +77,25 @@ function playClassicSteamChime() {
   }
 }
 
-// 2. Відтворення особливого звуку для досягнення Марченка
+// 2. Відтворення завантаженого користувачем звуку для всіх інших досягнень
+function playStandardAchievementAudio() {
+  try {
+    const audio = new Audio("/sounds/steam_achievement.mp3");
+    audio.volume = 1.0;
+    const promise = audio.play();
+    if (promise !== undefined) {
+      promise.catch((e) => {
+        console.warn("Autoplay audio blocked or file missing, falling back to chime:", e);
+        playClassicSteamChime();
+      });
+    }
+  } catch (err) {
+    console.warn("Standard audio play error:", err);
+    playClassicSteamChime();
+  }
+}
+
+// 3. Відтворення особливого звуку для досягнення Марченка
 function playMarchenkoAudio() {
   try {
     const audio = new Audio("/sounds/marchenko_achievement.mp3");
@@ -118,7 +136,7 @@ export default function SteamAchievementNotification() {
       if (isMarchenko) {
         playMarchenkoAudio();
       } else {
-        playClassicSteamChime();
+        playStandardAchievementAudio();
       }
 
       // Скидання попереднього таймера
