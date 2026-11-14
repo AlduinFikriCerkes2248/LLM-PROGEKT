@@ -7,8 +7,17 @@ import { createClient } from "@supabase/supabase-js";
 import type { ActionResult } from "@/lib/action-result";
 import { modelConfigured, ModelTimeoutError, ModelUnavailableError } from "@/lib/ai/model";
 import { checkAiLimits } from "@/lib/ai/limits";
-import { recordAiCall } from "@/lib/data/db/ai-guard";
-import { askModelWithRetry, MATCH_PREVIEW_SCHEMA } from "@/lib/ai/match-preview";
+import {
+  getCachedAiResponse,
+  recordAiCall,
+  saveCachedAiResponse,
+} from "@/lib/data/db/ai-guard";
+import {
+  askModelWithRetry,
+  buildMatchPreviewCacheKey,
+  MATCH_PREVIEW_SCHEMA,
+  type MatchPreviewResult,
+} from "@/lib/ai/match-preview";
 import { db } from "@/lib/data/db/client";
 import { getMatch } from "@/lib/data/db/matches";
 
@@ -137,22 +146,43 @@ export async function generateMatchPreviewAction(
       return { status: 404, message: "Матч не знайдено." };
     }
 
-    const systemPrompt =
-      "Ти спортивний аналітик Matchday. Проаналізуй команди та поверни тільки валідний JSON за наданою JSON-схемою. Оцінюй сили команд реалістично.";
-    const userPrompt = `Матч: ${match.team_home} проти ${match.team_away}. Час: ${match.match_time}. Фокус користувача: ${
-      tacticalFocus || "стандартний тактичний аналіз"
-    }.`;
+    const cacheKey = buildMatchPreviewCacheKey(matchId, tacticalFocus);
+    let validated: MatchPreviewResult | null = null;
+    let isCached = false;
 
-    const validated = await askModelWithRetry({
-      system: systemPrompt,
-      user: userPrompt,
-      jsonSchema: MATCH_PREVIEW_SCHEMA,
-      timeoutMs: 8000,
-    });
+    const cachedRaw = await getCachedAiResponse(supabase, cacheKey);
+    if (cachedRaw) {
+      try {
+        validated = JSON.parse(cachedRaw) as MatchPreviewResult;
+        isCached = true;
+      } catch {}
+    }
+
+    if (!validated) {
+      const systemPrompt =
+        "Ти спортивний аналітик Matchday. Проаналізуй команди та поверни тільки валідний JSON за наданою JSON-схемою. Оцінюй сили команд реалістично.";
+      const userPrompt = `Матч: ${match.team_home} проти ${match.team_away}. Час: ${match.match_time}. Фокус користувача: ${
+        tacticalFocus || "стандартний тактичний аналіз"
+      }.`;
+
+      validated = await askModelWithRetry({
+        system: systemPrompt,
+        user: userPrompt,
+        jsonSchema: MATCH_PREVIEW_SCHEMA,
+        timeoutMs: 8000,
+      });
+
+      await saveCachedAiResponse(
+        supabase,
+        cacheKey,
+        "00000000-0000-0000-0000-000000000000",
+        JSON.stringify(validated)
+      );
+    }
 
     const formattedVenue = `ШІ-прев'ю: ${validated.summary} (Прогноз: ${validated.predicted_home}:${validated.predicted_away})`;
 
-    await recordAiCall(supabase, "00000000-0000-0000-0000-000000000000", false);
+    await recordAiCall(supabase, "00000000-0000-0000-0000-000000000000", isCached);
 
     const { data, error } = await supabase
       .from("matches")

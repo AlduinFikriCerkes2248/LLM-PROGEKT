@@ -60,6 +60,15 @@ export function validateMatchPreview(raw: unknown): MatchPreviewResult {
   };
 }
 
+export function normalizeFocus(input: string): string {
+  return input.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function buildMatchPreviewCacheKey(matchId: string, focus: string): string {
+  const norm = normalizeFocus(focus);
+  return `preview:match:${matchId}:focus:${norm}`;
+}
+
 export async function askModelWithRetry(
   request: ModelRequest,
   maxAttempts = 2

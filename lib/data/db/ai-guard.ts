@@ -46,3 +46,41 @@ export async function getAppAiCallsCountToday(
     return 0;
   }
 }
+
+export async function getCachedAiResponse(
+  client: SupabaseClient,
+  key: string
+): Promise<string | null> {
+  try {
+    const { data, error } = await client
+      .from("ai_cache")
+      .select("response")
+      .eq("key", key)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return String(data.response);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveCachedAiResponse(
+  client: SupabaseClient,
+  key: string,
+  userId: string,
+  response: string
+): Promise<void> {
+  try {
+    await client.from("ai_cache").upsert(
+      {
+        key,
+        user_id: userId,
+        response,
+      },
+      { onConflict: "key" }
+    );
+  } catch {
+    // Не блокуємо роботу при помилці кешування
+  }
+}
