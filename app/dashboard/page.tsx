@@ -44,6 +44,12 @@ export default function DashboardPage() {
     const savedAv = typeof window !== "undefined" ? localStorage.getItem("matchday_avatar_url") : null;
     if (savedAv) setAvatarUrl(savedAv);
 
+    // Завантажуємо локальний кеш монет
+    try {
+      const c = localStorage.getItem("matchday:coins") || localStorage.getItem("matchday_coins");
+      if (c) setBalance(parseInt(c, 10));
+    } catch {}
+
     function handleThemeChange(e: Event) {
       const customEvent = e as CustomEvent<{ theme: "dark" | "light" }>;
       if (customEvent.detail?.theme) {
@@ -55,7 +61,7 @@ export default function DashboardPage() {
     }
 
     function handleProfileUpdate(e: Event) {
-      const custom = e as CustomEvent<{ avatar_url?: string; username?: string }>;
+      const custom = e as CustomEvent<{ avatar_url?: string; username?: string; coins?: number }>;
       if (custom.detail?.avatar_url !== undefined) {
         setAvatarUrl(custom.detail.avatar_url);
       } else {
@@ -65,13 +71,28 @@ export default function DashboardPage() {
       if (custom.detail?.username) {
         setUsername(custom.detail.username);
       }
+      if (custom.detail?.coins !== undefined) {
+        setBalance(custom.detail.coins);
+      } else {
+        const c = localStorage.getItem("matchday:coins") || localStorage.getItem("matchday_coins");
+        if (c) setBalance(parseInt(c, 10));
+      }
+    }
+
+    function handleStorage(e: StorageEvent) {
+      if (!e.key || e.key === "matchday:coins" || e.key === "matchday_coins") {
+        const c = localStorage.getItem("matchday:coins") || localStorage.getItem("matchday_coins");
+        if (c) setBalance(parseInt(c, 10));
+      }
     }
 
     window.addEventListener("matchday:theme_change", handleThemeChange);
     window.addEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
+    window.addEventListener("storage", handleStorage);
     return () => {
       window.removeEventListener("matchday:theme_change", handleThemeChange);
       window.removeEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
+      window.removeEventListener("storage", handleStorage);
     };
   }, []);
   const [featuredMatch, setFeaturedMatch] = useState<{

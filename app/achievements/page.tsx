@@ -43,32 +43,65 @@ export default function AchievementsPage() {
     setRedeemedPromos(loadRedeemedPromos());
 
     async function loadBalances() {
+      // 1. Спочатку завантажуємо локальний кеш для миттєвого відображення
+      try {
+        const c = localStorage.getItem("matchday:coins") || localStorage.getItem("matchday_coins");
+        if (c) setBalance(parseInt(c, 10));
+        const h = localStorage.getItem("matchday:hohlyantsi") || localStorage.getItem("matchday_hohlyantsi");
+        if (h) setHohlyantsi(parseInt(h, 10));
+      } catch {}
+
       const client = getSupabaseClient();
-      if (!client) {
-        // Fallback з локальних даних
-        try {
-          const c = localStorage.getItem("matchday:coins");
-          if (c) setBalance(parseInt(c, 10));
-          const h = localStorage.getItem("matchday:hohlyantsi");
-          if (h) setHohlyantsi(parseInt(h, 10));
-        } catch {
-          // ignore
-        }
-        return;
-      }
+      if (!client) return;
 
-      const { data: authData } = await client.auth.getUser();
-      if (authData?.user) {
-        const { data } = await client
-          .from("profiles")
-          .select("coins, hohlyantsi")
-          .eq("id", authData.user.id)
-          .maybeSingle();
+      try {
+        const { data: authData } = await client.auth.getUser();
+        if (authData?.user) {
+          const { data } = await client
+            .from("profiles")
+            .select("coins, hohlyantsi")
+            .eq("id", authData.user.id)
+            .maybeSingle();
 
-        if (data) {
-          if (typeof data.coins === "number") setBalance(data.coins);
-          if (typeof data.hohlyantsi === "number") setHohlyantsi(data.hohlyantsi);
+          if (data) {
+            if (typeof data.coins === "number") {
+              setBalance(data.coins);
+              try {
+                localStorage.setItem("matchday:coins", data.coins.toString());
+                localStorage.setItem("matchday_coins", data.coins.toString());
+              } catch {}
+            }
+            if (typeof data.hohlyantsi === "number") {
+              setHohlyantsi(data.hohlyantsi);
+              try {
+                localStorage.setItem("matchday:hohlyantsi", data.hohlyantsi.toString());
+                localStorage.setItem("matchday_hohlyantsi", data.hohlyantsi.toString());
+              } catch {}
+            }
+          }
+
+          // Також синхронізуємо забрані ачівки з бази даних
+          const { data: dbAchs } = await client
+            .from("user_achievements")
+            .select("achievement_id, claimed")
+            .eq("user_id", authData.user.id);
+
+          if (dbAchs && dbAchs.length > 0) {
+            setAchievements((prev) => {
+              const updated = prev.map((ach) => {
+                const found = dbAchs.find((d) => d.achievement_id === ach.id);
+                if (found && found.claimed) {
+                  return { ...ach, completed: true, claimed: true };
+                }
+                return ach;
+              });
+              saveAchievementsState(updated);
+              return updated;
+            });
+          }
         }
+      } catch (err) {
+        console.error("Помилка завантаження даних із Supabase:", err);
       }
     }
 
@@ -120,35 +153,58 @@ export default function AchievementsPage() {
     const addedCoins = item.reward.coins;
     const addedBonuses = item.reward.bonuses;
 
-    const newCoins = (balance ?? 1088233) + addedCoins;
-    const newBonuses = (hohlyantsi ?? 45) + addedBonuses;
-
-    setBalance(newCoins);
-    setHohlyantsi(newBonuses);
-
-    // Зберігаємо локально
-    try {
-      localStorage.setItem("matchday:coins", newCoins.toString());
-      localStorage.setItem("matchday:hohlyantsi", newBonuses.toString());
-      const curXp = parseInt(localStorage.getItem("matchday:bj_xp") || "0", 10);
-      localStorage.setItem("matchday:bj_xp", (curXp + item.reward.xp).toString());
-    } catch {
-      // ignore
-    }
+    let finalCoins = (balance ?? 1088233) + addedCoins;
+    let finalBonuses = (hohlyantsi ?? 45) + addedBonuses;
 
     // Оновлюємо Supabase якщо є сесія
     const client = getSupabaseClient();
     if (client) {
-      const { data: authData } = await client.auth.getUser();
-      if (authData?.user) {
-        await client
-          .from("profiles")
-          .update({
-            coins: newCoins,
-            hohlyantsi: newBonuses,
-          })
-          .eq("id", authData.user.id);
+      try {
+        const { data: authData } = await client.auth.getUser();
+        if (authData?.user) {
+          // 1. Спробуємо атомарну безпечну RPC функцію
+          const { data: rpcData, error: rpcError } = await client.rpc(
+            "claim_achievement_reward",
+            {
+              p_achievement_id: item.id,
+              p_coins: addedCoins,
+              p_bonuses: addedBonuses,
+              p_xp: item.reward.xp,
+            }
+          );
+
+          if (!rpcError && rpcData && typeof rpcData.coins === "number") {
+            finalCoins = rpcData.coins;
+            finalBonuses = rpcData.hohlyantsi;
+          } else {
+            // 2. Fallback на пряме оновлення профілю
+            await client
+              .from("profiles")
+              .update({
+                coins: finalCoins,
+                hohlyantsi: finalBonuses,
+              })
+              .eq("id", authData.user.id);
+          }
+        }
+      } catch (err) {
+        console.error("Помилка нарахування в Supabase:", err);
       }
+    }
+
+    setBalance(finalCoins);
+    setHohlyantsi(finalBonuses);
+
+    // Зберігаємо локально у всі ключі
+    try {
+      localStorage.setItem("matchday:coins", finalCoins.toString());
+      localStorage.setItem("matchday:hohlyantsi", finalBonuses.toString());
+      localStorage.setItem("matchday_coins", finalCoins.toString());
+      localStorage.setItem("matchday_hohlyantsi", finalBonuses.toString());
+      const curXp = parseInt(localStorage.getItem("matchday:bj_xp") || "0", 10);
+      localStorage.setItem("matchday:bj_xp", (curXp + item.reward.xp).toString());
+    } catch {
+      // ignore
     }
 
     // Запускаємо спливаюче повідомлення у стилі Steam із фірмовим звуком!
@@ -164,7 +220,13 @@ export default function AchievementsPage() {
       soundType: item.id === "great_marchenko" ? "marchenko" : "default",
     });
 
-    window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
+    // Сповіщаємо всі компоненти та сторінки про новий баланс
+    window.dispatchEvent(
+      new CustomEvent(PROFILE_UPDATED_EVENT, {
+        detail: { coins: finalCoins, hohlyantsi: finalBonuses },
+      })
+    );
+    window.dispatchEvent(new Event("storage"));
     setClaimedModal(item);
   };
 
@@ -230,34 +292,64 @@ export default function AchievementsPage() {
     // Нараховуємо монети та бонуси
     const addedCoins = egg.reward.coins;
     const addedBonuses = egg.reward.bonuses;
-    const newCoins = (balance ?? 1088233) + addedCoins;
-    const newBonuses = (hohlyantsi ?? 45) + addedBonuses;
 
-    setBalance(newCoins);
-    setHohlyantsi(newBonuses);
+    let finalCoins = (balance ?? 1088233) + addedCoins;
+    let finalBonuses = (hohlyantsi ?? 45) + addedBonuses;
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        const { data: authData } = await client.auth.getUser();
+        if (authData?.user) {
+          // 1. Спробуємо атомарну RPC функцію
+          const { data: rpcData, error: rpcError } = await client.rpc(
+            "redeem_promo_code",
+            {
+              p_code: egg.code,
+              p_coins: addedCoins,
+              p_bonuses: addedBonuses,
+              p_xp: egg.reward.xp,
+            }
+          );
+
+          if (!rpcError && rpcData && typeof rpcData.coins === "number") {
+            finalCoins = rpcData.coins;
+            finalBonuses = rpcData.hohlyantsi;
+          } else {
+            // 2. Fallback на пряме оновлення профілю
+            await client
+              .from("profiles")
+              .update({
+                coins: finalCoins,
+                hohlyantsi: finalBonuses,
+              })
+              .eq("id", authData.user.id);
+          }
+        }
+      } catch (err) {
+        console.error("Помилка активації промокоду в Supabase:", err);
+      }
+    }
+
+    setBalance(finalCoins);
+    setHohlyantsi(finalBonuses);
 
     try {
-      localStorage.setItem("matchday:coins", newCoins.toString());
-      localStorage.setItem("matchday:hohlyantsi", newBonuses.toString());
-      localStorage.setItem("matchday_coins", newCoins.toString());
-      localStorage.setItem("matchday_hohlyantsi", newBonuses.toString());
+      localStorage.setItem("matchday:coins", finalCoins.toString());
+      localStorage.setItem("matchday:hohlyantsi", finalBonuses.toString());
+      localStorage.setItem("matchday_coins", finalCoins.toString());
+      localStorage.setItem("matchday_hohlyantsi", finalBonuses.toString());
       const curXp = parseInt(localStorage.getItem("matchday:bj_xp") || "0", 10);
       localStorage.setItem("matchday:bj_xp", (curXp + egg.reward.xp).toString());
     } catch {}
 
-    const client = getSupabaseClient();
-    if (client) {
-      const { data: authData } = await client.auth.getUser();
-      if (authData?.user) {
-        await client
-          .from("profiles")
-          .update({
-            coins: newCoins,
-            hohlyantsi: newBonuses,
-          })
-          .eq("id", authData.user.id);
-      }
-    }
+    // Сповіщаємо всі компоненти та сторінки
+    window.dispatchEvent(
+      new CustomEvent(PROFILE_UPDATED_EVENT, {
+        detail: { coins: finalCoins, hohlyantsi: finalBonuses },
+      })
+    );
+    window.dispatchEvent(new Event("storage"));
 
     // Відтворюємо фірмовий звук пасхалки
     try {

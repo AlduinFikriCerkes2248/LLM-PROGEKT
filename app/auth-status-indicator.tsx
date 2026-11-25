@@ -40,6 +40,15 @@ export default function AuthStatusIndicator() {
       typeof window !== "undefined" ? localStorage.getItem("matchday_avatar_url") : null;
     if (savedAvatar) setCustomAvatarUrl(savedAvatar);
 
+    // Локальний кеш монет та бонусів для миттєвого відображення
+    try {
+      const savedCoins = localStorage.getItem("matchday:coins") || localStorage.getItem("matchday_coins");
+      if (savedCoins) setCoins(parseInt(savedCoins, 10));
+
+      const savedBonuses = localStorage.getItem("matchday:hohlyantsi") || localStorage.getItem("matchday_hohlyantsi");
+      if (savedBonuses) setHohlyantsi(parseInt(savedBonuses, 10));
+    } catch {}
+
     // 2. Слухаємо подію перемикання теми (з theme-toggle)
     function handleThemeChange(e: Event) {
       const customEvent = e as CustomEvent<{ theme: "dark" | "light" }>;
@@ -52,20 +61,53 @@ export default function AuthStatusIndicator() {
     }
 
     function handleProfileUpdate(e: Event) {
-      const custom = e as CustomEvent<{ avatar_url?: string; username?: string }>;
+      const custom = e as CustomEvent<{
+        avatar_url?: string;
+        username?: string;
+        coins?: number;
+        hohlyantsi?: number;
+      }>;
       if (custom.detail?.avatar_url !== undefined) {
         setCustomAvatarUrl(custom.detail.avatar_url);
       } else {
         const up = localStorage.getItem("matchday_avatar_url");
         setCustomAvatarUrl(up);
       }
+      if (custom.detail?.coins !== undefined) {
+        setCoins(custom.detail.coins);
+      } else {
+        const c = localStorage.getItem("matchday:coins") || localStorage.getItem("matchday_coins");
+        if (c) setCoins(parseInt(c, 10));
+      }
+      if (custom.detail?.hohlyantsi !== undefined) {
+        setHohlyantsi(custom.detail.hohlyantsi);
+      } else {
+        const h = localStorage.getItem("matchday:hohlyantsi") || localStorage.getItem("matchday_hohlyantsi");
+        if (h) setHohlyantsi(parseInt(h, 10));
+      }
+      if (custom.detail?.username) {
+        setUsername(custom.detail.username);
+      }
+    }
+
+    function handleStorage(e: StorageEvent) {
+      if (!e.key || e.key === "matchday:coins" || e.key === "matchday_coins") {
+        const c = localStorage.getItem("matchday:coins") || localStorage.getItem("matchday_coins");
+        if (c) setCoins(parseInt(c, 10));
+      }
+      if (!e.key || e.key === "matchday:hohlyantsi" || e.key === "matchday_hohlyantsi") {
+        const h = localStorage.getItem("matchday:hohlyantsi") || localStorage.getItem("matchday_hohlyantsi");
+        if (h) setHohlyantsi(parseInt(h, 10));
+      }
     }
 
     window.addEventListener("matchday:theme_change", handleThemeChange);
     window.addEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
+    window.addEventListener("storage", handleStorage);
     return () => {
       window.removeEventListener("matchday:theme_change", handleThemeChange);
       window.removeEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
+      window.removeEventListener("storage", handleStorage);
     };
   }, []);
 
@@ -94,8 +136,20 @@ export default function AuthStatusIndicator() {
         }
 
         setUsername(data?.username || null);
-        setCoins(typeof data?.coins === "number" ? data.coins : null);
-        setHohlyantsi(typeof data?.hohlyantsi === "number" ? data.hohlyantsi : 25);
+        if (typeof data?.coins === "number") {
+          setCoins(data.coins);
+          try {
+            localStorage.setItem("matchday:coins", data.coins.toString());
+            localStorage.setItem("matchday_coins", data.coins.toString());
+          } catch {}
+        }
+        if (typeof data?.hohlyantsi === "number") {
+          setHohlyantsi(data.hohlyantsi);
+          try {
+            localStorage.setItem("matchday:hohlyantsi", data.hohlyantsi.toString());
+            localStorage.setItem("matchday_hohlyantsi", data.hohlyantsi.toString());
+          } catch {}
+        }
       } catch (error) {
         if (!active || requestId !== profileRequest) return;
         console.error("Помилка профілю:", error);
