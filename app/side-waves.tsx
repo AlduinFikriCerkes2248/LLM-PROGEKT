@@ -1,12 +1,31 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { AppTheme, getStoredTheme, THEME_CHANGE_EVENT } from "@/lib/theme";
 
 export default function SideWaves() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const pathname = usePathname();
   const isLoginPage = pathname === "/login" || pathname?.startsWith("/login");
+  const [theme, setTheme] = useState<AppTheme>("dark");
+  const themeRef = useRef<AppTheme>("dark");
+
+  useEffect(() => {
+    const initial = getStoredTheme();
+    setTheme(initial);
+    themeRef.current = initial;
+
+    const handleTheme = (e: Event) => {
+      const custom = e as CustomEvent<{ theme?: AppTheme }>;
+      const next = custom.detail?.theme || getStoredTheme();
+      setTheme(next);
+      themeRef.current = next;
+    };
+
+    window.addEventListener(THEME_CHANGE_EVENT, handleTheme);
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, handleTheme);
+  }, []);
 
   useEffect(() => {
     if (isLoginPage) return;
@@ -43,8 +62,9 @@ export default function SideWaves() {
     const render = () => {
       time += 0.015;
       ctx.clearRect(0, 0, width, height);
+      const isWinter = themeRef.current === "winter";
 
-      // 1. М'яке фонове дифузне сяйво (синій зліва, помаранчевий справа як на референсі)
+      // 1. М'яке фонове дифузне сяйво
       const blueGlow = ctx.createRadialGradient(
         width * 0.12,
         height * 0.72,
@@ -53,13 +73,13 @@ export default function SideWaves() {
         height * 0.72,
         width * 0.45,
       );
-      blueGlow.addColorStop(0, "rgba(8, 191, 234, 0.18)");
-      blueGlow.addColorStop(0.5, "rgba(2, 132, 199, 0.07)");
+      blueGlow.addColorStop(0, isWinter ? "rgba(56, 189, 248, 0.22)" : "rgba(8, 191, 234, 0.18)");
+      blueGlow.addColorStop(0.5, isWinter ? "rgba(125, 211, 252, 0.08)" : "rgba(2, 132, 199, 0.07)");
       blueGlow.addColorStop(1, "transparent");
       ctx.fillStyle = blueGlow;
       ctx.fillRect(0, 0, width, height);
 
-      const orangeGlow = ctx.createRadialGradient(
+      const rightGlow = ctx.createRadialGradient(
         width * 0.85,
         height * 0.62,
         40,
@@ -67,10 +87,10 @@ export default function SideWaves() {
         height * 0.62,
         width * 0.52,
       );
-      orangeGlow.addColorStop(0, "rgba(255, 122, 36, 0.22)");
-      orangeGlow.addColorStop(0.45, "rgba(234, 88, 12, 0.09)");
-      orangeGlow.addColorStop(1, "transparent");
-      ctx.fillStyle = orangeGlow;
+      rightGlow.addColorStop(0, isWinter ? "rgba(186, 230, 253, 0.16)" : "rgba(255, 122, 36, 0.22)");
+      rightGlow.addColorStop(0.45, isWinter ? "rgba(56, 189, 248, 0.08)" : "rgba(234, 88, 12, 0.09)");
+      rightGlow.addColorStop(1, "transparent");
+      ctx.fillStyle = rightGlow;
       ctx.fillRect(0, 0, width, height);
 
       // 2. Розрахунок точок 3D хвильового полотна моря
@@ -118,16 +138,22 @@ export default function SideWaves() {
           const screenX = width * (0.02 + u * 0.96);
           const screenY = baseY - elevation;
 
-          // Градієнт кольорів (блакитний зліва -> вогняно-помаранчевий справа)
-          let red = 8;
-          let green = 191;
-          let blue = 234;
+          // Градієнт кольорів
+          let red = isWinter ? 56 : 8;
+          let green = isWinter ? 189 : 191;
+          let blue = isWinter ? 248 : 234;
 
           const colorMix = Math.max(0, Math.min(1, (u - 0.32) / 0.38));
           if (colorMix > 0) {
-            red = Math.round(8 + (255 - 8) * colorMix);
-            green = Math.round(191 + (122 - 191) * colorMix);
-            blue = Math.round(234 + (36 - 234) * colorMix);
+            if (isWinter) {
+              red = Math.round(56 + (224 - 56) * colorMix);
+              green = Math.round(189 + (242 - 189) * colorMix);
+              blue = Math.round(248 + (254 - 248) * colorMix);
+            } else {
+              red = Math.round(8 + (255 - 8) * colorMix);
+              green = Math.round(191 + (122 - 191) * colorMix);
+              blue = Math.round(234 + (36 - 234) * colorMix);
+            }
           }
 
           // Яскравість і прозорість залежно від гребеня хвилі

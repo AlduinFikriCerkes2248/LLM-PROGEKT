@@ -6,6 +6,16 @@ import ThemeToggle from "../../components/theme-toggle";
 import { trackAchievement } from "@/lib/achievements-tracker";
 import MatrixAvatar from "../../components/matrix-avatar";
 import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "../../lib/supabase/client";
+import {
+  AppTheme,
+  applyAppTheme,
+  getStoredTheme,
+  getWinterPrefs,
+  saveWinterPrefs,
+  THEME_CHANGE_EVENT,
+  WINTER_PREFS_EVENT,
+  WinterPrefs,
+} from "@/lib/theme";
 
 // Готові швидкі пресети аватарів
 const AVATAR_PRESETS = [
@@ -54,10 +64,19 @@ const BANNER_PRESETS = [
     name: "Західні Дюни",
     style: "linear-gradient(135deg, #2b0e14 0%, #541d27 50%, #9e3247 100%)",
   },
+  {
+    name: "❄️ Зимова Казка",
+    style: "linear-gradient(135deg, #06182c 0%, #0d3b66 50%, #2b6cb0 100%)",
+  },
 ];
 
 export default function ProfilePage() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<AppTheme>("dark");
+  const [winterPrefs, setWinterPrefs] = useState<WinterPrefs>({
+    snowEnabled: true,
+    musicEnabled: false,
+    avatarDecor: true,
+  });
   const [username, setUsername] = useState<string>("Максим");
   const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [bannerStyle, setBannerStyle] = useState<string>(BANNER_PRESETS[0].style);
@@ -73,35 +92,71 @@ export default function ProfilePage() {
   const [isCopied, setIsCopied] = useState<boolean>(false);
 
   useEffect(() => {
-    // Ініціалізація теми
-    const saved = typeof window !== "undefined" ? localStorage.getItem("matchday_theme") : null;
-    const isLight =
-      (typeof document !== "undefined" && document.documentElement.classList.contains("light")) ||
-      saved === "light";
-    setTheme(isLight ? "light" : "dark");
+    // Ініціалізація теми та зимових налаштувань
+    setTheme(getStoredTheme());
+    setWinterPrefs(getWinterPrefs());
 
     function handleThemeChange(e: Event) {
-      const customEvent = e as CustomEvent<{ theme: "dark" | "light" }>;
+      const customEvent = e as CustomEvent<{ theme?: AppTheme }>;
       if (customEvent.detail?.theme) {
         setTheme(customEvent.detail.theme);
       } else {
-        const isNowLight = document.documentElement.classList.contains("light");
-        setTheme(isNowLight ? "light" : "dark");
+        setTheme(getStoredTheme());
       }
     }
-    window.addEventListener("matchday:theme_change", handleThemeChange);
+
+    function handleWinterPrefs(e: Event) {
+      const custom = e as CustomEvent<WinterPrefs>;
+      if (custom.detail) {
+        setWinterPrefs(custom.detail);
+      } else {
+        setWinterPrefs(getWinterPrefs());
+      }
+    }
+
+    window.addEventListener(THEME_CHANGE_EVENT, handleThemeChange);
+    window.addEventListener(WINTER_PREFS_EVENT, handleWinterPrefs);
 
     // Завантаження збережених налаштувань профілю
     const localAvatar = localStorage.getItem("matchday_avatar_url");
     const localBio = localStorage.getItem("matchday_bio");
     const localStatus = localStorage.getItem("matchday_custom_status");
     const localBanner = localStorage.getItem("matchday_banner_url");
+    const localBannerStyle = localStorage.getItem("matchday_banner_style");
     const localUsername = localStorage.getItem("matchday_username");
+
+    const syncLocalCoinsAndXp = () => {
+      try {
+        const c = localStorage.getItem("matchday:coins") || localStorage.getItem("matchday_coins");
+        if (c) setCoins(parseInt(c, 10));
+        const rawXp = localStorage.getItem("matchday:bj_xp");
+        if (rawXp) {
+          const totalXp = parseInt(rawXp, 10);
+          if (!isNaN(totalXp)) {
+            setLevel(Math.max(1, Math.floor(totalXp / 100) + 1));
+            setXp(totalXp % 100);
+          }
+        }
+      } catch {}
+    };
+    syncLocalCoinsAndXp();
+
+    const handleProfileUpdate = (e: Event) => {
+      const custom = e as CustomEvent<{ coins?: number }>;
+      if (custom.detail?.coins !== undefined) {
+        setCoins(custom.detail.coins);
+      } else {
+        syncLocalCoinsAndXp();
+      }
+    };
+    window.addEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
+    window.addEventListener("storage", syncLocalCoinsAndXp);
 
     if (localAvatar) setAvatarUrl(localAvatar);
     if (localBio) setBio(localBio);
     if (localStatus) setCustomStatus(localStatus);
     if (localBanner) setBannerUrl(localBanner);
+    if (localBannerStyle) setBannerStyle(localBannerStyle);
     if (localUsername) setUsername(localUsername);
 
     // Спроба отримати з Supabase
@@ -125,16 +180,33 @@ export default function ProfilePage() {
             .maybeSingle()
             .then(({ data: prof }) => {
               if (prof?.username && !localUsername) setUsername(prof.username);
-              if (typeof prof?.coins === "number") setCoins(prof.coins);
+              if (typeof prof?.coins === "number") {
+                setCoins(prof.coins);
+                try {
+                  localStorage.setItem("matchday:coins", prof.coins.toString());
+                  localStorage.setItem("matchday_coins", prof.coins.toString());
+                } catch {}
+              }
             });
         }
       });
     }
 
     return () => {
-      window.removeEventListener("matchday:theme_change", handleThemeChange);
+      window.removeEventListener(THEME_CHANGE_EVENT, handleThemeChange);
+      window.removeEventListener(WINTER_PREFS_EVENT, handleWinterPrefs);
+      window.removeEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate);
+      window.removeEventListener("storage", syncLocalCoinsAndXp);
     };
   }, []);
+
+  function handleSelectTheme(newTheme: AppTheme) {
+    setTheme(newTheme);
+    applyAppTheme(newTheme);
+    if (newTheme === "winter" && !bannerUrl && bannerStyle === BANNER_PRESETS[0].style) {
+      setBannerStyle(BANNER_PRESETS[4].style);
+    }
+  }
 
   function handleSaveProfile() {
     // Збереження в LocalStorage
@@ -142,7 +214,10 @@ export default function ProfilePage() {
     localStorage.setItem("matchday_bio", bio);
     localStorage.setItem("matchday_custom_status", customStatus);
     localStorage.setItem("matchday_banner_url", bannerUrl);
+    localStorage.setItem("matchday_banner_style", bannerStyle);
     localStorage.setItem("matchday_username", username);
+    applyAppTheme(theme);
+    saveWinterPrefs(winterPrefs);
 
     // Сповіщення інших компонентів
     window.dispatchEvent(
@@ -193,17 +268,31 @@ export default function ProfilePage() {
   }
 
   function handleCopyTag() {
-    navigator.clipboard.writeText(`@${username.toLowerCase()}#2026`);
+    const cleanTag = username.toLowerCase().replace(/\s+/g, "");
+    navigator.clipboard.writeText(`@${cleanTag}#2026`);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   }
 
-  const isDark = theme === "dark";
+  const isDark = theme !== "light";
+  const isWinter = theme === "winter";
 
   return (
-    <div className="relative min-h-screen bg-transparent text-[#f1f5fa] font-sans antialiased overflow-x-hidden selection:bg-[#08bfea]/30 selection:text-[#2cd5fb] flex">
+    <div
+      className={`relative min-h-screen bg-transparent font-sans antialiased overflow-x-hidden selection:bg-[#08bfea]/30 selection:text-[#2cd5fb] flex ${
+        isDark ? "text-[#f1f5fa]" : "text-[#0f172a]"
+      }`}
+    >
       {/* 1. ЛІВИЙ САЙДБАР (ЗБЕРЕЖЕНО НАВІГАЦІЮ) */}
-      <aside className="w-[240px] h-screen fixed left-0 top-0 bg-[#090e18]/95 backdrop-blur-md border-r border-[rgba(65,140,190,0.22)] py-6 px-4 hidden md:flex flex-col justify-between z-30 select-none">
+      <aside
+        className={`w-[240px] h-screen fixed left-0 top-0 backdrop-blur-md border-r py-6 px-4 hidden md:flex flex-col justify-between z-30 select-none transition-colors ${
+          isWinter
+            ? "bg-[#061224]/95 border-sky-300/25"
+            : isDark
+              ? "bg-[#090e18]/95 border-[rgba(65,140,190,0.22)]"
+              : "bg-white/95 border-slate-200"
+        }`}
+      >
         <div>
           {/* Бренд */}
           <Link href="/dashboard" className="flex items-center gap-3 pl-3 mb-8 group">
@@ -213,7 +302,7 @@ export default function ProfilePage() {
               </svg>
             </div>
             <div className="text-base font-black tracking-[0.14em] uppercase">
-              <span className="text-white">MATCH</span>
+              <span className={isDark ? "text-white" : "text-slate-900"}>MATCH</span>
               <span className="text-[#08bfea]">DAY</span>
             </div>
           </Link>
@@ -324,12 +413,20 @@ export default function ProfilePage() {
 
         {/* Заголовок сторінки */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-2">
-            Профіль користувача
+          <h1
+            className={`text-2xl sm:text-3xl font-black tracking-tight mb-2 ${
+              isDark ? "text-white" : "text-slate-900"
+            }`}
+          >
+            Профіль користувача {isWinter && <span className="text-sky-300">❄️</span>}
           </h1>
-          <p className="text-sm text-[#9aa9be] max-w-2xl">
-            Налаштуйте власне лого через URL-посилання, вкажіть статус та розкажіть про себе. 
-            Справа відображається жива картка в стилі Discord (DC), яка одразу показує вигляд вашого профілю іншим гравцям!
+          <p
+            className={`text-sm max-w-2xl ${
+              isDark ? "text-[#9aa9be]" : "text-slate-600"
+            }`}
+          >
+            Налаштуйте власне лого через URL-посилання, оберіть тему оформлення (включаючи нову Зимову Казку), 
+            вкажіть статус та розкажіть про себе. Справа — живий попередній перегляд картки у стилі Discord!
           </p>
         </div>
 
@@ -337,7 +434,7 @@ export default function ProfilePage() {
         {isSavedNotice && (
           <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-4 py-3 text-sm font-bold text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.25)] animate-fade-in">
             <span className="text-base">✓</span>
-            <span>Профіль успішно оновлено! Ваша аватарка та інформація синхронізовані по всій платформі.</span>
+            <span>Профіль та тема успішно оновлені! Всі зміни синхронізовано по платформі.</span>
           </div>
         )}
 
@@ -348,11 +445,200 @@ export default function ProfilePage() {
           {/* ЛІВА КОЛОНКА (7/12): ФОРМА КОНФІГУРАЦІЇ ПРОФІЛЮ                   */}
           {/* ================================================================= */}
           <div className="lg:col-span-7 space-y-6">
+
+            {/* БЛОК 0: ТЕМА ОФОРМЛЕННЯ ТА ЗИМОВИЙ ВАЙБ */}
+            <section
+              className={`backdrop-blur-md border rounded-2xl p-6 shadow-xl space-y-5 transition-colors ${
+                isWinter
+                  ? "bg-gradient-to-br from-[#0c233f]/90 to-[#071529]/95 border-sky-300/35 shadow-[0_0_25px_rgba(56,189,248,0.18)]"
+                  : isDark
+                    ? "bg-gradient-to-br from-[#101a29]/90 to-[#0d1522]/90 border-[rgba(65,140,190,0.25)]"
+                    : "bg-white/95 border-slate-200 shadow-md"
+              }`}
+            >
+              <div className="flex items-center justify-between border-b border-[rgba(65,140,190,0.2)] pb-3">
+                <h2
+                  className={`text-sm font-black uppercase flex items-center gap-2 ${
+                    isDark ? "text-white" : "text-slate-900"
+                  }`}
+                >
+                  <span className="text-[#08bfea]">✨</span> Тема оформлення та Зимовий Вайб
+                </h2>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-400/30">
+                  ❄️ Winter Ready
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Темна тема */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectTheme("dark")}
+                  className={`relative flex flex-col items-start gap-2 p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    theme === "dark"
+                      ? "border-[#08bfea] bg-[rgba(8,191,234,0.14)] shadow-[0_0_15px_rgba(8,191,234,0.25)]"
+                      : isDark
+                        ? "border-white/10 bg-[#070b14]/70 hover:border-white/30"
+                        : "border-slate-200 bg-slate-50 hover:border-slate-400"
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xl">🌙</span>
+                    {theme === "dark" && (
+                      <span className="text-[10px] font-black text-[#08bfea]">✓ АКТИВНА</span>
+                    )}
+                  </div>
+                  <div>
+                    <div className={`text-xs font-black ${isDark ? "text-white" : "text-slate-900"}`}>
+                      Кібер-Ніч
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      Класична неонова тема
+                    </div>
+                  </div>
+                </button>
+
+                {/* Світла тема */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectTheme("light")}
+                  className={`relative flex flex-col items-start gap-2 p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    theme === "light"
+                      ? "border-rose-400 bg-rose-500/15 shadow-[0_0_15px_rgba(244,114,133,0.25)]"
+                      : isDark
+                        ? "border-white/10 bg-[#070b14]/70 hover:border-white/30"
+                        : "border-slate-200 bg-slate-50 hover:border-slate-400"
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xl">☀️</span>
+                    {theme === "light" && (
+                      <span className="text-[10px] font-black text-rose-500">✓ АКТИВНА</span>
+                    )}
+                  </div>
+                  <div>
+                    <div className={`text-xs font-black ${isDark ? "text-white" : "text-slate-900"}`}>
+                      Денне Світло
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      Чистий світлий інтерфейс
+                    </div>
+                  </div>
+                </button>
+
+                {/* Зимова тема */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectTheme("winter")}
+                  className={`relative flex flex-col items-start gap-2 p-3.5 rounded-xl border text-left transition-all cursor-pointer overflow-hidden ${
+                    theme === "winter"
+                      ? "border-sky-300 bg-gradient-to-br from-sky-500/25 to-blue-600/20 shadow-[0_0_20px_rgba(56,189,248,0.35)]"
+                      : isDark
+                        ? "border-sky-400/25 bg-[#071324]/80 hover:border-sky-300/60"
+                        : "border-sky-200 bg-sky-50 hover:border-sky-400"
+                  }`}
+                >
+                  <span className="absolute -top-1 -right-1 px-2 py-0.5 text-[9px] font-black uppercase bg-gradient-to-r from-sky-400 to-cyan-300 text-slate-950 rounded-bl-lg">
+                    NEW ❄️
+                  </span>
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xl">🎄</span>
+                    {theme === "winter" && (
+                      <span className="text-[10px] font-black text-sky-300">✓ АКТИВНА</span>
+                    )}
+                  </div>
+                  <div>
+                    <div className={`text-xs font-black ${isDark ? "text-sky-100" : "text-slate-900"}`}>
+                      Зимова Казка
+                    </div>
+                    <div className="text-[11px] text-sky-300/80">
+                      Сніг, вогники та Let It Snow
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              {/* Тонке налаштування зимової атмосфери */}
+              <div
+                className={`rounded-xl p-4 border space-y-3 transition-all ${
+                  isWinter
+                    ? "bg-[#05101f]/80 border-sky-300/30"
+                    : isDark
+                      ? "bg-[#070b14]/60 border-white/10 opacity-75"
+                      : "bg-slate-50 border-slate-200 opacity-85"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-bold ${isDark ? "text-sky-200" : "text-slate-700"}`}>
+                    ⚙️ Ефекти Зимового Вайбу {theme !== "winter" && "(увімкніть Зимову тему для активації)"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => saveWinterPrefs({ snowEnabled: !winterPrefs.snowEnabled })}
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-bold transition cursor-pointer ${
+                      winterPrefs.snowEnabled
+                        ? "border-sky-400/50 bg-sky-500/15 text-sky-200"
+                        : isDark
+                          ? "border-white/10 bg-white/5 text-slate-400"
+                          : "border-slate-300 bg-white text-slate-600"
+                    }`}
+                  >
+                    <span>❄️ Снігопад</span>
+                    <span>{winterPrefs.snowEnabled ? "УВІМК" : "ВИМК"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => saveWinterPrefs({ musicEnabled: !winterPrefs.musicEnabled })}
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-bold transition cursor-pointer ${
+                      winterPrefs.musicEnabled
+                        ? "border-amber-400/50 bg-amber-500/15 text-amber-300"
+                        : isDark
+                          ? "border-white/10 bg-white/5 text-slate-400"
+                          : "border-slate-300 bg-white text-slate-600"
+                    }`}
+                  >
+                    <span>🎵 Let It Snow</span>
+                    <span>{winterPrefs.musicEnabled ? "ГРАЄ" : "ТИША"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => saveWinterPrefs({ avatarDecor: !winterPrefs.avatarDecor })}
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-bold transition cursor-pointer ${
+                      winterPrefs.avatarDecor
+                        ? "border-rose-400/50 bg-rose-500/15 text-rose-200"
+                        : isDark
+                          ? "border-white/10 bg-white/5 text-slate-400"
+                          : "border-slate-300 bg-white text-slate-600"
+                    }`}
+                  >
+                    <span>🎅 Ковпак Санти</span>
+                    <span>{winterPrefs.avatarDecor ? "УВІМК" : "ВИМК"}</span>
+                  </button>
+                </div>
+              </div>
+            </section>
             
             {/* БЛОК 1: АВАТАРКА / ЛОГОТИП */}
-            <section className="bg-gradient-to-br from-[#101a29]/90 to-[#0d1522]/90 backdrop-blur-md border border-[rgba(65,140,190,0.25)] rounded-2xl p-6 shadow-xl space-y-5">
+            <section
+              className={`backdrop-blur-md border rounded-2xl p-6 shadow-xl space-y-5 transition-colors ${
+                isWinter
+                  ? "bg-gradient-to-br from-[#0c233f]/90 to-[#071529]/95 border-sky-300/30"
+                  : isDark
+                    ? "bg-gradient-to-br from-[#101a29]/90 to-[#0d1522]/90 border-[rgba(65,140,190,0.25)]"
+                    : "bg-white/95 border-slate-200 shadow-md"
+              }`}
+            >
               <div className="flex items-center justify-between border-b border-[rgba(65,140,190,0.2)] pb-3">
-                <h2 className="text-sm font-black uppercase text-white flex items-center gap-2">
+                <h2
+                  className={`text-sm font-black uppercase flex items-center gap-2 ${
+                    isDark ? "text-white" : "text-slate-900"
+                  }`}
+                >
                   <span className="text-[#08bfea]">🖼️</span> Аватарка / Логотип користувача
                 </h2>
                 {avatarUrl && (
@@ -421,17 +707,29 @@ export default function ProfilePage() {
             </section>
 
             {/* БЛОК 2: БАНЕР ТА ВІДОБРАЖЕННЯ */}
-            <section className="bg-gradient-to-br from-[#101a29]/90 to-[#0d1522]/90 backdrop-blur-md border border-[rgba(65,140,190,0.25)] rounded-2xl p-6 shadow-xl space-y-5">
-              <h2 className="text-sm font-black uppercase text-white flex items-center gap-2 border-b border-[rgba(65,140,190,0.2)] pb-3">
+            <section
+              className={`backdrop-blur-md border rounded-2xl p-6 shadow-xl space-y-5 transition-colors ${
+                isWinter
+                  ? "bg-gradient-to-br from-[#0c233f]/90 to-[#071529]/95 border-sky-300/30"
+                  : isDark
+                    ? "bg-gradient-to-br from-[#101a29]/90 to-[#0d1522]/90 border-[rgba(65,140,190,0.25)]"
+                    : "bg-white/95 border-slate-200 shadow-md"
+              }`}
+            >
+              <h2
+                className={`text-sm font-black uppercase flex items-center gap-2 border-b border-[rgba(65,140,190,0.2)] pb-3 ${
+                  isDark ? "text-white" : "text-slate-900"
+                }`}
+              >
                 <span className="text-amber-400">🎨</span> Банер та статус
               </h2>
 
               {/* Банер */}
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                <label className={`block text-xs font-bold mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                   Пресет або URL банера профілю:
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">
                   {BANNER_PRESETS.map((bp) => (
                     <button
                       key={bp.name}
@@ -443,7 +741,7 @@ export default function ProfilePage() {
                       className={`h-11 rounded-xl border text-xs font-bold transition-all p-1 flex items-center justify-center text-center cursor-pointer ${
                         bannerStyle === bp.style && !bannerUrl
                           ? "border-[#08bfea] ring-2 ring-[#08bfea]/40 scale-105"
-                          : "border-white/10 opacity-75 hover:opacity-100"
+                          : "border-white/10 opacity-80 hover:opacity-100"
                       }`}
                       style={{ background: bp.style }}
                     >
@@ -582,10 +880,30 @@ export default function ProfilePage() {
                 {/* Аватарка (напливає на банер як в Discord) */}
                 <div className="flex justify-between items-end -mt-12 mb-3">
                   <div className="relative">
+                    {/* Новорічна шапка Санти поверх аватарки */}
+                    {isWinter && winterPrefs.avatarDecor && (
+                      <div
+                        className="absolute -top-5 -left-2 z-20 pointer-events-none select-none text-3xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] -rotate-12"
+                        title="Новорічний ковпак Санти"
+                      >
+                        🎅
+                      </div>
+                    )}
+
                     {/* Кругла підкладка під аватаркою з товстим бордером */}
                     <div
-                      className="w-[84px] h-[84px] rounded-full p-[5px] transition-colors"
-                      style={{ background: isDark ? "#232428" : "#ffffff" }}
+                      className={`w-[84px] h-[84px] rounded-full p-[5px] transition-all ${
+                        isWinter && winterPrefs.avatarDecor
+                          ? "ring-2 ring-sky-300/70 shadow-[0_0_18px_rgba(56,189,248,0.5)]"
+                          : ""
+                      }`}
+                      style={{
+                        background: isWinter
+                          ? "#0c1d33"
+                          : isDark
+                            ? "#232428"
+                            : "#ffffff",
+                      }}
                     >
                       <div className="relative w-full h-full rounded-full overflow-hidden">
                         <MatrixAvatar
@@ -600,7 +918,13 @@ export default function ProfilePage() {
                     {/* Зелений Discord онлайн-індикатор */}
                     <div
                       className="absolute bottom-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
-                      style={{ background: isDark ? "#232428" : "#ffffff" }}
+                      style={{
+                        background: isWinter
+                          ? "#0c1d33"
+                          : isDark
+                            ? "#232428"
+                            : "#ffffff",
+                      }}
                     >
                       <span className="w-3.5 h-3.5 rounded-full bg-[#23a55a] shadow-[0_0_8px_#23a55a]" />
                     </div>
@@ -609,7 +933,7 @@ export default function ProfilePage() {
                   {/* Кнопка на картці */}
                   <div className="pb-1">
                     <span className="text-[11px] font-bold text-slate-400 bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg">
-                      ⚽ Matchday Гравець
+                      {isWinter ? "❄️ Зимовий Гравець" : "⚽ Matchday Гравець"}
                     </span>
                   </div>
                 </div>

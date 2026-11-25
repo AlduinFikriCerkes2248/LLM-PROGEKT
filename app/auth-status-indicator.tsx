@@ -10,6 +10,7 @@ import {
   PROFILE_UPDATED_EVENT,
 } from "../lib/supabase/client";
 import MatrixAvatar from "../components/matrix-avatar";
+import { AppTheme, getStoredTheme } from "@/lib/theme";
 
 type SignedInUser = {
   id: string;
@@ -25,16 +26,12 @@ export default function AuthStatusIndicator() {
   const [hohlyantsi, setHohlyantsi] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<AppTheme>("dark");
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     // 1. Ініціалізація поточної теми
-    const saved = typeof window !== "undefined" ? localStorage.getItem("matchday_theme") : null;
-    const isLight =
-      (typeof document !== "undefined" && document.documentElement.classList.contains("light")) ||
-      saved === "light";
-    setTheme(isLight ? "light" : "dark");
+    setTheme(getStoredTheme());
 
     const savedAvatar =
       typeof window !== "undefined" ? localStorage.getItem("matchday_avatar_url") : null;
@@ -51,12 +48,11 @@ export default function AuthStatusIndicator() {
 
     // 2. Слухаємо подію перемикання теми (з theme-toggle)
     function handleThemeChange(e: Event) {
-      const customEvent = e as CustomEvent<{ theme: "dark" | "light" }>;
+      const customEvent = e as CustomEvent<{ theme?: AppTheme }>;
       if (customEvent.detail?.theme) {
         setTheme(customEvent.detail.theme);
       } else {
-        const isNowLight = document.documentElement.classList.contains("light");
-        setTheme(isNowLight ? "light" : "dark");
+        setTheme(getStoredTheme());
       }
     }
 
@@ -226,7 +222,8 @@ export default function AuthStatusIndicator() {
 
   if (pathname === "/login" || pathname === "/") return null;
 
-  const isDark = theme === "dark";
+  const isDark = theme !== "light";
+  const isWinter = theme === "winter";
   const displayName = username || (user?.email ? user.email.split("@")[0] : "maksimarzubov491");
 
   return (
@@ -242,15 +239,21 @@ export default function AuthStatusIndicator() {
         <div
           className="relative flex items-center rounded-2xl p-1 transition-all duration-300 shadow-2xl"
           style={{
-            background: isDark
-              ? "linear-gradient(135deg, #1c2230 0%, #11151e 100%)"
-              : "linear-gradient(135deg, #ffffff 0%, #f4f6fa 100%)",
-            border: isDark
-              ? "1px solid rgba(255, 255, 255, 0.12)"
-              : "1px solid rgba(0, 0, 0, 0.1)",
-            boxShadow: isDark
-              ? "0 10px 30px -5px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(245, 158, 11, 0.2)"
-              : "0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 0 1px 1px rgba(245, 158, 11, 0.25)",
+            background: isWinter
+              ? "linear-gradient(135deg, #0b223d 0%, #071324 100%)"
+              : isDark
+                ? "linear-gradient(135deg, #1c2230 0%, #11151e 100%)"
+                : "linear-gradient(135deg, #ffffff 0%, #f4f6fa 100%)",
+            border: isWinter
+              ? "1px solid rgba(125, 211, 252, 0.45)"
+              : isDark
+                ? "1px solid rgba(255, 255, 255, 0.12)"
+                : "1px solid rgba(0, 0, 0, 0.1)",
+            boxShadow: isWinter
+              ? "0 10px 30px -5px rgba(0, 0, 0, 0.75), 0 0 14px rgba(56, 189, 248, 0.25)"
+              : isDark
+                ? "0 10px 30px -5px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(245, 158, 11, 0.2)"
+                : "0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 0 1px 1px rgba(245, 158, 11, 0.25)",
           }}
         >
           {/* ================================================================= */}

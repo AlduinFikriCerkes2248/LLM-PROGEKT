@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { AppTheme } from "@/lib/theme";
 
 interface MatrixAvatarProps {
-  theme?: "dark" | "light";
+  theme?: AppTheme;
   size?: number;
   initial?: string;
   className?: string;
@@ -25,7 +26,7 @@ export default function MatrixAvatar({
 }: MatrixAvatarProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [currentDisplayTheme, setCurrentDisplayTheme] = useState<"dark" | "light">(theme);
+  const [currentDisplayTheme, setCurrentDisplayTheme] = useState<AppTheme>(theme);
   const [imgError, setImgError] = useState(false);
   const prevThemeRef = useRef(theme);
 
@@ -42,7 +43,7 @@ export default function MatrixAvatar({
   }, [theme]);
 
   // Запуск Matrix розпаду та складання (dissolve -> reassemble piece by piece)
-  function playMatrixDissolve(targetTheme: "dark" | "light") {
+  function playMatrixDissolve(targetTheme: AppTheme) {
     const canvas = canvasRef.current;
     if (!canvas) {
       setCurrentDisplayTheme(targetTheme);
@@ -181,12 +182,14 @@ export default function MatrixAvatar({
 
           context.fillStyle =
             flash > 0
-              ? targetTheme === "dark"
+              ? targetTheme !== "light"
                 ? "#ffffff"
                 : "#22c55e"
-              : targetTheme === "dark"
-                ? "#ffffff"
-                : "#0f172a";
+              : targetTheme === "winter"
+                ? "#7dd3fc"
+                : targetTheme === "dark"
+                  ? "#ffffff"
+                  : "#0f172a";
           context.font = `bold ${Math.round(cellSize * 0.95)}px monospace`;
           context.textAlign = "center";
           context.textBaseline = "middle";
@@ -222,12 +225,18 @@ export default function MatrixAvatar({
     requestAnimationFrame(render);
   }
 
-  const isDark = currentDisplayTheme === "dark";
+  const isDark = currentDisplayTheme !== "light";
+  const isWinter = currentDisplayTheme === "winter";
 
   return (
     <div
       onClick={() => {
-        const nextTheme = currentDisplayTheme === "dark" ? "light" : "dark";
+        const nextTheme: AppTheme =
+          currentDisplayTheme === "dark"
+            ? "light"
+            : currentDisplayTheme === "light"
+              ? "winter"
+              : "dark";
         playMatrixDissolve(nextTheme);
         if (onClick) onClick();
       }}
@@ -236,15 +245,21 @@ export default function MatrixAvatar({
       style={{
         width: `${size}px`,
         height: `${size}px`,
-        background: isDark
-          ? "radial-gradient(circle at 35% 35%, #1f2533 0%, #0d1118 100%)"
-          : "radial-gradient(circle at 35% 35%, #ffffff 0%, #e2e8f0 100%)",
-        boxShadow: isDark
-          ? "0 0 10px rgba(0, 255, 102, 0.25), inset 0 1px 2px rgba(255,255,255,0.2)"
-          : "0 0 10px rgba(234, 179, 8, 0.3), inset 0 1px 2px rgba(0,0,0,0.1)",
-        border: isDark
-          ? "1.5px solid rgba(255, 255, 255, 0.3)"
-          : "1.5px solid rgba(15, 23, 42, 0.3)",
+        background: isWinter
+          ? "radial-gradient(circle at 35% 35%, #163759 0%, #071324 100%)"
+          : isDark
+            ? "radial-gradient(circle at 35% 35%, #1f2533 0%, #0d1118 100%)"
+            : "radial-gradient(circle at 35% 35%, #ffffff 0%, #e2e8f0 100%)",
+        boxShadow: isWinter
+          ? "0 0 12px rgba(56, 189, 248, 0.5), inset 0 1px 2px rgba(224,242,254,0.35)"
+          : isDark
+            ? "0 0 10px rgba(0, 255, 102, 0.25), inset 0 1px 2px rgba(255,255,255,0.2)"
+            : "0 0 10px rgba(234, 179, 8, 0.3), inset 0 1px 2px rgba(0,0,0,0.1)",
+        border: isWinter
+          ? "1.5px solid rgba(125, 211, 252, 0.7)"
+          : isDark
+            ? "1.5px solid rgba(255, 255, 255, 0.3)"
+            : "1.5px solid rgba(15, 23, 42, 0.3)",
       }}
     >
       {/* 1. БАЗОВА АВАТАРКА (КАСТОМНА КАРТИНКА АБО ЧОРНА/БІЛА МАТРИЦЯ) */}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import ThemeToggle from "../../components/theme-toggle";
 import MatrixAvatar from "../../components/matrix-avatar";
+import { AppTheme, getStoredTheme } from "@/lib/theme";
 import AiChipIcon from "../../components/ai-chip-icon";
 import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "../../lib/supabase/client";
 
@@ -31,15 +32,11 @@ export default function DashboardPage() {
   const [xp, setXp] = useState<number>(50);
   const [joinDate, setJoinDate] = useState<string>("20.10.2026");
   const [leaderTab, setLeaderTab] = useState<"all" | "month" | "week">("all");
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<AppTheme>("dark");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const saved = typeof window !== "undefined" ? localStorage.getItem("matchday_theme") : null;
-    const isLight =
-      (typeof document !== "undefined" && document.documentElement.classList.contains("light")) ||
-      saved === "light";
-    setTheme(isLight ? "light" : "dark");
+    setTheme(getStoredTheme());
 
     const savedAv = typeof window !== "undefined" ? localStorage.getItem("matchday_avatar_url") : null;
     if (savedAv) setAvatarUrl(savedAv);
@@ -51,12 +48,11 @@ export default function DashboardPage() {
     } catch {}
 
     function handleThemeChange(e: Event) {
-      const customEvent = e as CustomEvent<{ theme: "dark" | "light" }>;
+      const customEvent = e as CustomEvent<{ theme?: AppTheme }>;
       if (customEvent.detail?.theme) {
         setTheme(customEvent.detail.theme);
       } else {
-        const isNowLight = document.documentElement.classList.contains("light");
-        setTheme(isNowLight ? "light" : "dark");
+        setTheme(getStoredTheme());
       }
     }
 
@@ -477,15 +473,17 @@ export default function DashboardPage() {
               className="relative flex items-center gap-2 rounded-2xl p-1 cursor-pointer transition-all shadow-md group hover:scale-105 active:scale-95"
               style={{
                 background:
-                  theme === "dark"
+                  theme !== "light"
                     ? "linear-gradient(135deg, #1c2230 0%, #11151e 100%)"
                     : "linear-gradient(135deg, #ffffff 0%, #f4f6fa 100%)",
                 border:
-                  theme === "dark"
-                    ? "1px solid rgba(255, 255, 255, 0.12)"
-                    : "1px solid rgba(0, 0, 0, 0.1)",
+                  theme === "winter"
+                    ? "1px solid rgba(125, 211, 252, 0.45)"
+                    : theme !== "light"
+                      ? "1px solid rgba(255, 255, 255, 0.12)"
+                      : "1px solid rgba(0, 0, 0, 0.1)",
                 boxShadow:
-                  theme === "dark"
+                  theme !== "light"
                     ? "0 4px 14px rgba(0,0,0,0.5), 0 0 1px 1px rgba(245, 158, 11, 0.25)"
                     : "0 4px 14px rgba(0,0,0,0.08), 0 0 1px 1px rgba(245, 158, 11, 0.3)",
               }}
@@ -512,7 +510,7 @@ export default function DashboardPage() {
 
               <span
                 className="font-extrabold text-xs pr-2 transition-colors group-hover:text-[#08bfea]"
-                style={{ color: theme === "dark" ? "#f1f5fa" : "#0f172a" }}
+                style={{ color: theme !== "light" ? "#f1f5fa" : "#0f172a" }}
               >
                 {username} ▾
               </span>

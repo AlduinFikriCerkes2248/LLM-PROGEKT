@@ -47,6 +47,37 @@ html.light,
   --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 0 1px 1px rgba(65, 140, 190, 0.18);
 }
 
+html.winter,
+[data-theme="winter"] {
+  --background: #050c18;
+  --surface: #0a1729;
+  --card: #0c1d33;
+  --card-hover: #102642;
+  --border: rgba(125, 211, 252, 0.3);
+  --border-cyan: rgba(103, 232, 249, 0.65);
+  --border-orange: rgba(251, 191, 36, 0.55);
+  --cyan: #38bdf8;
+  --cyan-hover: #7dd3fc;
+  --cyan-glow: rgba(56, 189, 248, 0.35);
+  --text-main: #f0f9ff;
+  --text-secondary: #bae6fd;
+  --text-muted: #7dd3fc;
+  --shadow-card: 0 12px 32px -10px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(186, 230, 253, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+html.winter .matchday-card,
+[data-theme="winter"] .matchday-card {
+  background: linear-gradient(180deg, rgba(12, 29, 51, 0.85) 0%, rgba(8, 19, 36, 0.92) 100%);
+  border-color: rgba(125, 211, 252, 0.28);
+  box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(224, 242, 254, 0.16);
+}
+
+html.winter .matchday-card:hover,
+[data-theme="winter"] .matchday-card:hover {
+  border-color: rgba(125, 211, 252, 0.6);
+  box-shadow: 0 12px 36px -8px rgba(56, 189, 248, 0.22), inset 0 1px 0 rgba(224, 242, 254, 0.25);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
