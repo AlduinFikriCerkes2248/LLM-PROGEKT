@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "@/lib/supabase/client";
 import { triggerSteamAchievement } from "@/components/steam-achievement-notification";
+import { fireWinterFrostConfetti } from "@/lib/confetti";
 
 interface WinterEventCurtainProps {
   externalOpenSignal?: number;
@@ -244,6 +245,7 @@ export default function WinterEventCurtain({
       window.dispatchEvent(new Event("storage"));
     } catch {}
 
+    fireWinterFrostConfetti();
     triggerSteamAchievement({
       id: "winter_daily_gift",
       title: "🎁 Різдвяна Скриня",

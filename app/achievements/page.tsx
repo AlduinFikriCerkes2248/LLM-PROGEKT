@@ -11,6 +11,7 @@ import {
 } from "@/lib/achievements-data";
 import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "@/lib/supabase/client";
 import { triggerSteamAchievement } from "@/components/steam-achievement-notification";
+import { fireGoldJackpotConfetti } from "@/lib/confetti";
 import {
   PROMO_EASTER_EGGS,
   PromoEasterEgg,
@@ -227,6 +228,7 @@ export default function AchievementsPage() {
       })
     );
     window.dispatchEvent(new Event("storage"));
+    fireGoldJackpotConfetti();
     setClaimedModal(item);
   };
 
@@ -377,7 +379,8 @@ export default function AchievementsPage() {
 
     window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
 
-    // Відкриваємо модалку святкування з GIF
+    // Відкриваємо модалку святкування з GIF та запускаємо конфеті
+    fireGoldJackpotConfetti();
     setActiveEasterEgg(egg);
     setPromoFeedback({
       type: "success",

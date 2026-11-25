@@ -5,6 +5,7 @@ import Link from "next/link";
 import ThemeToggle from "./theme-toggle";
 import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "@/lib/supabase/client";
 import { triggerSteamAchievement } from "./steam-achievement-notification";
+import { fireWinterFrostConfetti } from "@/lib/confetti";
 
 const LUCKY_DAILY_KEY = "matchday:winter_lucky_date";
 
@@ -77,6 +78,7 @@ export default function WinterLandingHero() {
       window.dispatchEvent(new Event("storage"));
     } catch {}
 
+    fireWinterFrostConfetti();
     triggerSteamAchievement({
       id: "winter_lucky_bonus",
       title: "🎁 Різдвяний Бонус Дня",
