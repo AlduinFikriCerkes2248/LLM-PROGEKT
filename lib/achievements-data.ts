@@ -316,6 +316,48 @@ export const INITIAL_ACHIEVEMENTS: AchievementItem[] = [
     completed: false,
     claimed: false,
   },
+  // =========================================================================
+  // 6. ЗИМОВА СЕРІЯ (WINTER 2026)
+  // =========================================================================
+  {
+    id: "snow_storm_games",
+    title: "❄️ Снігова Буря",
+    desc: "Зіграти 5 раундів у Кості або Блекджек із ввімкненою Зимовою темою.",
+    rarity: "rare",
+    category: "casino",
+    iconType: "fire",
+    target: 5,
+    current: 0,
+    reward: { coins: 5000, bonuses: 20, xp: 250 },
+    completed: false,
+    claimed: false,
+  },
+  {
+    id: "winter_curtain_explorer",
+    title: "🧣 Дослідник Завірюхи",
+    desc: "Потягнути за зимову завісу та відкрити Зимовий Адвент-календар.",
+    rarity: "rare",
+    category: "secret",
+    iconType: "crate",
+    target: 1,
+    current: 0,
+    reward: { coins: 3000, bonuses: 15, xp: 200, title: "❄️ Зимовий Мандрівник" },
+    completed: false,
+    claimed: false,
+  },
+  {
+    id: "polar_highroller",
+    title: "💎 Полярний Хайролер",
+    desc: "Відкрити 3 зимові святкові кейси в розділі «Кейси».",
+    rarity: "epic",
+    category: "cases",
+    iconType: "crown",
+    target: 3,
+    current: 0,
+    reward: { coins: 25000, bonuses: 40, xp: 600, title: "❄️ Полярний Хайролер" },
+    completed: false,
+    claimed: false,
+  },
 ];
 
 export const ACHIEVEMENTS_STORAGE_KEY = "matchday:achievements_state";

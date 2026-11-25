@@ -5,12 +5,24 @@ import { useRouter } from "next/navigation";
 import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "@/lib/supabase/client";
 import { triggerSteamAchievement } from "@/components/steam-achievement-notification";
 import { fireWinterFrostConfetti } from "@/lib/confetti";
+import { trackAchievement } from "@/lib/achievements-tracker";
 
 interface WinterEventCurtainProps {
   externalOpenSignal?: number;
 }
 
 const DAILY_WINTER_GIFT_KEY = "matchday:winter_curtain_gift_date";
+const ADVENT_CLAIMED_KEY = "matchday:advent_claimed_days";
+
+const ADVENT_DAYS = [
+  { day: 1, coins: 300, bonuses: 10, icon: "🧦", label: "День 1" },
+  { day: 2, coins: 500, bonuses: 15, icon: "❄️", label: "День 2" },
+  { day: 3, coins: 800, bonuses: 20, icon: "🍪", label: "День 3" },
+  { day: 4, coins: 1200, bonuses: 25, icon: "⛄", label: "День 4" },
+  { day: 5, coins: 1800, bonuses: 35, icon: "🛷", label: "День 5" },
+  { day: 6, coins: 2500, bonuses: 50, icon: "🔔", label: "День 6" },
+  { day: 7, coins: 5000, bonuses: 100, icon: "👑", label: "День 7" },
+];
 
 export function NewYearCountdown() {
   const [timeLeft, setTimeLeft] = useState("37 днів 08:39:15");
@@ -142,6 +154,7 @@ export default function WinterEventCurtain({
   const [dragTranslate, setDragTranslate] = useState<number | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [giftClaimedToday, setGiftClaimedToday] = useState(false);
+  const [adventClaimedDays, setAdventClaimedDays] = useState<number[]>([]);
 
   const isDraggingRef = useRef(false);
   const startYRef = useRef(0);
@@ -152,8 +165,19 @@ export default function WinterEventCurtain({
     try {
       const today = new Date().toISOString().slice(0, 10);
       setGiftClaimedToday(localStorage.getItem(DAILY_WINTER_GIFT_KEY) === today);
+      const rawAdvent = localStorage.getItem(ADVENT_CLAIMED_KEY);
+      if (rawAdvent) {
+        const parsed = JSON.parse(rawAdvent);
+        if (Array.isArray(parsed)) setAdventClaimedDays(parsed);
+      }
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      trackAchievement("winter_curtain_explorer", 1, "set");
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (externalOpenSignal > 0) {
@@ -260,6 +284,61 @@ export default function WinterEventCurtain({
     showFeedback("🎁 Вітаємо! Ви забрали +500 🪙 та +10 Б зі святкової скрині!");
   };
 
+  const claimAdventDay = async (day: number) => {
+    const reward = ADVENT_DAYS.find((d) => d.day === day);
+    if (!reward) return;
+
+    if (adventClaimedDays.includes(day)) {
+      showFeedback(`✅ ${reward.label} Адвент-календаря вже забрано!`);
+      return;
+    }
+
+    const nextExpectedDay = adventClaimedDays.length + 1;
+    if (day > nextExpectedDay) {
+      showFeedback(`🔒 Спочатку відкрийте День ${nextExpectedDay}!`);
+      return;
+    }
+
+    const nextClaimed = [...adventClaimedDays, day];
+    setAdventClaimedDays(nextClaimed);
+
+    try {
+      localStorage.setItem(ADVENT_CLAIMED_KEY, JSON.stringify(nextClaimed));
+      const c = parseInt(localStorage.getItem("matchday:coins") || localStorage.getItem("matchday_coins") || "1088233", 10);
+      const h = parseInt(localStorage.getItem("matchday:hohlyantsi") || localStorage.getItem("matchday_hohlyantsi") || "45", 10);
+      const nextCoins = c + reward.coins;
+      const nextBonuses = h + reward.bonuses;
+      localStorage.setItem("matchday:coins", nextCoins.toString());
+      localStorage.setItem("matchday_coins", nextCoins.toString());
+      localStorage.setItem("matchday:hohlyantsi", nextBonuses.toString());
+      localStorage.setItem("matchday_hohlyantsi", nextBonuses.toString());
+
+      const client = getSupabaseClient();
+      if (client) {
+        const { data: authData } = await client.auth.getUser();
+        if (authData?.user) {
+          await client
+            .from("profiles")
+            .update({ coins: nextCoins, hohlyantsi: nextBonuses })
+            .eq("id", authData.user.id);
+        }
+      }
+
+      window.dispatchEvent(
+        new CustomEvent(PROFILE_UPDATED_EVENT, {
+          detail: { coins: nextCoins, hohlyantsi: nextBonuses },
+        })
+      );
+      window.dispatchEvent(new Event("storage"));
+    } catch {}
+
+    fireWinterFrostConfetti();
+    trackAchievement("winter_curtain_explorer", 1, "set");
+    showFeedback(
+      `${reward.icon} Адвент ${reward.label}: отримано +${reward.coins.toLocaleString()} 🪙 та +${reward.bonuses} Б!`
+    );
+  };
+
   // Drag-down handlers on pull handle
   const THRESHOLD = 140;
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -354,7 +433,7 @@ export default function WinterEventCurtain({
           }}
         />
 
-        <div className="relative z-10 flex flex-col justify-between h-full max-w-6xl w-full mx-auto px-4 sm:px-8 py-6">
+        <div className="relative z-10 flex flex-col justify-between h-full max-w-6xl w-full mx-auto px-4 sm:px-8 py-6 overflow-y-auto">
           {/* Header Bar */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -449,6 +528,59 @@ export default function WinterEventCurtain({
                 Зимова Арена (Турніри)
               </span>
             </button>
+          </div>
+
+          {/* 7-Day Winter Advent Calendar Strip */}
+          <div className="mb-4 rounded-2xl border border-sky-300/25 bg-[#061329]/85 p-3.5 backdrop-blur-xl">
+            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm">📅</span>
+                <span className="text-xs font-black uppercase tracking-wider text-sky-200">
+                  7-Денний Зимовий Адвент-Календар
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-amber-300">
+                Відкрито {adventClaimedDays.length} / {ADVENT_DAYS.length} днів
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+              {ADVENT_DAYS.map((item) => {
+                const isClaimed = adventClaimedDays.includes(item.day);
+                const isNext = item.day === adventClaimedDays.length + 1;
+                const isLocked = item.day > adventClaimedDays.length + 1;
+
+                return (
+                  <button
+                    key={item.day}
+                    type="button"
+                    onClick={(e) => {
+                      if (isNext) spawnSparkles(e.clientX, e.clientY);
+                      void claimAdventDay(item.day);
+                    }}
+                    className={`flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition-all ${
+                      isClaimed
+                        ? "border-emerald-500/40 bg-emerald-950/35 text-emerald-200 opacity-85"
+                        : isNext
+                          ? "border-amber-400 bg-gradient-to-b from-amber-500/20 to-sky-900/50 text-white shadow-[0_0_16px_rgba(245,158,11,0.35)] hover:scale-[1.03] cursor-pointer"
+                          : "border-slate-700/60 bg-slate-900/60 text-slate-400 opacity-60 cursor-not-allowed"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full text-[9px] font-black uppercase mb-1">
+                      <span>{item.label}</span>
+                      <span>{isClaimed ? "✓" : isLocked ? "🔒" : "✨"}</span>
+                    </div>
+                    <span className="text-lg leading-none mb-1">{item.icon}</span>
+                    <span className="text-[10px] font-black text-amber-300">
+                      +{item.coins} 🪙
+                    </span>
+                    <span className="text-[9px] font-bold text-sky-300">
+                      +{item.bonuses} Б
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* 4 Structured Event Activity Cards */}

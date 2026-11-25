@@ -11,6 +11,13 @@ import WinterEventCurtain, {
   PineBranchSvg,
 } from "@/components/winter-event-curtain";
 import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "../../lib/supabase/client";
+import AnimatedNumber from "@/components/animated-number";
+import {
+  getFrameClass,
+  getNameColorClass,
+  loadCosmetics,
+  UserCosmeticsState,
+} from "@/lib/cosmetics";
 
 type Leader = {
   rank: number;
@@ -39,9 +46,16 @@ export default function DashboardPage() {
   const [theme, setTheme] = useState<AppTheme>("dark");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [openCurtainSignal, setOpenCurtainSignal] = useState(0);
+  const [cosmetics, setCosmetics] = useState<UserCosmeticsState>({
+    unlockedFrames: ["none"],
+    unlockedNameColors: ["default"],
+    equippedFrame: "none",
+    equippedNameColor: "default",
+  });
 
   useEffect(() => {
     setTheme(getStoredTheme());
+    setCosmetics(loadCosmetics());
 
     const savedAv = typeof window !== "undefined" ? localStorage.getItem("matchday_avatar_url") : null;
     if (savedAv) setAvatarUrl(savedAv);
@@ -62,7 +76,17 @@ export default function DashboardPage() {
     }
 
     function handleProfileUpdate(e: Event) {
-      const custom = e as CustomEvent<{ avatar_url?: string; username?: string; coins?: number }>;
+      const custom = e as CustomEvent<{
+        avatar_url?: string;
+        username?: string;
+        coins?: number;
+        cosmetics?: UserCosmeticsState;
+      }>;
+      if (custom.detail?.cosmetics) {
+        setCosmetics(custom.detail.cosmetics);
+      } else {
+        setCosmetics(loadCosmetics());
+      }
       if (custom.detail?.avatar_url !== undefined) {
         setAvatarUrl(custom.detail.avatar_url);
       } else {
@@ -84,6 +108,9 @@ export default function DashboardPage() {
       if (!e.key || e.key === "matchday:coins" || e.key === "matchday_coins") {
         const c = localStorage.getItem("matchday:coins") || localStorage.getItem("matchday_coins");
         if (c) setBalance(parseInt(c, 10));
+      }
+      if (!e.key || e.key === "matchday:user_cosmetics") {
+        setCosmetics(loadCosmetics());
       }
     }
 
@@ -537,7 +564,7 @@ export default function DashboardPage() {
                     clipPath: "polygon(0 0, 80% 0, 100% 50%, 80% 100%, 0 100%)",
                   }}
                 />
-                <div className="relative z-10">
+                <div className={`relative z-10 rounded-full ${getFrameClass(cosmetics.equippedFrame)}`}>
                   <MatrixAvatar
                     theme={theme}
                     size={30}
@@ -548,8 +575,12 @@ export default function DashboardPage() {
               </div>
 
               <span
-                className="font-extrabold text-xs pr-2 transition-colors group-hover:text-[#08bfea]"
-                style={{ color: theme !== "light" ? "#f1f5fa" : "#0f172a" }}
+                className={`font-extrabold text-xs pr-2 transition-colors group-hover:text-[#08bfea] ${getNameColorClass(cosmetics.equippedNameColor)}`}
+                style={
+                  cosmetics.equippedNameColor === "default"
+                    ? { color: theme !== "light" ? "#f1f5fa" : "#0f172a" }
+                    : undefined
+                }
               >
                 {username} ▾
               </span>
@@ -650,7 +681,7 @@ export default function DashboardPage() {
                   </span>
                   <div>
                     <div className="text-xl font-black text-white group-hover:text-[#08bfea] transition-colors font-mono">
-                      {formattedBalance}
+                      <AnimatedNumber value={balance} />
                     </div>
                     <div className="text-[11px] font-semibold text-[#9aa9be]">
                       Баланс монет
@@ -883,7 +914,9 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex items-center gap-3.5 mb-4">
-                <div className="relative p-1 rounded-2xl bg-gradient-to-br from-[#facc15]/20 to-transparent border border-amber-400/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                <div
+                  className={`relative p-1 rounded-2xl bg-gradient-to-br from-[#facc15]/20 to-transparent border border-amber-400/30 shadow-[0_0_15px_rgba(245,158,11,0.2)] ${getFrameClass(cosmetics.equippedFrame)}`}
+                >
                   <MatrixAvatar
                     theme={theme}
                     size={42}
@@ -893,7 +926,9 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <div className="font-black text-white text-sm flex items-center gap-2">
-                    {username}
+                    <span className={getNameColorClass(cosmetics.equippedNameColor)}>
+                      {username}
+                    </span>
                     <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
                   </div>
                   <div className="text-[11px] text-[#9aa9be]">

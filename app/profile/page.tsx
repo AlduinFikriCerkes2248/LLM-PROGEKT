@@ -5,6 +5,20 @@ import { useEffect, useState } from "react";
 import ThemeToggle from "../../components/theme-toggle";
 import { trackAchievement } from "@/lib/achievements-tracker";
 import MatrixAvatar from "../../components/matrix-avatar";
+import { ShoppingBag, Sparkles, Check } from "lucide-react";
+import { fireGoldJackpotConfetti } from "@/lib/confetti";
+import {
+  AVATAR_FRAMES,
+  NAME_COLORS,
+  CosmeticItem,
+  UserCosmeticsState,
+  loadCosmetics,
+  saveCosmetics,
+  getFrameClass,
+  getNameColorClass,
+  AvatarFrameId,
+  NameColorId,
+} from "@/lib/cosmetics";
 import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "../../lib/supabase/client";
 import {
   AppTheme,
@@ -86,6 +100,14 @@ export default function ProfilePage() {
     "Футбольний фанат з 2012 року. Вболіваю за красиву гру та точні прогнози. Непереможний у турнірах Matchday 🎯"
   );
   const [coins, setCoins] = useState<number>(1088233);
+  const [bonuses, setBonuses] = useState<number>(45);
+  const [cosmetics, setCosmetics] = useState<UserCosmeticsState>({
+    unlockedFrames: ["none"],
+    unlockedNameColors: ["default"],
+    equippedFrame: "none",
+    equippedNameColor: "default",
+  });
+  const [shopNotice, setShopNotice] = useState<string | null>(null);
   const [level, setLevel] = useState<number>(1);
   const [xp, setXp] = useState<number>(50);
   const [isSavedNotice, setIsSavedNotice] = useState<boolean>(false);
@@ -129,6 +151,8 @@ export default function ProfilePage() {
       try {
         const c = localStorage.getItem("matchday:coins") || localStorage.getItem("matchday_coins");
         if (c) setCoins(parseInt(c, 10));
+        const h = localStorage.getItem("matchday:hohlyantsi") || localStorage.getItem("matchday_hohlyantsi");
+        if (h) setBonuses(parseInt(h, 10));
         const rawXp = localStorage.getItem("matchday:bj_xp");
         if (rawXp) {
           const totalXp = parseInt(rawXp, 10);
@@ -140,12 +164,22 @@ export default function ProfilePage() {
       } catch {}
     };
     syncLocalCoinsAndXp();
+    setCosmetics(loadCosmetics());
 
     const handleProfileUpdate = (e: Event) => {
-      const custom = e as CustomEvent<{ coins?: number }>;
+      const custom = e as CustomEvent<{ coins?: number; hohlyantsi?: number; cosmetics?: UserCosmeticsState }>;
+      if (custom.detail?.cosmetics) {
+        setCosmetics(custom.detail.cosmetics);
+      } else {
+        setCosmetics(loadCosmetics());
+      }
       if (custom.detail?.coins !== undefined) {
         setCoins(custom.detail.coins);
-      } else {
+      }
+      if (custom.detail?.hohlyantsi !== undefined) {
+        setBonuses(custom.detail.hohlyantsi);
+      }
+      if (custom.detail?.coins === undefined && custom.detail?.hohlyantsi === undefined) {
         syncLocalCoinsAndXp();
       }
     };
@@ -175,7 +209,7 @@ export default function ProfilePage() {
           }
           client
             .from("profiles")
-            .select("username, coins")
+            .select("username, coins, hohlyantsi")
             .eq("id", data.user.id)
             .maybeSingle()
             .then(({ data: prof }) => {
@@ -185,6 +219,13 @@ export default function ProfilePage() {
                 try {
                   localStorage.setItem("matchday:coins", prof.coins.toString());
                   localStorage.setItem("matchday_coins", prof.coins.toString());
+                } catch {}
+              }
+              if (typeof prof?.hohlyantsi === "number") {
+                setBonuses(prof.hohlyantsi);
+                try {
+                  localStorage.setItem("matchday:hohlyantsi", prof.hohlyantsi.toString());
+                  localStorage.setItem("matchday_hohlyantsi", prof.hohlyantsi.toString());
                 } catch {}
               }
             });
@@ -206,6 +247,70 @@ export default function ProfilePage() {
     if (newTheme === "winter" && !bannerUrl && bannerStyle === BANNER_PRESETS[0].style) {
       setBannerStyle(BANNER_PRESETS[4].style);
     }
+  }
+
+  async function handleBuyOrEquipCosmetic(item: CosmeticItem) {
+    setShopNotice(null);
+    const isFrame = item.type === "frame";
+    const unlockedList = isFrame ? cosmetics.unlockedFrames : cosmetics.unlockedNameColors;
+    const isUnlocked = unlockedList.includes(item.id);
+
+    if (isUnlocked) {
+      const updated: UserCosmeticsState = {
+        ...cosmetics,
+        equippedFrame: isFrame ? (item.id as AvatarFrameId) : cosmetics.equippedFrame,
+        equippedNameColor: !isFrame ? (item.id as NameColorId) : cosmetics.equippedNameColor,
+      };
+      setCosmetics(updated);
+      saveCosmetics(updated);
+      setShopNotice(`✨ Стиль «${item.name}» активовано у вашому профілі!`);
+      return;
+    }
+
+    if (bonuses < item.price) {
+      setShopNotice(`⚠️ Недостатньо Бонусів Б! Потрібно ${item.price} Б (у вас ${bonuses} Б).`);
+      return;
+    }
+
+    const nextBonuses = bonuses - item.price;
+    setBonuses(nextBonuses);
+    try {
+      localStorage.setItem("matchday:hohlyantsi", nextBonuses.toString());
+      localStorage.setItem("matchday_hohlyantsi", nextBonuses.toString());
+
+      const client = getSupabaseClient();
+      if (client) {
+        const { data: authData } = await client.auth.getUser();
+        if (authData?.user) {
+          await client
+            .from("profiles")
+            .update({ hohlyantsi: nextBonuses })
+            .eq("id", authData.user.id);
+        }
+      }
+    } catch {}
+
+    const updated: UserCosmeticsState = {
+      unlockedFrames: isFrame
+        ? Array.from(new Set([...cosmetics.unlockedFrames, item.id]))
+        : cosmetics.unlockedFrames,
+      unlockedNameColors: !isFrame
+        ? Array.from(new Set([...cosmetics.unlockedNameColors, item.id]))
+        : cosmetics.unlockedNameColors,
+      equippedFrame: isFrame ? (item.id as AvatarFrameId) : cosmetics.equippedFrame,
+      equippedNameColor: !isFrame ? (item.id as NameColorId) : cosmetics.equippedNameColor,
+    };
+
+    setCosmetics(updated);
+    saveCosmetics(updated);
+    window.dispatchEvent(
+      new CustomEvent(PROFILE_UPDATED_EVENT, {
+        detail: { hohlyantsi: nextBonuses, cosmetics: updated },
+      })
+    );
+    window.dispatchEvent(new Event("storage"));
+    fireGoldJackpotConfetti();
+    setShopNotice(`🎉 Куплено та одягнено «${item.name}» за ${item.price} Б!`);
   }
 
   function handleSaveProfile() {
@@ -628,6 +733,157 @@ export default function ProfilePage() {
                 </div>
               </div>
             </section>
+
+            {/* БЛОК 0.5: МАГАЗИН СТИЛІВ (ЗА БОНУСИ Б) */}
+            <section
+              className={`backdrop-blur-md border rounded-2xl p-6 shadow-xl space-y-5 transition-colors ${
+                isWinter
+                  ? "bg-gradient-to-br from-[#0c233f]/90 to-[#071529]/95 border-sky-300/30"
+                  : isDark
+                    ? "bg-gradient-to-br from-[#101a29]/90 to-[#0d1522]/90 border-[rgba(65,140,190,0.25)]"
+                    : "bg-white/95 border-slate-200 shadow-md"
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(65,140,190,0.2)] pb-3">
+                <div>
+                  <h2
+                    className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
+                      isDark ? "text-white" : "text-slate-900"
+                    }`}
+                  >
+                    <ShoppingBag className="w-4 h-4 text-amber-400" />
+                    Магазин стилів (за Бонуси Б)
+                  </h2>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Витрачайте бонуси на ексклюзивні рамки аватара та градієнти нікнейму
+                  </p>
+                </div>
+
+                <div className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/40 bg-sky-950/50 px-3 py-1.5 text-xs font-black text-sky-300">
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[9px] font-black text-slate-950">
+                    Б
+                  </span>
+                  <span>{bonuses.toLocaleString()} Б доступно</span>
+                </div>
+              </div>
+
+              {shopNotice && (
+                <div className="rounded-xl border border-sky-400/40 bg-sky-950/60 px-3.5 py-2.5 text-xs font-bold text-sky-200">
+                  {shopNotice}
+                </div>
+              )}
+
+              <div>
+                <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2.5 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                  Рамки навколо аватара
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {AVATAR_FRAMES.map((frame) => {
+                    const isUnlocked = cosmetics.unlockedFrames.includes(frame.id);
+                    const isEquipped = cosmetics.equippedFrame === frame.id;
+
+                    return (
+                      <button
+                        key={frame.id}
+                        type="button"
+                        onClick={() => void handleBuyOrEquipCosmetic(frame)}
+                        className={`flex items-center justify-between gap-3 rounded-xl border p-3 text-left transition cursor-pointer ${
+                          isEquipped
+                            ? "border-sky-400 bg-sky-500/15 shadow-[0_0_15px_rgba(56,189,248,0.2)]"
+                            : isDark
+                              ? "border-white/10 bg-[#0b1322] hover:border-white/25"
+                              : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center bg-slate-800 text-base shrink-0 ${frame.previewClass}`}>
+                            {frame.badge}
+                          </div>
+                          <div className="min-w-0">
+                            <div className={`text-xs font-black truncate ${isDark ? "text-white" : "text-slate-900"}`}>
+                              {frame.name}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">
+                              {frame.desc}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0">
+                          {isEquipped ? (
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/20 border border-emerald-400/40 px-2 py-1 text-[10px] font-black text-emerald-300">
+                              <Check className="w-3 h-3" /> Одягнено
+                            </span>
+                          ) : isUnlocked ? (
+                            <span className="rounded-lg bg-white/10 px-2.5 py-1 text-[10px] font-black text-slate-200">
+                              Одягти
+                            </span>
+                          ) : (
+                            <span className="rounded-lg bg-amber-500/20 border border-amber-400/40 px-2.5 py-1 text-[10px] font-black text-amber-300">
+                              {frame.price} Б
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2.5 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  Градієнти та стилі нікнейму
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {NAME_COLORS.map((nc) => {
+                    const isUnlocked = cosmetics.unlockedNameColors.includes(nc.id);
+                    const isEquipped = cosmetics.equippedNameColor === nc.id;
+
+                    return (
+                      <button
+                        key={nc.id}
+                        type="button"
+                        onClick={() => void handleBuyOrEquipCosmetic(nc)}
+                        className={`flex items-center justify-between gap-3 rounded-xl border p-3 text-left transition cursor-pointer ${
+                          isEquipped
+                            ? "border-amber-400 bg-amber-500/15 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                            : isDark
+                              ? "border-white/10 bg-[#0b1322] hover:border-white/25"
+                              : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className={`text-xs font-black truncate ${nc.previewClass || (isDark ? "text-white" : "text-slate-900")}`}>
+                            {nc.badge} {nc.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                            {nc.desc}
+                          </div>
+                        </div>
+
+                        <div className="shrink-0">
+                          {isEquipped ? (
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/20 border border-emerald-400/40 px-2 py-1 text-[10px] font-black text-emerald-300">
+                              <Check className="w-3 h-3" /> Одягнено
+                            </span>
+                          ) : isUnlocked ? (
+                            <span className="rounded-lg bg-white/10 px-2.5 py-1 text-[10px] font-black text-slate-200">
+                              Обрати
+                            </span>
+                          ) : (
+                            <span className="rounded-lg bg-amber-500/20 border border-amber-400/40 px-2.5 py-1 text-[10px] font-black text-amber-300">
+                              {nc.price} Б
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
             
             {/* БЛОК 1: АВАТАРКА / ЛОГОТИП */}
             <section
@@ -899,9 +1155,11 @@ export default function ProfilePage() {
                     {/* Кругла підкладка під аватаркою з товстим бордером */}
                     <div
                       className={`w-[84px] h-[84px] rounded-full p-[5px] transition-all ${
-                        isWinter && winterPrefs.avatarDecor
-                          ? "ring-2 ring-sky-300/70 shadow-[0_0_18px_rgba(56,189,248,0.5)]"
-                          : ""
+                        cosmetics.equippedFrame !== "none"
+                          ? getFrameClass(cosmetics.equippedFrame)
+                          : isWinter && winterPrefs.avatarDecor
+                            ? "ring-2 ring-sky-300/70 shadow-[0_0_18px_rgba(56,189,248,0.5)]"
+                            : ""
                       }`}
                       style={{
                         background: isWinter
@@ -952,8 +1210,12 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3
-                        className="text-lg font-black tracking-tight"
-                        style={{ color: isDark ? "#ffffff" : "#060607" }}
+                        className={`text-lg font-black tracking-tight ${getNameColorClass(cosmetics.equippedNameColor)}`}
+                        style={
+                          cosmetics.equippedNameColor === "default"
+                            ? { color: isDark ? "#ffffff" : "#060607" }
+                            : undefined
+                        }
                       >
                         {username || "Максим"}
                       </h3>

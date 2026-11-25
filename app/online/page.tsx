@@ -7,6 +7,7 @@ import {
   getSupabaseClient,
   PROFILE_UPDATED_EVENT,
 } from "../../lib/supabase/client";
+import AnimatedNumber from "@/components/animated-number";
 
 type DuelCurrency = "coins" | "hohlyantsi";
 type DuelGame = "blackjack" | "dice";
@@ -1056,11 +1057,11 @@ export default function OnlinePage() {
               Кості
             </Link>
             <div className="rounded-xl bg-[#060A17] border border-amber-500/40 px-3 py-1 text-xs font-bold text-amber-300">
-               {currentUser ? currentUser.coins.toLocaleString() : "—"} монет
+               {currentUser ? <AnimatedNumber value={currentUser.coins} suffix=" монет" /> : "— монет"}
             </div>
             {currentUser && (
               <div className="rounded-xl bg-[#060A17] border border-blue-500/40 px-3 py-1 text-xs font-bold text-blue-300">
-                {currentUser.hohlyantsi.toLocaleString()} бонусів
+                <AnimatedNumber value={currentUser.hohlyantsi} suffix=" бонусів" />
               </div>
             )}
           </div>

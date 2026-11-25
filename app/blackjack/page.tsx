@@ -10,6 +10,9 @@ import {
   PROFILE_UPDATED_EVENT,
 } from "../../lib/supabase/client";
 import { trackAchievement } from "@/lib/achievements-tracker";
+import { motion } from "motion/react";
+import { fireVictoryConfetti } from "@/lib/confetti";
+import { AppTheme, getStoredTheme, THEME_CHANGE_EVENT } from "@/lib/theme";
 
 type GameResult = "blackjack" | "win" | "lose" | "push" | null;
 
@@ -153,20 +156,36 @@ function getUserErrorMessage(error: unknown, maxBetAllowed = 1000000) {
   return "Помилка зв'язку з сервером. Спробуйте ще раз.";
 }
 
-// Картка гравця з плавною анімацією роздачі
-function RenderNightCard({ card, index }: { card: number; index: number }) {
+// Картка гравця з плавною 3D-анімацією роздачі (Motion)
+function RenderNightCard({
+  card,
+  index,
+  isWinter = false,
+}: {
+  card: number;
+  index: number;
+  isWinter?: boolean;
+}) {
   const suit = suits[Math.floor(card / 13)];
   const isRed = suit === "♥" || suit === "♦";
 
   return (
-    <div
-      style={{
-        animation: `cardDealIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) ${index * 80}ms forwards`,
-      }}
-      className={`relative flex h-28 w-20 sm:h-32 sm:w-22 shrink-0 flex-col justify-between rounded-xl border-2 border-slate-700 bg-gradient-to-b from-white to-slate-200 p-2.5 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400 ${
-        isRed ? "text-rose-600" : "text-slate-900"
-      }`}
+    <motion.div
+      initial={{ opacity: 0, rotateY: 90, y: -20, scale: 0.9 }}
+      animate={{ opacity: 1, rotateY: 0, y: 0, scale: 1 }}
+      transition={{ duration: 0.42, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
+      style={{ perspective: 900 }}
+      className={`relative flex h-28 w-20 sm:h-32 sm:w-22 shrink-0 flex-col justify-between rounded-xl border-2 bg-gradient-to-b from-white to-slate-200 p-2.5 shadow-2xl transition-all duration-300 hover:-translate-y-1 ${
+        isWinter
+          ? "border-sky-300/80 shadow-[0_10px_25px_rgba(56,189,248,0.28)] hover:border-sky-400"
+          : "border-slate-700 hover:border-cyan-400"
+      } ${isRed ? "text-rose-600" : "text-slate-900"}`}
     >
+      {isWinter && (
+        <span className="pointer-events-none absolute top-1 right-1 text-[9px] opacity-40">
+          ❄️
+        </span>
+      )}
       <div className="flex justify-between items-start font-mono text-base font-black leading-none">
         <span>{ranks[card % 13]}</span>
         <span className="text-sm">{suit}</span>
@@ -176,50 +195,78 @@ function RenderNightCard({ card, index }: { card: number; index: number }) {
         <span>{ranks[card % 13]}</span>
         <span className="text-sm">{suit}</span>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-function RenderHiddenCard() {
+function RenderHiddenCard({ isWinter = false }: { isWinter?: boolean }) {
   return (
-    <div
-      style={{
-        animation: "cardDealIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) 120ms forwards",
-      }}
-      className="relative flex h-28 w-20 sm:h-32 sm:w-22 shrink-0 items-center justify-center rounded-xl border-2 border-rose-800 bg-gradient-to-br from-rose-950 via-[#180a0a] to-slate-950 p-2 shadow-2xl transition-all"
+    <motion.div
+      initial={{ opacity: 0, rotateY: -90, y: -20, scale: 0.9 }}
+      animate={{ opacity: 1, rotateY: 0, y: 0, scale: 1 }}
+      transition={{ duration: 0.4, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+      className={`relative flex h-28 w-20 sm:h-32 sm:w-22 shrink-0 items-center justify-center rounded-xl border-2 p-2 shadow-2xl transition-all ${
+        isWinter
+          ? "border-sky-400 bg-gradient-to-br from-[#0c2d4d] via-[#07182d] to-slate-950"
+          : "border-rose-800 bg-gradient-to-br from-rose-950 via-[#180a0a] to-slate-950"
+      }`}
     >
-      <div className="h-full w-full rounded-lg border border-rose-600/40 bg-[radial-gradient(#f43f5e_1px,transparent_1px)] [background-size:6px_6px] flex flex-col items-center justify-center text-center shadow-inner">
-        <span className="font-mono text-xl text-rose-400 select-none font-black">
-          🂠
+      <div
+        className={`h-full w-full rounded-lg border flex flex-col items-center justify-center text-center shadow-inner ${
+          isWinter
+            ? "border-sky-400/50 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:7px_7px]"
+            : "border-rose-600/40 bg-[radial-gradient(#f43f5e_1px,transparent_1px)] [background-size:6px_6px]"
+        }`}
+      >
+        <span
+          className={`font-mono text-xl select-none font-black ${
+            isWinter ? "text-sky-300" : "text-rose-400"
+          }`}
+        >
+          {isWinter ? "❄️" : "🂠"}
         </span>
-        <span className="text-[8px] text-rose-400/80 uppercase font-black tracking-widest mt-0.5">
-          ТАЄМНИЦЯ
+        <span
+          className={`text-[8px] uppercase font-black tracking-widest mt-0.5 ${
+            isWinter ? "text-sky-200/90" : "text-rose-400/80"
+          }`}
+        >
+          {isWinter ? "ЗИМА" : "ТАЄМНИЦЯ"}
         </span>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 function InteractiveColaGlass({
   level,
   onDrink,
+  isWinter = false,
 }: {
   level: number;
   onDrink: () => void;
+  isWinter?: boolean;
 }) {
   return (
     <div
       onClick={onDrink}
       className="group flex cursor-pointer flex-col items-center justify-end rounded-xl border border-slate-700/80 bg-black/60 p-2 shadow-lg transition hover:border-amber-500 hover:bg-black/80"
-      title="Зробити ковток холодної коли!"
+      title={isWinter ? "Зробити ковток гарячого глінтвейну!" : "Зробити ковток холодної коли!"}
     >
       <div className="relative h-20 w-12 overflow-hidden rounded-b-xl border-x-2 border-b-4 border-slate-400/40 bg-slate-900/40 backdrop-blur-sm">
-        <div className="absolute -top-2 left-5 h-12 w-1.5 rotate-12 bg-rose-600 border border-rose-700 shadow-sm" />
-        {level > 15 && (
+        <div
+          className={`absolute -top-2 left-5 h-12 w-1.5 rotate-12 border shadow-sm ${
+            isWinter ? "bg-amber-600 border-amber-700" : "bg-rose-600 border-rose-700"
+          }`}
+        />
+        {level > 15 && !isWinter && (
           <div className="absolute top-5 left-2 h-3.5 w-3.5 rotate-12 rounded border border-white/40 bg-white/30 backdrop-blur-sm z-10" />
         )}
         <div
-          className="absolute bottom-0 w-full bg-gradient-to-t from-[#150603] via-[#2d0e07] to-[#42170d] transition-all duration-300 flex items-start justify-center"
+          className={`absolute bottom-0 w-full transition-all duration-300 flex items-start justify-center ${
+            isWinter
+              ? "bg-gradient-to-t from-[#3b0712] via-[#7f1d1d] to-[#991b1b]"
+              : "bg-gradient-to-t from-[#150603] via-[#2d0e07] to-[#42170d]"
+          }`}
           style={{ height: `${level}%` }}
         >
           {level > 0 && (
@@ -229,7 +276,7 @@ function InteractiveColaGlass({
       </div>
       <div className="mt-1 text-center">
         <span className="font-mono text-[10px] font-bold text-amber-300">
-          {level > 0 ? `${level}% кола` : "Порожньо"}
+          {level > 0 ? (isWinter ? `${level}% глінтвейн` : `${level}% кола`) : "Порожньо"}
         </span>
       </div>
     </div>
@@ -244,6 +291,20 @@ export default function BlackjackPage() {
   const [isBusy, setIsBusy] = useState(false);
   const [betInput, setBetInput] = useState("100");
   const [colaLevel, setColaLevel] = useState(100);
+  const [theme, setTheme] = useState<AppTheme>("dark");
+
+  useEffect(() => {
+    setTheme(getStoredTheme());
+    const handleThemeChange = (e: Event) => {
+      const detail = (e as CustomEvent<AppTheme>).detail;
+      if (detail) setTheme(detail);
+      else setTheme(getStoredTheme());
+    };
+    window.addEventListener(THEME_CHANGE_EVENT, handleThemeChange);
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, handleThemeChange);
+  }, []);
+
+  const isWinter = theme === "winter";
 
   const [xp, setXp] = useState(() => {
     if (typeof window === "undefined") return 0;
@@ -302,12 +363,14 @@ export default function BlackjackPage() {
     const oldLevel = currentLevelInfo.level;
 
     if (outcome === "blackjack") {
+      fireVictoryConfetti();
       delta = Math.min(2000, Math.max(50, betAmount));
       saveXp(xp + delta);
       const nextStreak = winStreak + 1;
       setWinStreak(nextStreak);
       localStorage.setItem("matchday:streak", nextStreak.toString());
       trackAchievement("blackjack_21", 1, "set");
+      if (isWinter) trackAchievement("snow_storm_games", 1, "increment");
       if (betAmount >= 40000) {
         trackAchievement("highroller_bj", Math.floor(betAmount * 2.5), "max");
       }
@@ -315,11 +378,13 @@ export default function BlackjackPage() {
         trackAchievement("win_streak", nextStreak, "max");
       }
     } else if (outcome === "win") {
+      fireVictoryConfetti();
       delta = Math.min(1000, Math.max(25, Math.floor(betAmount / 2)));
       saveXp(xp + delta);
       const nextStreak = winStreak + 1;
       setWinStreak(nextStreak);
       localStorage.setItem("matchday:streak", nextStreak.toString());
+      if (isWinter) trackAchievement("snow_storm_games", 1, "increment");
       if (betAmount >= 50000) {
         trackAchievement("highroller_bj", betAmount * 2, "max");
       }
@@ -327,9 +392,11 @@ export default function BlackjackPage() {
         trackAchievement("win_streak", nextStreak, "max");
       }
     } else if (outcome === "push") {
+      if (isWinter) trackAchievement("snow_storm_games", 1, "increment");
       delta = 10;
       saveXp(xp + delta);
     } else if (outcome === "lose") {
+      if (isWinter) trackAchievement("snow_storm_games", 1, "increment");
       const currentLevelBase = currentLevelInfo.minXp;
       const progressInLevel = Math.max(0, xp - currentLevelBase);
       const lostXp = Math.floor(progressInLevel / 2);
@@ -582,7 +649,7 @@ export default function BlackjackPage() {
         <section className="matchday-card mb-6 p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <InteractiveColaGlass level={colaLevel} onDrink={handleDrinkCola} />
+              <InteractiveColaGlass level={colaLevel} onDrink={handleDrinkCola} isWinter={isWinter} />
               <div>
                 <div className="flex items-center gap-2">
                   <span className="badge-scheduled">Рівень {currentLevelInfo.level}</span>
@@ -625,9 +692,22 @@ export default function BlackjackPage() {
         {/* ====================================================================
             ЦЕНТРАЛЬНИЙ НІЧНИЙ ІГРОВИЙ СТІЛ (BLACKJACK: NIGHT TABLE)
             ==================================================================== */}
-        <section className="relative mb-8 rounded-[36px] border-4 border-[#122b3d] bg-gradient-to-b from-[#0a1826] via-[#07111c] to-[#04080e] p-6 sm:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_0_60px_rgba(8,191,234,0.06)] overflow-hidden">
+        <section
+          className={`relative mb-8 rounded-[36px] border-4 p-6 sm:p-10 overflow-hidden transition-colors duration-500 ${
+            isWinter
+              ? "border-[#1d4c6e] bg-gradient-to-b from-[#0b1f38] via-[#061224] to-[#030914] shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_0_70px_rgba(56,189,248,0.12)]"
+              : "border-[#122b3d] bg-gradient-to-b from-[#0a1826] via-[#07111c] to-[#04080e] shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_0_60px_rgba(8,191,234,0.06)]"
+          }`}
+        >
+          {isWinter && (
+            <div className="mb-4 flex items-center justify-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/35 bg-sky-500/10 px-3 py-0.5 text-[10px] font-black uppercase tracking-widest text-sky-200">
+                ❄️ Зимове Шале 2026 — Засніжений VIP Стіл
+              </span>
+            </div>
+          )}
           {/* Декоративна розмітка столу */}
-          <div className="pointer-events-none absolute inset-x-8 top-1/2 -translate-y-1/2 h-44 rounded-full border border-cyan-500/10 [border-dasharray:6_6]" />
+          <div className={`pointer-events-none absolute inset-x-8 top-1/2 -translate-y-1/2 h-44 rounded-full border [border-dasharray:6_6] ${isWinter ? "border-sky-400/20" : "border-cyan-500/10"}`} />
 
           {/* 1. ЗОНА ДИЛЕРА */}
           <div className="relative z-10 flex flex-col items-center mb-8">
@@ -646,9 +726,9 @@ export default function BlackjackPage() {
               {game ? (
                 <>
                   {game.dealer_cards.map((card, idx) => (
-                    <RenderNightCard key={`dealer-${idx}`} card={card} index={idx} />
+                    <RenderNightCard key={`dealer-${idx}`} card={card} index={idx} isWinter={isWinter} />
                   ))}
-                  {game.dealer_hidden && <RenderHiddenCard key="dealer-hidden" />}
+                  {game.dealer_hidden && <RenderHiddenCard key="dealer-hidden" isWinter={isWinter} />}
                 </>
               ) : (
                 <div className="flex items-center justify-center rounded-xl border border-dashed border-slate-700/60 p-6 text-xs text-slate-500">
@@ -712,7 +792,7 @@ export default function BlackjackPage() {
             <div className="flex justify-center gap-3 sm:gap-4 min-h-[120px] mb-3">
               {game ? (
                 game.player_cards.map((card, idx) => (
-                  <RenderNightCard key={`player-${idx}`} card={card} index={idx} />
+                  <RenderNightCard key={`player-${idx}`} card={card} index={idx} isWinter={isWinter} />
                 ))
               ) : (
                 <div className="flex items-center justify-center rounded-xl border border-dashed border-slate-700/60 p-6 text-xs text-slate-500">

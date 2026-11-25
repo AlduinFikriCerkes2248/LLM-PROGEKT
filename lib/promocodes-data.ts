@@ -92,6 +92,36 @@ export const PROMO_EASTER_EGGS: PromoEasterEgg[] = [
     secretHint: "Англійське слово, що означає 'везунчик'...",
     badgeTag: "💰 LUCKY",
   },
+  {
+    code: "SNOW2026",
+    name: "❄️ Новорічний Снігопад 2026",
+    desc: "Спеціальний зимовий промокод! Відкриває крижаний сейф із монетами та бонусами на косметику профілю.",
+    gifUrl: "/gifs/jackpot.gif",
+    soundType: "standard",
+    reward: {
+      coins: 45000,
+      bonuses: 45,
+      xp: 450,
+      title: "❄️ Сніжний Чемпіон",
+    },
+    secretHint: "Головне слово зими + 2026...",
+    badgeTag: "❄️ SNOW2026",
+  },
+  {
+    code: "LETITSNOW",
+    name: "🎄 Святковий Салют Зими",
+    desc: "Різдвяна пасхалка для тих, хто любить затишок за зимовим столом MATCHDAY!",
+    gifUrl: "/gifs/goyda.gif",
+    soundType: "standard",
+    reward: {
+      coins: 25000,
+      bonuses: 30,
+      xp: 300,
+      title: "🎄 Дух Різдва",
+    },
+    secretHint: "Знаменита різдвяна пісня: Let it...",
+    badgeTag: "🎄 LETITSNOW",
+  },
 ];
 
 export const REDEEMED_PROMOS_KEY = "matchday:redeemed_promos";

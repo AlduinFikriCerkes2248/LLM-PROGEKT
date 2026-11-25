@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { DemoNoticeBadge } from "../demo-banner";
 import { useEffect, useState } from "react";
+import { motion } from "motion/react";
 import { formatErrorMessage } from "../../lib/error-utils";
 import {
   getSupabaseClient,
   PROFILE_UPDATED_EVENT,
 } from "../../lib/supabase/client";
+import { fireVictoryConfetti } from "../../lib/confetti";
+import { trackAchievement } from "../../lib/achievements-tracker";
+import { AppTheme, getStoredTheme, THEME_CHANGE_EVENT } from "../../lib/theme";
 
 type BetOption = "under7" | "seven" | "over7" | "doubles";
 
@@ -43,7 +47,15 @@ const BET_LABELS: Record<BetOption, string> = {
 };
 
 // Реалістичне відображення граней 3D-кістки з крапками (Pips)
-function DiceFace({ value, isRolling }: { value: number; isRolling: boolean }) {
+function DiceFace({
+  value,
+  isRolling,
+  isWinter = false,
+}: {
+  value: number;
+  isRolling: boolean;
+  isWinter?: boolean;
+}) {
   // Розмітка крапок за значенням від 1 до 6 (3x3 сітка)
   const pipMap: Record<number, number[]> = {
     1: [4],
@@ -57,12 +69,32 @@ function DiceFace({ value, isRolling }: { value: number; isRolling: boolean }) {
   const activePips = pipMap[value] ?? [4];
 
   return (
-    <div
-      className={`relative h-24 w-24 sm:h-28 sm:w-28 rounded-2xl border-2 border-slate-300 bg-gradient-to-br from-white via-slate-100 to-slate-300 p-3 shadow-[0_15px_30px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition-transform duration-300 ${
-        isRolling ? "animate-dice-shake scale-95" : "hover:scale-105"
+    <motion.div
+      animate={
+        isRolling
+          ? {
+              rotate: [0, -14, 14, -10, 8, 0],
+              scale: [1, 0.9, 1.08, 0.94, 1],
+              y: [0, -8, 4, -4, 0],
+            }
+          : { rotate: 0, scale: 1, y: 0 }
+      }
+      transition={
+        isRolling
+          ? { duration: 0.45, repeat: Infinity, ease: "easeInOut" }
+          : { type: "spring", stiffness: 320, damping: 18 }
+      }
+      whileHover={!isRolling ? { scale: 1.06, rotate: 2 } : undefined}
+      className={`relative h-24 w-24 sm:h-28 sm:w-28 rounded-2xl border-2 p-3 ${
+        isWinter
+          ? "border-sky-200/80 bg-gradient-to-br from-sky-100/95 via-cyan-100/85 to-sky-300/80 backdrop-blur-md shadow-[0_15px_35px_rgba(56,189,248,0.35),inset_0_2px_8px_rgba(255,255,255,0.95),inset_0_-3px_8px_rgba(14,165,233,0.35)]"
+          : "border-slate-300 bg-gradient-to-br from-white via-slate-100 to-slate-300 shadow-[0_15px_30px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(0,0,0,0.2)]"
       }`}
     >
-      <div className="grid h-full w-full grid-cols-3 grid-rows-3 items-center justify-items-center">
+      {isWinter && (
+        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.85),transparent_55%)] opacity-80" />
+      )}
+      <div className="relative z-10 grid h-full w-full grid-cols-3 grid-rows-3 items-center justify-items-center">
         {Array.from({ length: 9 }).map((_, i) => {
           const isFilled = activePips.includes(i);
           return (
@@ -70,9 +102,13 @@ function DiceFace({ value, isRolling }: { value: number; isRolling: boolean }) {
               {isFilled && (
                 <div
                   className={`h-4 w-4 sm:h-5 sm:w-5 rounded-full shadow-inner ${
-                    value === 1 || value === 4
-                      ? "bg-rose-600 shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
-                      : "bg-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
+                    isWinter
+                      ? value === 1 || value === 4
+                        ? "bg-sky-600 shadow-[0_0_8px_rgba(14,165,233,0.7)]"
+                        : "bg-slate-800 shadow-[0_1px_3px_rgba(15,23,42,0.5)]"
+                      : value === 1 || value === 4
+                        ? "bg-rose-600 shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
+                        : "bg-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
                   }`}
                 />
               )}
@@ -80,30 +116,44 @@ function DiceFace({ value, isRolling }: { value: number; isRolling: boolean }) {
           );
         })}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 function InteractiveColaGlass({
   level,
   onDrink,
+  isWinter = false,
 }: {
   level: number;
   onDrink: () => void;
+  isWinter?: boolean;
 }) {
   return (
     <div
       onClick={onDrink}
-      className="group flex cursor-pointer flex-col items-center justify-end rounded-xl border border-slate-700/80 bg-black/60 p-2 shadow-lg transition hover:border-amber-500 hover:bg-black/80"
-      title="Зробити ковток холодної коли!"
+      className={`group flex cursor-pointer flex-col items-center justify-end rounded-xl border p-2 shadow-lg transition hover:bg-black/80 ${
+        isWinter
+          ? "border-rose-500/40 bg-slate-950/75 hover:border-rose-400"
+          : "border-slate-700/80 bg-black/60 hover:border-amber-500"
+      }`}
+      title={isWinter ? "Зробити ковток теплого глінтвейну!" : "Зробити ковток холодної коли!"}
     >
       <div className="relative h-20 w-12 overflow-hidden rounded-b-xl border-x-2 border-b-4 border-slate-400/40 bg-slate-900/40 backdrop-blur-sm">
-        <div className="absolute -top-2 left-5 h-12 w-1.5 rotate-12 bg-rose-600 border border-rose-700 shadow-sm" />
+        <div
+          className={`absolute -top-2 left-5 h-12 w-1.5 rotate-12 border shadow-sm ${
+            isWinter ? "bg-amber-400 border-amber-500" : "bg-rose-600 border-rose-700"
+          }`}
+        />
         {level > 15 && (
           <div className="absolute top-5 left-2 h-3.5 w-3.5 rotate-12 rounded border border-white/40 bg-white/30 backdrop-blur-sm z-10" />
         )}
         <div
-          className="absolute bottom-0 w-full bg-gradient-to-t from-[#150603] via-[#2d0e07] to-[#42170d] transition-all duration-300 flex items-start justify-center"
+          className={`absolute bottom-0 w-full transition-all duration-300 flex items-start justify-center ${
+            isWinter
+              ? "bg-gradient-to-t from-[#3b0712] via-[#7f1d1d] to-[#9f1239]"
+              : "bg-gradient-to-t from-[#150603] via-[#2d0e07] to-[#42170d]"
+          }`}
           style={{ height: `${level}%` }}
         >
           {level > 0 && (
@@ -112,8 +162,8 @@ function InteractiveColaGlass({
         </div>
       </div>
       <div className="mt-1 text-center">
-        <span className="font-mono text-[10px] font-bold text-amber-300">
-          {level > 0 ? `${level}% кола` : "Порожньо"}
+        <span className={`font-mono text-[10px] font-bold ${isWinter ? "text-rose-300" : "text-amber-300"}`}>
+          {level > 0 ? `${level}% ${isWinter ? "глінтв." : "кола"}` : "Порожньо"}
         </span>
       </div>
     </div>
@@ -129,6 +179,20 @@ export default function DicePage() {
   const [dice1, setDice1] = useState(3);
   const [dice2, setDice2] = useState(4);
   const [colaLevel, setColaLevel] = useState(100);
+  const [theme, setTheme] = useState<AppTheme>("dark");
+
+  useEffect(() => {
+    setTheme(getStoredTheme());
+    const handleThemeChange = (e: Event) => {
+      const detail = (e as CustomEvent<AppTheme>).detail;
+      if (detail) setTheme(detail);
+      else setTheme(getStoredTheme());
+    };
+    window.addEventListener(THEME_CHANGE_EVENT, handleThemeChange);
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, handleThemeChange);
+  }, []);
+
+  const isWinter = theme === "winter";
   const [dealerSpeech, setDealerSpeech] = useState(
     "Кидай кості на нічне сукно Matchday! Обери результат та випробуй долю.",
   );
@@ -274,7 +338,9 @@ export default function DicePage() {
           if (typeof data.balance === "number") setBalance(data.balance);
 
           const isWin = Boolean(data.won);
+          if (isWinter) trackAchievement("snow_storm_games", 1, "increment");
           if (isWin) {
+            fireVictoryConfetti();
             setDealerSpeech("Точний прогноз! Чудовий кидок, вітаю з виграшем!");
             setGameResult({
               win: true,
@@ -379,7 +445,7 @@ export default function DicePage() {
         <section className="matchday-card mb-6 p-4 sm:p-5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <InteractiveColaGlass level={colaLevel} onDrink={handleDrinkCola} />
+              <InteractiveColaGlass level={colaLevel} onDrink={handleDrinkCola} isWinter={isWinter} />
               <div>
                 <div className="flex items-center gap-2">
                   <span className="badge-live">Дилер за столом</span>
@@ -416,20 +482,26 @@ export default function DicePage() {
         {/* ====================================================================
             ВЕЛИКА ЦЕНТРАЛЬНА ІГРОВА ЗОНА (ROLL OF FATE)
             ==================================================================== */}
-        <section className="relative mb-8 rounded-[36px] border-4 border-[#2d1212] bg-gradient-to-b from-[#200a0a] via-[#140606] to-[#0a0303] p-8 sm:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_0_60px_rgba(255,122,36,0.08)] text-center overflow-hidden">
+        <section
+          className={`relative mb-8 rounded-[36px] border-4 p-8 sm:p-12 text-center overflow-hidden transition-colors duration-500 ${
+            isWinter
+              ? "border-[#1d4c6e] bg-gradient-to-b from-[#0b1f38] via-[#061224] to-[#030914] shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_0_70px_rgba(56,189,248,0.14)]"
+              : "border-[#2d1212] bg-gradient-to-b from-[#200a0a] via-[#140606] to-[#0a0303] shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_0_60px_rgba(255,122,36,0.08)]"
+          }`}
+        >
           {/* Декоративні концентричні кола столу */}
-          <div className="pointer-events-none absolute inset-x-12 top-1/2 -translate-y-1/2 h-56 rounded-full border border-orange-500/10 [border-dasharray:8_8]" />
+          <div className={`pointer-events-none absolute inset-x-12 top-1/2 -translate-y-1/2 h-56 rounded-full border [border-dasharray:8_8] ${isWinter ? "border-sky-400/20" : "border-orange-500/10"}`} />
 
           {/* 1. ДВІ ВЕЛИКІ 3D-КІСТКИ В ЦЕНТРІ */}
           <div className="relative z-10 flex flex-col items-center">
-            <span className="text-xs font-bold uppercase tracking-widest text-orange-400/80 mb-6">
-              Центральна зона кидка
+            <span className={`text-xs font-bold uppercase tracking-widest mb-6 ${isWinter ? "text-sky-300" : "text-orange-400/80"}`}>
+              {isWinter ? "❄️ Крижані кості — Зимовий стіл" : "Центральна зона кидка"}
             </span>
 
             <div className="flex items-center justify-center gap-6 sm:gap-10 mb-6">
-              <DiceFace value={dice1} isRolling={isRolling} />
-              <div className="text-2xl font-black text-orange-500/60">+</div>
-              <DiceFace value={dice2} isRolling={isRolling} />
+              <DiceFace value={dice1} isRolling={isRolling} isWinter={isWinter} />
+              <div className={`text-2xl font-black ${isWinter ? "text-sky-400/70" : "text-orange-500/60"}`}>+</div>
+              <DiceFace value={dice2} isRolling={isRolling} isWinter={isWinter} />
             </div>
 
             {/* Відображення поточної суми */}

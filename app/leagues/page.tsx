@@ -9,6 +9,7 @@ import {
 import { useEffect, useState, type FormEvent } from "react";
 import { formatErrorMessage } from "../../lib/error-utils";
 import { AppTheme, getStoredTheme, THEME_CHANGE_EVENT } from "@/lib/theme";
+import { SkeletonLeagueGrid } from "@/components/skeleton";
 
 type League = {
   id: string;
@@ -564,9 +565,7 @@ export default function LeaguesPage() {
         </div>
 
         {isLoading ? (
-          <div className="py-16 text-center text-[#9aa9be] animate-pulse font-medium text-sm">
-            Завантаження доступних ліг...
-          </div>
+          <SkeletonLeagueGrid />
         ) : loadError ? (
           <div className="rounded-xl border border-rose-900/60 bg-rose-950/20 p-6 text-center text-sm text-rose-400 mb-6">
             {loadError}

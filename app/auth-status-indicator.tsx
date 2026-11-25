@@ -10,6 +10,13 @@ import {
   PROFILE_UPDATED_EVENT,
 } from "../lib/supabase/client";
 import MatrixAvatar from "../components/matrix-avatar";
+import AnimatedNumber from "@/components/animated-number";
+import {
+  getFrameClass,
+  getNameColorClass,
+  loadCosmetics,
+  UserCosmeticsState,
+} from "@/lib/cosmetics";
 import { AppTheme, getStoredTheme } from "@/lib/theme";
 
 type SignedInUser = {
@@ -25,13 +32,20 @@ export default function AuthStatusIndicator() {
   const [coins, setCoins] = useState<number | null>(null);
   const [hohlyantsi, setHohlyantsi] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
+  const [cosmetics, setCosmetics] = useState<UserCosmeticsState>({
+    unlockedFrames: ["none"],
+    unlockedNameColors: ["default"],
+    equippedFrame: "none",
+    equippedNameColor: "default",
+  });
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [theme, setTheme] = useState<AppTheme>("dark");
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1. Ініціалізація поточної теми
+    // 1. Ініціалізація поточної теми та косметики
     setTheme(getStoredTheme());
+    setCosmetics(loadCosmetics());
 
     const savedAvatar =
       typeof window !== "undefined" ? localStorage.getItem("matchday_avatar_url") : null;
@@ -62,12 +76,18 @@ export default function AuthStatusIndicator() {
         username?: string;
         coins?: number;
         hohlyantsi?: number;
+        cosmetics?: UserCosmeticsState;
       }>;
       if (custom.detail?.avatar_url !== undefined) {
         setCustomAvatarUrl(custom.detail.avatar_url);
       } else {
         const up = localStorage.getItem("matchday_avatar_url");
         setCustomAvatarUrl(up);
+      }
+      if (custom.detail?.cosmetics) {
+        setCosmetics(custom.detail.cosmetics);
+      } else {
+        setCosmetics(loadCosmetics());
       }
       if (custom.detail?.coins !== undefined) {
         setCoins(custom.detail.coins);
@@ -274,7 +294,7 @@ export default function AuthStatusIndicator() {
 
             {/* Основний корпус вигнутого трикутного язичка */}
             <div
-              className="relative z-10 flex items-center justify-center p-1 rounded-full transition-colors duration-300"
+              className={`relative z-10 flex items-center justify-center p-1 rounded-full transition-colors duration-300 ${getFrameClass(cosmetics.equippedFrame)}`}
               style={{
                 background: isDark
                   ? "linear-gradient(135deg, #252c3d 0%, #151924 100%)"
@@ -317,8 +337,15 @@ export default function AuthStatusIndicator() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 shadow-[0_0_8px_#34d399]" />
                   </span>
-                  <span className="max-w-[130px] sm:max-w-[170px] truncate">
-                    {displayName}
+                  <span
+                    className="max-w-[130px] sm:max-w-[170px] truncate text-sm font-black"
+                    style={{
+                      color: cosmetics.equippedNameColor === "default" ? (isDark ? "#f1f5fa" : "#0f172a") : undefined,
+                    }}
+                  >
+                    <span className={getNameColorClass(cosmetics.equippedNameColor)}>
+                      {displayName}
+                    </span>
                   </span>
                 </div>
 
@@ -333,7 +360,7 @@ export default function AuthStatusIndicator() {
                   title="Золоті монети"
                 >
                   <span className="text-sm">🪙</span>
-                  <span>{coins === null ? "1 088 233" : coins.toLocaleString()}</span>
+                  <AnimatedNumber value={coins === null ? 1088233 : coins} />
                 </div>
 
                 {/* Друга валюта: Бонуси (Б) */}
@@ -349,7 +376,7 @@ export default function AuthStatusIndicator() {
                   <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 via-slate-400 to-slate-600 text-[9px] font-black text-slate-950 shadow-sm">
                     Б
                   </span>
-                  <span>{hohlyantsi === null ? "45" : hohlyantsi.toLocaleString()}</span>
+                  <AnimatedNumber value={hohlyantsi === null ? 45 : hohlyantsi} />
                 </div>
 
                 {/* Кнопка виходу (ВИХІД) */}

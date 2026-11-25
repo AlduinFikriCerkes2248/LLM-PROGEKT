@@ -8,6 +8,11 @@ import {
   PROFILE_UPDATED_EVENT,
 } from "../../lib/supabase/client";
 import CaseBoxGraphic, { CaseTier } from "../../components/case-box-graphic";
+import CaseRoulette from "../../components/case-roulette";
+import { fireGoldJackpotConfetti, fireWinterFrostConfetti } from "@/lib/confetti";
+import { AppTheme, getStoredTheme, THEME_CHANGE_EVENT } from "@/lib/theme";
+import AnimatedNumber from "@/components/animated-number";
+import { trackAchievement } from "@/lib/achievements-tracker";
 
 type CaseType = CaseTier;
 
@@ -76,8 +81,18 @@ const CASES: CaseItem[] = [
 export default function CasesPage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [hohlyantsi, setHohlyantsi] = useState<number | null>(null);
+  const [theme, setTheme] = useState<AppTheme>("dark");
   const [isOpening, setIsOpening] = useState(false);
   const [hoveredCase, setHoveredCase] = useState<CaseType | null>(null);
+  const [pendingRoulette, setPendingRoulette] = useState<{
+    box: string;
+    tier: CaseType;
+    coins: number;
+    xp: number;
+    costMessage?: string;
+    nextCoins?: number;
+    nextBonuses?: number;
+  } | null>(null);
   const [openedReward, setOpenedReward] = useState<{
     box: string;
     tier?: CaseType;
@@ -96,9 +111,23 @@ export default function CasesPage() {
     }
   });
 
-
   useEffect(() => {
+    setTheme(getStoredTheme());
+    const onTheme = (e: Event) => {
+      const custom = e as CustomEvent<{ theme?: AppTheme }>;
+      setTheme(custom.detail?.theme || getStoredTheme());
+    };
+    window.addEventListener(THEME_CHANGE_EVENT, onTheme);
+
     async function loadBalances() {
+      // Локальний кеш
+      try {
+        const c = localStorage.getItem("matchday:coins") || localStorage.getItem("matchday_coins");
+        if (c) setBalance(parseInt(c, 10));
+        const h = localStorage.getItem("matchday:hohlyantsi") || localStorage.getItem("matchday_hohlyantsi");
+        if (h) setHohlyantsi(parseInt(h, 10));
+      } catch {}
+
       if (isDemoMode) return;
       const client = getSupabaseClient();
       if (!client) return;
@@ -112,12 +141,27 @@ export default function CasesPage() {
         .maybeSingle();
 
       if (data) {
-        if (typeof data.coins === "number") setBalance(data.coins);
-        if (typeof data.hohlyantsi === "number") setHohlyantsi(data.hohlyantsi);
+        if (typeof data.coins === "number") {
+          setBalance(data.coins);
+          try {
+            localStorage.setItem("matchday:coins", data.coins.toString());
+            localStorage.setItem("matchday_coins", data.coins.toString());
+          } catch {}
+        }
+        if (typeof data.hohlyantsi === "number") {
+          setHohlyantsi(data.hohlyantsi);
+          try {
+            localStorage.setItem("matchday:hohlyantsi", data.hohlyantsi.toString());
+            localStorage.setItem("matchday_hohlyantsi", data.hohlyantsi.toString());
+          } catch {}
+        }
       }
     }
     void loadBalances();
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, onTheme);
   }, []);
+
+  const isWinter = theme === "winter";
 
   if (isDemoMode) {
     return (
@@ -179,72 +223,142 @@ export default function CasesPage() {
     );
   }
 
+  const getDisplayCaseTitle = (item: CaseItem) => {
+    if (!isWinter) return item.title;
+    if (item.id === "starter") return "🎁 Мішок Святого Миколая";
+    if (item.id === "pro") return "❄️ Крижана Скриня Мороза";
+    return "🔔 Золотий Дзвіночок Хайролера";
+  };
+
+  function finishRouletteReveal() {
+    if (!pendingRoulette) return;
+    const reward = pendingRoulette;
+    setPendingRoulette(null);
+    setOpenedReward({
+      box: reward.box,
+      tier: reward.tier,
+      coins: reward.coins,
+      xp: reward.xp,
+      costMessage: reward.costMessage,
+    });
+
+    if (typeof reward.nextCoins === "number") {
+      setBalance(reward.nextCoins);
+      try {
+        localStorage.setItem("matchday:coins", reward.nextCoins.toString());
+        localStorage.setItem("matchday_coins", reward.nextCoins.toString());
+      } catch {}
+    }
+    if (typeof reward.nextBonuses === "number") {
+      setHohlyantsi(reward.nextBonuses);
+      try {
+        localStorage.setItem("matchday:hohlyantsi", reward.nextBonuses.toString());
+        localStorage.setItem("matchday_hohlyantsi", reward.nextBonuses.toString());
+      } catch {}
+    }
+
+    if (isWinter) {
+      fireWinterFrostConfetti();
+      trackAchievement("polar_highroller", 1, "increment");
+    } else {
+      fireGoldJackpotConfetti();
+    }
+
+    window.dispatchEvent(
+      new CustomEvent(PROFILE_UPDATED_EVENT, {
+        detail: {
+          coins: reward.nextCoins,
+          hohlyantsi: reward.nextBonuses,
+        },
+      })
+    );
+    window.dispatchEvent(new Event("storage"));
+    setIsOpening(false);
+  }
+
   async function handleOpenDailyCase() {
     if (isDemoMode || isOpening) return;
     const client = getSupabaseClient();
-    if (!client) {
-      setErrorMessage("Підключення до Supabase відсутнє.");
-      return;
-    }
 
     setIsOpening(true);
     setErrorMessage(null);
     setOpenedReward(null);
 
+    const starterTitle = isWinter ? "🎁 Мішок Святого Миколая" : "Кейс 1 · Стартовий";
+
     try {
-      let { data, error } = await client.rpc("open_loot_box", {
-        p_box_type: "starter",
-      });
-
-      if (error && (error.message?.includes("invalid_box_type") || error.code === "P0001")) {
-        const retryRes = await client.rpc("open_loot_box", {
-          p_box_type: "khokhlov",
-        });
-        data = retryRes.data;
-        error = retryRes.error;
-      }
-
-      if (error) throw error;
-
-      if (data && data.success) {
-        setOpenedReward({
-          box: "Кейс 1 · Стартовий",
-          tier: "starter",
-          coins: data.coins,
-          xp: data.xp,
-          costMessage: "Безкоштовний щоденний бонус",
-        });
-
-        try {
-          const currentXp = parseInt(localStorage.getItem("matchday:bj_xp") || "0", 10);
-          localStorage.setItem("matchday:bj_xp", (currentXp + data.xp).toString());
-        } catch {
-          // ignore
-        }
-
-        const today = new Date().toISOString().slice(0, 10);
-        localStorage.setItem("matchday:last_daily_case", today);
-        setDailyClaimed(true);
-
-        window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
-
+      if (client) {
         const { data: authData } = await client.auth.getUser();
         if (authData?.user) {
-          const { data: prof } = await client
-            .from("profiles")
-            .select("coins, hohlyantsi")
-            .eq("id", authData.user.id)
-            .maybeSingle();
-          if (prof) {
-            if (typeof prof.coins === "number") setBalance(prof.coins);
-            if (typeof prof.hohlyantsi === "number") setHohlyantsi(prof.hohlyantsi);
+          let { data, error } = await client.rpc("open_loot_box", {
+            p_box_type: "starter",
+          });
+
+          if (error && (error.message?.includes("invalid_box_type") || error.code === "P0001")) {
+            const retryRes = await client.rpc("open_loot_box", {
+              p_box_type: "khokhlov",
+            });
+            data = retryRes.data;
+            error = retryRes.error;
+          }
+
+          if (error) throw error;
+
+          if (data && data.success) {
+            try {
+              const currentXp = parseInt(localStorage.getItem("matchday:bj_xp") || "0", 10);
+              localStorage.setItem("matchday:bj_xp", (currentXp + data.xp).toString());
+            } catch {}
+
+            const today = new Date().toISOString().slice(0, 10);
+            localStorage.setItem("matchday:last_daily_case", today);
+            setDailyClaimed(true);
+
+            const { data: prof } = await client
+              .from("profiles")
+              .select("coins, hohlyantsi")
+              .eq("id", authData.user.id)
+              .maybeSingle();
+
+            setPendingRoulette({
+              box: starterTitle,
+              tier: "starter",
+              coins: data.coins,
+              xp: data.xp,
+              costMessage: "Безкоштовний щоденний бонус",
+              nextCoins: typeof prof?.coins === "number" ? prof.coins : undefined,
+              nextBonuses: typeof prof?.hohlyantsi === "number" ? prof.hohlyantsi : undefined,
+            });
+            return;
           }
         }
       }
+
+      // Локальний режим без сесії Supabase
+      const rewardCoins = 500 + Math.floor(Math.random() * 300);
+      const rewardXp = 60;
+      const curCoins = balance ?? parseInt(localStorage.getItem("matchday:coins") || "1088233", 10);
+      const nextCoins = curCoins + rewardCoins;
+
+      const today = new Date().toISOString().slice(0, 10);
+      localStorage.setItem("matchday:last_daily_case", today);
+      setDailyClaimed(true);
+      try {
+        const currentXp = parseInt(localStorage.getItem("matchday:bj_xp") || "0", 10);
+        localStorage.setItem("matchday:bj_xp", (currentXp + rewardXp).toString());
+      } catch {}
+
+      setPendingRoulette({
+        box: starterTitle,
+        tier: "starter",
+        coins: rewardCoins,
+        xp: rewardXp,
+        costMessage: "Безкоштовний щоденний бонус",
+        nextCoins,
+      });
     } catch (err: unknown) {
       console.error("Помилка відкриття кейсу:", formatErrorMessage(err));
-      setErrorMessage("Не вдалося відкрити кейс. Переконайтеся, що ви увійшли у систему.");
-    } finally {
+      setErrorMessage("Не вдалося відкрити кейс. Перевірте статус сесії або спробуйте пізніше.");
       setIsOpening(false);
     }
   }
@@ -252,10 +366,7 @@ export default function CasesPage() {
   async function handleBuyWithHohlyantsi(caseItem: CaseItem) {
     if (isDemoMode || isOpening) return;
     const client = getSupabaseClient();
-    if (!client) {
-      setErrorMessage("Підключення до Supabase відсутнє.");
-      return;
-    }
+    const displayTitle = getDisplayCaseTitle(caseItem);
 
     if (hohlyantsi !== null && hohlyantsi < caseItem.hohlyantsiPrice) {
       setErrorMessage(`Недостатньо Бонусів! Потрібно: ${caseItem.hohlyantsiPrice} бонусів`);
@@ -267,54 +378,85 @@ export default function CasesPage() {
     setOpenedReward(null);
 
     try {
-      let { data, error } = await client.rpc("buy_case_with_hohlyantsi", {
-        p_box_type: caseItem.id,
+      if (client) {
+        const { data: authData } = await client.auth.getUser();
+        if (authData?.user) {
+          let { data, error } = await client.rpc("buy_case_with_hohlyantsi", {
+            p_box_type: caseItem.id,
+          });
+
+          if (error && (error.message?.includes("invalid_box_type") || error.code === "P0001")) {
+            const retryRes = await client.rpc("buy_case_with_hohlyantsi", {
+              p_box_type: caseItem.rpcType,
+            });
+            data = retryRes.data;
+            error = retryRes.error;
+          }
+
+          if (error) {
+            if (error.message.includes("insufficient_hohlyantsi")) {
+              throw new Error("Недостатньо Бонусів на вашому рахунку.");
+            }
+            throw error;
+          }
+
+          if (data && data.success) {
+            try {
+              const currentXp = parseInt(localStorage.getItem("matchday:bj_xp") || "0", 10);
+              localStorage.setItem("matchday:bj_xp", (currentXp + data.xp_reward).toString());
+            } catch {}
+
+            setPendingRoulette({
+              box: displayTitle,
+              tier: caseItem.id,
+              coins: data.coins_reward,
+              xp: data.xp_reward,
+              costMessage: `Куплено за ${data.cost || caseItem.hohlyantsiPrice} Бонусів`,
+              nextCoins: typeof data.coins === "number" ? data.coins : undefined,
+              nextBonuses: typeof data.hohlyantsi === "number" ? data.hohlyantsi : undefined,
+            });
+            return;
+          }
+        }
+      }
+
+      // Локальний режим
+      const curBonuses = hohlyantsi ?? parseInt(localStorage.getItem("matchday:hohlyantsi") || "45", 10);
+      if (curBonuses < caseItem.hohlyantsiPrice) {
+        throw new Error(`Недостатньо Бонусів! Потрібно ${caseItem.hohlyantsiPrice} Б.`);
+      }
+      const rewardCoins =
+        caseItem.id === "starter"
+          ? 500 + Math.floor(Math.random() * 300)
+          : caseItem.id === "pro"
+            ? 20000 + Math.floor(Math.random() * 5000)
+            : Math.random() < 0.08
+              ? 1000000
+              : 75000 + Math.floor(Math.random() * 125000);
+      const rewardXp = caseItem.id === "starter" ? 60 : caseItem.id === "pro" ? 400 : 5000;
+      const curCoins = balance ?? parseInt(localStorage.getItem("matchday:coins") || "1088233", 10);
+
+      try {
+        const currentXp = parseInt(localStorage.getItem("matchday:bj_xp") || "0", 10);
+        localStorage.setItem("matchday:bj_xp", (currentXp + rewardXp).toString());
+      } catch {}
+
+      setPendingRoulette({
+        box: displayTitle,
+        tier: caseItem.id,
+        coins: rewardCoins,
+        xp: rewardXp,
+        costMessage: `Куплено за ${caseItem.hohlyantsiPrice} Бонусів`,
+        nextCoins: curCoins + rewardCoins,
+        nextBonuses: curBonuses - caseItem.hohlyantsiPrice,
       });
-
-      if (error && (error.message?.includes("invalid_box_type") || error.code === "P0001")) {
-        const retryRes = await client.rpc("buy_case_with_hohlyantsi", {
-          p_box_type: caseItem.rpcType,
-        });
-        data = retryRes.data;
-        error = retryRes.error;
-      }
-
-      if (error) {
-        if (error.message.includes("insufficient_hohlyantsi")) {
-          throw new Error("Недостатньо Бонусів на вашому рахунку.");
-        }
-        throw error;
-      }
-
-      if (data && data.success) {
-        setOpenedReward({
-          box: caseItem.title,
-          tier: caseItem.id,
-          coins: data.coins_reward,
-          xp: data.xp_reward,
-          costMessage: `Куплено за ${data.cost || caseItem.hohlyantsiPrice} Бонусів`,
-        });
-
-        try {
-          const currentXp = parseInt(localStorage.getItem("matchday:bj_xp") || "0", 10);
-          localStorage.setItem("matchday:bj_xp", (currentXp + data.xp_reward).toString());
-        } catch {
-          // ignore
-        }
-
-        if (typeof data.coins === "number") setBalance(data.coins);
-        if (typeof data.hohlyantsi === "number") setHohlyantsi(data.hohlyantsi);
-
-        window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
-      }
     } catch (err: unknown) {
       console.error("Помилка купівлі кейсу:", formatErrorMessage(err));
       setErrorMessage(
         err instanceof Error
           ? err.message
-          : "Помилка при купівлі кейсу за Бонуси. Перевірте баланс або базу даних."
+          : "Помилка при купівлі кейсу за Бонуси."
       );
-    } finally {
       setIsOpening(false);
     }
   }
@@ -379,7 +521,7 @@ export default function CasesPage() {
               Кості
             </Link>
             <div className="rounded-xl bg-[#060A17] border border-amber-500/40 px-3 py-1 text-xs font-bold text-amber-300">
-               {balance === null ? "—" : `${balance.toLocaleString()} монет`}
+               {balance === null ? "—" : <AnimatedNumber value={balance} suffix=" монет" />}
             </div>
           </div>
         </div>
@@ -387,18 +529,24 @@ export default function CasesPage() {
         {/* Header */}
         <header className="mb-10 text-center">
           <div className="inline-block rounded-full border border-amber-600/40 bg-amber-950/20 px-4 py-1 text-xs text-amber-300 font-bold mb-3">
-            Секретні кейси та бонуси
+            {isWinter ? "❄️ Святкові зимові кейси та бонуси" : "Секретні кейси та бонуси"}
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-            КЕЙСИ ТА КВЕСТИ
+            {isWinter ? "🎄 ЗИМОВІ КЕЙСИ ТА ПОДАРУНКИ" : "КЕЙСИ ТА КВЕСТИ"}
           </h1>
           <p className="mx-auto mt-2 max-w-xl text-xs text-slate-400 sm:text-sm">
-            Забирай щоденний бонус або купуй кейси за Бонуси, вибивай до 1 000 000 монет і прокачуй рівень агента!
+            Забирай щоденний бонус або крути CS2-рулетку кейсів за Бонуси, вибивай до 1 000 000 монет і прокачуй рівень агента!
           </p>
         </header>
 
         {/* Щоденна нагорода Banner */}
-        <div className="mb-10 rounded-2xl border border-emerald-600/40 bg-gradient-to-r from-emerald-950/50 via-[#0d1620] to-[#070b12] p-6 shadow-2xl relative overflow-hidden">
+        <div
+          className={`mb-10 rounded-2xl border p-6 shadow-2xl relative overflow-hidden ${
+            isWinter
+              ? "border-sky-300/45 bg-gradient-to-r from-[#071f3b]/90 via-[#0a1b33]/90 to-[#061124]/95"
+              : "border-emerald-600/40 bg-gradient-to-r from-emerald-950/50 via-[#0d1620] to-[#070b12]"
+          }`}
+        >
           <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-emerald-500/10 to-transparent pointer-events-none" />
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
             <div className="flex items-center gap-5">
@@ -411,10 +559,10 @@ export default function CasesPage() {
                   БЕЗКОШТОВНИЙ ЩОДЕННИЙ БОНУС (1 РАЗ НА ДОБУ)
                 </span>
                 <h2 className="text-xl font-bold text-white mt-1">
-                  Безкоштовний «Кейс 1 · Стартовий»
+                  {isWinter ? "Безкоштовний «🎁 Мішок Святого Миколая»" : "Безкоштовний «Кейс 1 · Стартовий»"}
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Заходь щодня та отримуй 500-800 монет і +60 XP безкоштовно.
+                  Заходь щодня, запускай рулетку та отримуй 500-800 монет і +60 XP безкоштовно.
                 </p>
               </div>
             </div>
@@ -425,13 +573,25 @@ export default function CasesPage() {
               className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-emerald-600/25 transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isOpening
-                ? "Відкриття..."
+                ? "Прокрутка..."
                 : dailyClaimed
                   ? "Вже забрано сьогодні"
-                  : "Забрати безкоштовно"}
+                  : "Крутити безкоштовно"}
             </button>
           </div>
         </div>
+
+        {/* CS2 Roulette Animation Overlay */}
+        {pendingRoulette && (
+          <CaseRoulette
+            winningCoins={pendingRoulette.coins}
+            winningXp={pendingRoulette.xp}
+            caseTitle={pendingRoulette.box}
+            tier={pendingRoulette.tier}
+            isWinter={isWinter}
+            onFinish={finishRouletteReveal}
+          />
+        )}
 
         {/* Modal-like Reward Alert */}
         {openedReward && (
@@ -498,7 +658,7 @@ export default function CasesPage() {
                 </div>
 
                 <h3 className="text-lg font-black text-white text-center tracking-tight">
-                  {c.title}
+                  {getDisplayCaseTitle(c)}
                 </h3>
                 <p className="mt-2 text-xs text-slate-400 text-center leading-relaxed min-h-[36px]">
                   {c.tagline}
