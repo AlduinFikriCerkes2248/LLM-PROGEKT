@@ -409,10 +409,16 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setOpenCurtainSignal((n) => n + 1)}
-                className="w-full py-1.5 px-3 rounded-lg bg-sky-400/20 hover:bg-sky-400/35 border border-sky-300/40 text-sky-100 text-[11px] font-bold transition cursor-pointer"
+                className="w-full py-1.5 px-3 rounded-lg bg-sky-400/20 hover:bg-sky-400/35 border border-sky-300/40 text-sky-100 text-[11px] font-bold transition cursor-pointer mb-1.5"
               >
                 Відкрити івент ↓
               </button>
+              <Link
+                href="/"
+                className="block w-full py-1.5 px-3 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 text-[11px] font-bold text-center transition"
+              >
+                🎄 Зимовий Лендінг →
+              </Link>
             </div>
           )}
 
@@ -437,6 +443,12 @@ export default function DashboardPage() {
         {/* ВЕРХНЯ ШВИДКА НАВІГАЦІЯ */}
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[rgba(65,140,190,0.22)] pb-4 mb-6">
           <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href="/"
+              className="bg-[rgba(8,191,234,0.12)] border border-[rgba(8,191,234,0.4)] hover:border-[#08bfea] hover:bg-[rgba(8,191,234,0.22)] text-sky-200 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+            >
+              {theme === "winter" ? "🎄 Зимова Вітрина" : "🌐 Вітрина"}
+            </Link>
             <Link
               href="/leagues"
               className="bg-[rgba(13,21,34,0.85)] border border-[rgba(65,140,190,0.22)] hover:border-[#08bfea] hover:bg-[rgba(20,34,54,0.9)] text-[#f1f5fa] hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all"

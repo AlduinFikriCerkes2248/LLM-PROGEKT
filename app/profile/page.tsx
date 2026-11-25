@@ -568,10 +568,16 @@ export default function ProfilePage() {
                       : "bg-slate-50 border-slate-200 opacity-85"
                 }`}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className={`text-xs font-bold ${isDark ? "text-sky-200" : "text-slate-700"}`}>
                     ⚙️ Ефекти Зимового Вайбу {theme !== "winter" && "(увімкніть Зимову тему для активації)"}
                   </span>
+                  <Link
+                    href="/"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/35 border border-sky-300/40 px-2.5 py-1 text-[11px] font-bold text-sky-200 transition"
+                  >
+                    <span>🎄 Відкрити Зимовий Лендінг →</span>
+                  </Link>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">

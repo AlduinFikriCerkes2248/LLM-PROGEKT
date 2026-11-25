@@ -226,32 +226,32 @@ export default function WinterLandingHero() {
           </section>
 
           {/* FLOATING KPI STATS FLANKING THE CENTRAL VALLEY */}
-          <section className="my-6 flex flex-wrap justify-between items-center gap-6 px-2 sm:px-6">
-            <div className="flex gap-8 sm:gap-12">
+          <section className="my-6 flex flex-wrap justify-between items-center gap-6 px-2 sm:px-8">
+            <div className="rounded-2xl bg-[#061226]/75 border border-white/15 backdrop-blur-xl px-6 py-4 shadow-2xl space-y-3">
               <div>
                 <div className="text-2xl sm:text-3xl font-black text-white drop-shadow">
-                  3X <span className="text-[#16c6ff]">↑</span>
+                  3X <span className="text-[#10b981]">↑</span>
                 </div>
                 <div className="text-xs font-semibold text-slate-300">Більше виграшів у 1vs2</div>
               </div>
               <div>
                 <div className="text-2xl sm:text-3xl font-black text-white drop-shadow">
-                  87% <span className="text-[#16c6ff]">↑</span>
+                  87% <span className="text-[#10b981]">↑</span>
                 </div>
                 <div className="text-xs font-semibold text-slate-300">Задоволених користувачів</div>
               </div>
             </div>
 
-            <div className="flex gap-8 sm:gap-12">
+            <div className="rounded-2xl bg-[#061226]/75 border border-white/15 backdrop-blur-xl px-6 py-4 shadow-2xl space-y-3">
               <div>
                 <div className="text-2xl sm:text-3xl font-black text-white drop-shadow">
-                  120K+ <span className="text-[#16c6ff]">↑</span>
+                  120K+ <span className="text-[#10b981]">↑</span>
                 </div>
                 <div className="text-xs font-semibold text-slate-300">Загальних прогнозів</div>
               </div>
               <div>
                 <div className="text-2xl sm:text-3xl font-black text-white drop-shadow">
-                  2.4M <span className="text-[#16c6ff]">↑</span>
+                  2.4M <span className="text-[#10b981]">↑</span>
                 </div>
                 <div className="text-xs font-semibold text-slate-300">Активних подій</div>
               </div>
@@ -302,9 +302,9 @@ export default function WinterLandingHero() {
 
               <Link
                 href="/dashboard"
-                className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-sky-400/20 border border-white/15 hover:border-sky-300/40 text-xs font-bold text-center text-white transition"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#08bfea] to-[#0284c7] hover:from-[#2cd5fb] hover:to-[#08bfea] shadow-[0_0_20px_rgba(8,191,234,0.45)] text-xs font-black text-center text-white transition"
               >
-                ▶ Перейти до прогнозу
+                ▶ Дивитися матч
               </Link>
             </article>
 
