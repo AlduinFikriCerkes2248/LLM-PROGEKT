@@ -4,19 +4,36 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import ThemeToggle from "./theme-toggle";
 import { getSupabaseClient } from "../lib/supabase/client";
+import { AppTheme, getStoredTheme, THEME_CHANGE_EVENT } from "@/lib/theme";
+import WinterLandingHero from "./winter-landing-hero";
 
 export default function FluxHero() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [theme, setTheme] = useState<AppTheme>("dark");
 
   useEffect(() => {
+    setTheme(getStoredTheme());
+    const onTheme = (e: Event) => {
+      const custom = e as CustomEvent<{ theme?: AppTheme }>;
+      setTheme(custom.detail?.theme || getStoredTheme());
+    };
+    window.addEventListener(THEME_CHANGE_EVENT, onTheme);
+
     const client = getSupabaseClient();
-    if (!client) return;
-    client.auth.getSession().then(({ data }) => {
-      if (data?.session) {
-        setIsAuthenticated(true);
-      }
-    });
+    if (client) {
+      client.auth.getSession().then(({ data }) => {
+        if (data?.session) {
+          setIsAuthenticated(true);
+        }
+      });
+    }
+
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, onTheme);
   }, []);
+
+  if (theme === "winter") {
+    return <WinterLandingHero />;
+  }
 
   const primaryActionUrl = isAuthenticated ? "/dashboard" : "/login";
 

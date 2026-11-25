@@ -8,6 +8,7 @@ import {
 } from "../../lib/supabase/client";
 import { useEffect, useState, type FormEvent } from "react";
 import { formatErrorMessage } from "../../lib/error-utils";
+import { AppTheme, getStoredTheme, THEME_CHANGE_EVENT } from "@/lib/theme";
 
 type League = {
   id: string;
@@ -77,6 +78,17 @@ export default function LeaguesPage() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joinStatus, setJoinStatus] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [theme, setTheme] = useState<AppTheme>("dark");
+
+  useEffect(() => {
+    setTheme(getStoredTheme());
+    const onTheme = (e: Event) => {
+      const custom = e as CustomEvent<{ theme?: AppTheme }>;
+      setTheme(custom.detail?.theme || getStoredTheme());
+    };
+    window.addEventListener(THEME_CHANGE_EVENT, onTheme);
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, onTheme);
+  }, []);
 
   useEffect(() => {
     const client = getSupabaseClient();
@@ -355,8 +367,27 @@ export default function LeaguesPage() {
     setTimeout(() => setCopiedCode(false), 2000);
   }
 
+  const isWinter = theme === "winter";
+
   return (
     <main className="min-h-screen flex-1 bg-transparent px-4 py-6 font-sans text-slate-100 sm:px-8 sm:py-8 relative overflow-x-hidden select-none">
+      {isWinter && (
+        <>
+          <div
+            aria-hidden="true"
+            className="fixed inset-0 z-0 bg-cover bg-center"
+            style={{ backgroundImage: "url(/images/winter/stadium-bg.jpg)" }}
+          />
+          <div
+            aria-hidden="true"
+            className="fixed inset-0 z-[1]"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(4, 12, 26, 0.72) 0%, rgba(5, 16, 36, 0.6) 45%, rgba(3, 9, 22, 0.9) 100%)",
+            }}
+          />
+        </>
+      )}
       <DemoNoticeBadge />
 
       <div className="relative z-10 mx-auto max-w-5xl">
@@ -368,9 +399,16 @@ export default function LeaguesPage() {
               <span className="w-1 h-4.5 bg-[#08bfea] rounded-full group-hover:h-5 transition-all" />
               <span className="w-1 h-3.5 bg-[#08bfea] rounded-full group-hover:h-4 transition-all" />
             </div>
-            <span className="font-black text-sm sm:text-base tracking-[0.14em] text-white uppercase ml-1">
-              MATCHDAY
-            </span>
+            <div className="ml-1 flex flex-col">
+              <span className="font-black text-sm sm:text-base tracking-[0.14em] text-white uppercase leading-none">
+                MATCHDAY
+              </span>
+              {isWinter && (
+                <span className="text-[9px] font-black tracking-[0.2em] text-sky-300 uppercase mt-0.5">
+                  WINTER EDITION ❄️
+                </span>
+              )}
+            </div>
           </Link>
 
           <nav className="flex flex-wrap items-center gap-2">
@@ -421,11 +459,11 @@ export default function LeaguesPage() {
 
         {/* Заголовок сторінки (Hero Section) */}
         <section className="mb-9 text-center">
-          <span className="inline-block border border-[rgba(8,191,234,0.4)] bg-[rgba(8,191,234,0.1)] text-[#08bfea] px-3.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider mb-3">
-            Футбольні ліги та турніри
+          <span className="inline-block border border-[rgba(8,191,234,0.4)] bg-[rgba(8,191,234,0.1)] text-[#08bfea] px-3.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider mb-3 backdrop-blur-md">
+            {isWinter ? "❄️ Зимовий Кубок та Ліги MATCHDAY" : "Футбольні ліги та турніри"}
           </span>
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight mb-2">
-            Турніри та ліги прогнозів
+          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight mb-2 drop-shadow">
+            Турніри та <span className={isWinter ? "text-sky-300" : ""}>ліги</span> прогнозів
           </h1>
           <p className="text-xs sm:text-sm text-[#9aa9be] max-w-lg mx-auto">
             Створюйте власні ліги для друзів та колег або приєднуйтесь за інвайт-кодом організатора.
@@ -435,7 +473,13 @@ export default function LeaguesPage() {
         {/* Дві форми: Створити лігу & Приєднатися */}
         <div className="grid gap-5 sm:grid-cols-2 mb-9">
           {/* Створити лігу */}
-          <div className="bg-[#101a29] border border-[rgba(65,140,190,0.22)] rounded-2xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]">
+          <div
+            className={`rounded-2xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)] backdrop-blur-xl transition ${
+              isWinter
+                ? "bg-[#09182f]/75 border border-sky-300/30 hover:border-sky-300/60"
+                : "bg-[#101a29]/90 border border-[rgba(65,140,190,0.22)]"
+            }`}
+          >
             <div className="text-sm font-black uppercase text-white flex items-center gap-2 mb-1.5">
               <span className="text-[#ff7a24] font-black text-base">+</span> Створити лігу
             </div>
@@ -466,7 +510,13 @@ export default function LeaguesPage() {
           </div>
 
           {/* Приєднатися за кодом */}
-          <div className="bg-[#101a29] border border-[rgba(65,140,190,0.22)] rounded-2xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]">
+          <div
+            className={`rounded-2xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)] backdrop-blur-xl transition ${
+              isWinter
+                ? "bg-[#09182f]/75 border border-sky-300/30 hover:border-sky-300/60"
+                : "bg-[#101a29]/90 border border-[rgba(65,140,190,0.22)]"
+            }`}
+          >
             <div className="text-sm font-black uppercase text-white flex items-center gap-2 mb-1.5">
               <span className="text-[#08bfea] text-sm">🔑</span> Приєднатися за кодом
             </div>

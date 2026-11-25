@@ -6,6 +6,10 @@ import ThemeToggle from "../../components/theme-toggle";
 import MatrixAvatar from "../../components/matrix-avatar";
 import { AppTheme, getStoredTheme } from "@/lib/theme";
 import AiChipIcon from "../../components/ai-chip-icon";
+import WinterEventCurtain, {
+  NewYearCountdown,
+  PineBranchSvg,
+} from "@/components/winter-event-curtain";
 import { getSupabaseClient, PROFILE_UPDATED_EVENT } from "../../lib/supabase/client";
 
 type Leader = {
@@ -34,6 +38,7 @@ export default function DashboardPage() {
   const [leaderTab, setLeaderTab] = useState<"all" | "month" | "week">("all");
   const [theme, setTheme] = useState<AppTheme>("dark");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [openCurtainSignal, setOpenCurtainSignal] = useState(0);
 
   useEffect(() => {
     setTheme(getStoredTheme());
@@ -390,8 +395,27 @@ export default function DashboardPage() {
           </ul>
         </div>
 
-        {/* Налаштування акаунта внизу (Щит / Шестерня) */}
-        <div>
+        {/* Зимовий віджет у сайдбарі + Адміністрування */}
+        <div className="space-y-3">
+          {theme === "winter" && (
+            <div className="rounded-xl border border-sky-300/30 bg-gradient-to-br from-[#0c2340]/90 to-[#061326]/95 p-3.5 shadow-[0_0_20px_rgba(56,189,248,0.15)]">
+              <div className="flex items-center gap-1.5 text-xs font-black text-sky-200 mb-1">
+                <span>❄️</span>
+                <span>Зимовий Сезон 2026</span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed mb-2.5">
+                Потягніть верхній ярлик униз, щоб зануритися у святкову локацію.
+              </p>
+              <button
+                type="button"
+                onClick={() => setOpenCurtainSignal((n) => n + 1)}
+                className="w-full py-1.5 px-3 rounded-lg bg-sky-400/20 hover:bg-sky-400/35 border border-sky-300/40 text-sky-100 text-[11px] font-bold transition cursor-pointer"
+              >
+                Відкрити івент ↓
+              </button>
+            </div>
+          )}
+
           <Link
             href="/login"
             className="group flex items-center gap-3 px-3 py-2 text-xs font-semibold text-[#9aa9be] hover:text-white hover:bg-[rgba(13,21,34,0.6)] rounded-xl transition-all"
@@ -407,6 +431,9 @@ export default function DashboardPage() {
 
       {/* 2. ГОЛОВНИЙ ВМІСТ (MAIN WRAPPER, ЗМІЩЕНИЙ НА 240px ВПРАВО) */}
       <main className="md:ml-[240px] flex-1 px-6 py-6 pb-16 relative z-10 max-w-[1350px] w-full">
+        {theme === "winter" && (
+          <WinterEventCurtain externalOpenSignal={openCurtainSignal} />
+        )}
         {/* ВЕРХНЯ ШВИДКА НАВІГАЦІЯ */}
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[rgba(65,140,190,0.22)] pb-4 mb-6">
           <div className="flex items-center gap-2 flex-wrap">
@@ -525,22 +552,78 @@ export default function DashboardPage() {
           {/* ========================================================= */}
           <div className="lg:col-span-8 space-y-6">
             {/* 1. ПРИВІТАЛЬНИЙ БАНЕР */}
-            <section className="bg-gradient-to-r from-[#0e1726]/90 to-[#0a101a]/90 backdrop-blur-md border border-[rgba(65,140,190,0.22)] rounded-2xl p-7 relative overflow-hidden shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]">
-              <div className="absolute right-4 top-0 bottom-0 w-64 bg-[radial-gradient(circle_at_center,rgba(8,191,234,0.18)_0%,transparent_70%)] pointer-events-none" />
-              <div className="relative z-10">
-                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-1.5">
-                  Привіт, {username}!
-                </h1>
-                <p className="text-xs sm:text-sm text-[#9aa9be] max-w-lg leading-relaxed flex items-center gap-1.5 flex-wrap">
-                  Ласкаво просимо до MATCHDAY — твого простору прогнозів,
-                  <span className="inline-flex items-center gap-1 text-[#08bfea] font-bold">
-                    <AiChipIcon size={16} glowColor="#08bfea" active />
-                    AI-аналітики
-                  </span>
-                  та турнірів із друзями.
-                </p>
-              </div>
-            </section>
+            {theme === "winter" ? (
+              <section
+                className="relative rounded-2xl p-7 sm:p-8 overflow-hidden border border-sky-300/35 shadow-[0_14px_38px_-10px_rgba(0,0,0,0.75)] flex flex-col justify-between min-h-[260px]"
+                style={{
+                  backgroundColor: "#040c22",
+                  backgroundImage: `linear-gradient(90deg, rgba(3, 8, 22, 0.96) 0%, rgba(5, 14, 38, 0.88) 48%, rgba(5, 14, 38, 0.35) 82%, rgba(3, 8, 22, 0.75) 100%),
+                    linear-gradient(0deg, rgba(3, 8, 22, 0.95) 0%, rgba(3, 8, 22, 0.2) 60%, transparent 100%),
+                    url(/images/winter/cabin-bg.jpg)`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center right",
+                }}
+              >
+                {/* Засніжена гілка ялинки у правому кутку */}
+                <PineBranchSvg className="absolute -top-2 -right-2 w-44 h-32 opacity-90" />
+
+                <div className="relative z-10">
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 border border-amber-400/50 text-amber-300">
+                      ❄️ ЗИМОВИЙ ТУРНІР 2026
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-500/20 border border-sky-400/40 text-sky-200">
+                      ⚡ x2.5 XP БУСТ
+                    </span>
+                  </div>
+
+                  <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-2">
+                    Святковий Вікенд на{" "}
+                    <span className="text-[#38bdf8]">MATCHDAY</span>
+                  </h1>
+
+                  <p className="text-xs sm:text-sm text-sky-100/90 max-w-lg leading-relaxed mb-4">
+                    Привіт, <b>{username}</b>! Твій святковий буст <b>x2.5</b> уже активний. Роби точні прогнози, заробляй кубки та забирай нагороди!
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Link
+                      href="/leagues"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#ff8a2b] to-[#ff6116] text-white text-xs font-extrabold shadow-[0_6px_20px_rgba(255,123,28,0.4)] hover:scale-105 transition"
+                    >
+                      <span>Взяти участь у розіграші</span>
+                      <span>→</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setOpenCurtainSignal((n) => n + 1)}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/35 border border-sky-300/40 text-sky-100 text-xs font-bold backdrop-blur-md transition cursor-pointer"
+                    >
+                      <span>Календар нагород 🎁</span>
+                    </button>
+                  </div>
+
+                  <NewYearCountdown />
+                </div>
+              </section>
+            ) : (
+              <section className="bg-gradient-to-r from-[#0e1726]/90 to-[#0a101a]/90 backdrop-blur-md border border-[rgba(65,140,190,0.22)] rounded-2xl p-7 relative overflow-hidden shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]">
+                <div className="absolute right-4 top-0 bottom-0 w-64 bg-[radial-gradient(circle_at_center,rgba(8,191,234,0.18)_0%,transparent_70%)] pointer-events-none" />
+                <div className="relative z-10">
+                  <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-1.5">
+                    Привіт, {username}!
+                  </h1>
+                  <p className="text-xs sm:text-sm text-[#9aa9be] max-w-lg leading-relaxed flex items-center gap-1.5 flex-wrap">
+                    Ласкаво просимо до MATCHDAY — твого простору прогнозів,
+                    <span className="inline-flex items-center gap-1 text-[#08bfea] font-bold">
+                      <AiChipIcon size={16} glowColor="#08bfea" active />
+                      AI-аналітики
+                    </span>
+                    та турнірів із друзями.
+                  </p>
+                </div>
+              </section>
+            )}
 
             {/* 2. ТРИ КАРТКИ МЕТРИК (МОНЕТ 1.08M, 12, MD #1) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
